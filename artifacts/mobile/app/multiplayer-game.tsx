@@ -2,8 +2,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Colors } from '@/constants/colors';
+import type { MapRendererMode } from '@/components/game/GameMap';
 import type { GameAction } from '@/game/types';
 import { CampaignScreen } from './game';
 import {
@@ -21,8 +22,14 @@ import {
   submitMultiplayerGameplayAction,
 } from '@/lib/multiplayerGameplay';
 
+function rendererModeFromParam(value: string | string[] | undefined): MapRendererMode {
+  const renderer = (Array.isArray(value) ? value[0] : value)?.toLowerCase();
+  return renderer === 'r3f' || renderer === '3d' ? 'r3f' : 'svg';
+}
+
 export default function MultiplayerGameScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ renderer?: string | string[] }>();
   const [session, setSession] = useState<MultiplayerLocalSession | null>(null);
   const [snapshot, setSnapshot] = useState<MultiplayerSnapshot | null>(null);
   const [status, setStatus] = useState('Loading multiplayer session.');
@@ -160,6 +167,7 @@ export default function MultiplayerGameScreen() {
       onExit={() => router.replace('/multiplayer')}
       onVictoryExit={() => router.replace('/multiplayer')}
       onActionError={reportError}
+      initialRendererMode={rendererModeFromParam(params.renderer)}
       statusBanner={
         <View style={styles.banner} pointerEvents="none">
           <Text style={styles.bannerTitle}>MULTIPLAYER BATTLEFIELD</Text>

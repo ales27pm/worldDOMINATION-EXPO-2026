@@ -4,9 +4,11 @@ import {
   MAP_SCENE_TERRITORY_HEIGHT,
   mapBoardPointToWorld,
   mapVariantIncludesExtraTerritories,
+  territoryPickMeshName,
   territoryMeshName,
   type MapVariant,
   type TerritoryMeshName,
+  type TerritoryPickMeshName,
 } from "./mapSceneGeometry";
 import { dominantPiece, type PieceType } from "./pieces";
 import type {
@@ -41,6 +43,7 @@ export type TerritoryInteraction =
 export interface MapSceneTerritory {
   id: TerritoryId;
   meshName: TerritoryMeshName;
+  pickMeshName: TerritoryPickMeshName;
   displayName: string;
   stableIndex: number;
   ownerId: number;
@@ -73,6 +76,40 @@ export interface MapSceneModel {
   targetIds: TerritoryId[];
   interactiveIds: TerritoryId[];
   battle: MapSceneBattleEffect | null;
+}
+
+export interface MapScenePresentationState {
+  seenBattleIds: ReadonlySet<string>;
+}
+
+export interface MapScenePresentationUpdate {
+  state: MapScenePresentationState;
+  battle: MapSceneBattleEffect | null;
+}
+
+export function createMapScenePresentationState(
+  model: Pick<MapSceneModel, "battle">,
+): MapScenePresentationState {
+  return {
+    seenBattleIds: new Set(model.battle ? [model.battle.id] : []),
+  };
+}
+
+export function advanceMapScenePresentation(
+  state: MapScenePresentationState,
+  model: Pick<MapSceneModel, "battle">,
+): MapScenePresentationUpdate {
+  const battle = model.battle;
+  if (!battle || state.seenBattleIds.has(battle.id)) {
+    return { state, battle: null };
+  }
+
+  return {
+    state: {
+      seenBattleIds: new Set([...state.seenBattleIds, battle.id]),
+    },
+    battle,
+  };
 }
 
 function heatColor(value: number): string {
@@ -193,6 +230,7 @@ function sceneTerritory(
   return {
     id,
     meshName: territoryMeshName(id),
+    pickMeshName: territoryPickMeshName(id),
     displayName: definition.name,
     stableIndex: ALL_TERRITORIES.findIndex((territory) => territory.id === id),
     ownerId: state.owner,
@@ -232,34 +270,31 @@ export function buildMapSceneModel(
   const interactiveIds = definitions
     .map((territory) => territory.id)
     .filter((id) => interactive.has(id));
-
-  return {
+  const territories = definitions.map((definition) =>
+    sceneTerritory(
+      game,
+      definition.id,
+      game.territories[definition.id],
+      selected,
+      targets,
+      interactive,
+      tints,
+      capitals,
+    ),
+  );
+  const battle = battleEffect(game, activeBattle);
+  const scene: Omit<MapSceneModel, "revision"> = {
     contractVersion: 1,
     variant,
-    revision: [
-      game.turn,
-      game.phase,
-      game.currentPlayer,
-      game.battlesFought,
-      viewMode,
-      selected ?? "-",
-      targetIds.join(","),
-    ].join("|"),
-    territories: definitions.map((definition) =>
-      sceneTerritory(
-        game,
-        definition.id,
-        game.territories[definition.id],
-        selected,
-        targets,
-        interactive,
-        tints,
-        capitals,
-      ),
-    ),
+    territories,
     selectedId: selected,
     targetIds,
     interactiveIds,
-    battle: battleEffect(game, activeBattle),
+    battle,
+  };
+
+  return {
+    ...scene,
+    revision: JSON.stringify(scene),
   };
 }

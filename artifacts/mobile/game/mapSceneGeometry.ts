@@ -10,6 +10,7 @@ export const MAP_VARIANTS = ["classic", "expanded"] as const;
 
 export type MapVariant = (typeof MAP_VARIANTS)[number];
 export type TerritoryMeshName = `territory__${TerritoryId}`;
+export type TerritoryPickMeshName = `pick__${TerritoryId}`;
 
 export function mapVariantIncludesExtraTerritories(
   variant: MapVariant,
@@ -25,6 +26,10 @@ export function mapSceneAssetFilename(
 
 export function territoryMeshName(id: TerritoryId): TerritoryMeshName {
   return `territory__${id}`;
+}
+
+export function territoryPickMeshName(id: TerritoryId): TerritoryPickMeshName {
+  return `pick__${id}`;
 }
 
 export function mapBoardPointToWorld(

@@ -51,11 +51,18 @@ import {
   type MapCameraRuntime,
 } from "@/game/mapCameraIntent";
 import {
+  advanceMapScenePresentation,
   buildMapSceneModel,
+  createMapScenePresentationState,
   type MapSceneBattleEffect,
   type MapSceneModel,
+  type MapScenePresentationState,
   type MapViewMode,
 } from "@/game/mapSceneModel";
+import {
+  createMapScenePickIndex,
+  pickTerritoryFromIntersections,
+} from "@/game/mapScenePicking";
 import type { GameState, TerritoryId } from "@/game/types";
 
 interface Props {
@@ -98,11 +105,23 @@ const BUTTON_ZOOM = 1.45;
 const DOUBLE_TAP_ZOOM = 2.4;
 const DYNAMIC_SHADOWS = Platform.OS === "web";
 const BATTLE_EFFECT_DURATION = 2.05;
+const ENABLE_SCENE_PROJECTION =
+  Platform.OS === "web" ||
+  process.env.EXPO_PUBLIC_BROWSER_SMOKE === "1";
 
-function BattleEffect({ battle }: { battle: MapSceneBattleEffect }) {
+function BattleEffect({
+  battle,
+  onComplete,
+}: {
+  battle: MapSceneBattleEffect;
+  onComplete: (battleId: string) => void;
+}) {
   const projectile = useRef<Mesh>(null);
   const impact = useRef<Group>(null);
   const startedAt = useRef<number | null>(null);
+  const completed = useRef(false);
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
   const invalidate = useThree((state) => state.invalidate);
   const start = useMemo(() => new Vector3(...battle.fromAnchor), [battle]);
   const end = useMemo(() => new Vector3(...battle.toAnchor), [battle]);
@@ -137,8 +156,17 @@ function BattleEffect({ battle }: { battle: MapSceneBattleEffect }) {
 
   useEffect(() => {
     startedAt.current = null;
+    completed.current = false;
     line.visible = true;
   }, [battle.id, line]);
+
+  useEffect(
+    () => () => {
+      lineGeometry.dispose();
+      lineMaterial.dispose();
+    },
+    [lineGeometry, lineMaterial],
+  );
 
   useFrame(({ clock }) => {
     if (startedAt.current === null) startedAt.current = clock.elapsedTime;
@@ -147,6 +175,10 @@ function BattleEffect({ battle }: { battle: MapSceneBattleEffect }) {
       line.visible = false;
       if (projectile.current) projectile.current.visible = false;
       if (impact.current) impact.current.visible = false;
+      if (!completed.current) {
+        completed.current = true;
+        onCompleteRef.current(battle.id);
+      }
       return;
     }
     const cycle = elapsed;
@@ -267,7 +299,7 @@ function CameraRig({
   return null;
 }
 
-function WebSceneProjection({
+function SceneProjection({
   model,
   layout,
   camera,
@@ -283,11 +315,7 @@ function WebSceneProjection({
   useFrame(() => {
     for (const territory of model.territories) {
       const screenPoint = point.current
-        .set(
-          territory.anchor[0],
-          territory.anchor[1],
-          territory.anchor[2],
-        )
+        .set(territory.anchor[0], territory.anchor[1], territory.anchor[2])
         .project(camera);
       const target = projected[territory.id];
       target.x = ((screenPoint.x + 1) / 2) * layout.width;
@@ -310,9 +338,10 @@ function SceneBridge({
   const camera = useThree((state) => state.camera);
   const scene = useThree((state) => state.scene);
   const invalidate = useThree((state) => state.invalidate);
+  const publishedMeshCount = useRef(-1);
   const projected = useMemo(
     () =>
-      Platform.OS === "web"
+      ENABLE_SCENE_PROJECTION
         ? Object.fromEntries(
             model.territories.map((territory) => [
               territory.id,
@@ -323,7 +352,7 @@ function SceneBridge({
     [model.territories],
   );
 
-  useEffect(() => {
+  const publishBridge = useCallback(() => {
     const meshes: Mesh[] = [];
     scene.traverse((object) => {
       const mesh = object as Mesh;
@@ -331,11 +360,23 @@ function SceneBridge({
         meshes.push(mesh);
       }
     });
+    publishedMeshCount.current = meshes.length;
     onBridge({ camera, invalidate, meshes, projected });
+  }, [camera, invalidate, onBridge, projected, scene]);
+
+  useEffect(() => {
+    publishedMeshCount.current = -1;
+    publishBridge();
+  }, [publishBridge]);
+
+  useFrame(() => {
+    if (publishedMeshCount.current !== model.territories.length) {
+      publishBridge();
+    }
   });
 
-  return Platform.OS === "web" ? (
-    <WebSceneProjection
+  return ENABLE_SCENE_PROJECTION ? (
+    <SceneProjection
       model={model}
       layout={layout}
       camera={camera}
@@ -368,18 +409,22 @@ function PerformanceProbe() {
 
 function TabletopScene({
   model,
+  battle,
   runtime,
   aspect,
   layout,
   onBridge,
   onLoaded,
+  onBattleComplete,
 }: {
   model: MapSceneModel;
+  battle: MapSceneBattleEffect | null;
   runtime: React.MutableRefObject<MapCameraRuntime>;
   aspect: number;
   layout: LayoutSize;
   onBridge: (bridge: SceneBridgeState) => void;
   onLoaded: () => void;
+  onBattleComplete: (battleId: string) => void;
 }) {
   return (
     <>
@@ -403,7 +448,9 @@ function TabletopScene({
       <Suspense fallback={null}>
         <R3FTerritoryMeshes model={model} onLoaded={onLoaded} />
         <R3FArmyLayer model={model} />
-        {model.battle ? <BattleEffect battle={model.battle} /> : null}
+        {battle ? (
+          <BattleEffect battle={battle} onComplete={onBattleComplete} />
+        ) : null}
         <SceneBridge model={model} layout={layout} onBridge={onBridge} />
       </Suspense>
       <CameraRig runtime={runtime} aspect={aspect} />
@@ -469,6 +516,13 @@ export default function R3FGameMap({
     () => buildMapSceneModel(game, selected, targets, interactive, viewMode),
     [game, interactive, selected, targets, viewMode],
   );
+  const presentationRef = useRef<MapScenePresentationState | null>(null);
+  if (!presentationRef.current) {
+    presentationRef.current = createMapScenePresentationState(model);
+  }
+  const [presentedBattle, setPresentedBattle] =
+    useState<MapSceneBattleEffect | null>(null);
+  const pickIndex = useMemo(() => createMapScenePickIndex(model), [model]);
   const runtime = useRef(
     createMapCameraRuntime(
       initialCameraIntent(game, selected, aspect, layout.width),
@@ -478,6 +532,15 @@ export default function R3FGameMap({
   const requestRender = useCallback(() => {
     pickerRef.current?.invalidate();
   }, []);
+
+  useEffect(() => {
+    const update = advanceMapScenePresentation(
+      presentationRef.current ?? createMapScenePresentationState(model),
+      model,
+    );
+    presentationRef.current = update.state;
+    if (update.battle) setPresentedBattle(update.battle);
+  }, [model]);
 
   useEffect(() => {
     if (layout.width <= 0 || layout.height <= 0) return;
@@ -630,12 +693,13 @@ export default function R3FGameMap({
         ),
         picker.camera,
       );
-      const hit = raycaster.intersectObjects(picker.meshes, false)[0];
-      const name = hit?.object.name;
-      if (!name?.startsWith("pick__")) return;
-      onTapRef.current(name.slice("pick__".length) as TerritoryId);
+      const id = pickTerritoryFromIntersections(
+        pickIndex,
+        raycaster.intersectObjects(picker.meshes, false),
+      );
+      if (id) onTapRef.current(id);
     },
-    [layout.height, layout.width],
+    [layout.height, layout.width, pickIndex],
   );
 
   const handleDoubleTap = useCallback(
@@ -744,6 +808,11 @@ export default function R3FGameMap({
     Platform.OS === "web"
       ? ({ onWheel: handleWheel } as unknown as ViewProps)
       : {};
+  const handleBattleComplete = useCallback((battleId: string) => {
+    setPresentedBattle((current) =>
+      current?.id === battleId ? null : current,
+    );
+  }, []);
 
   useEffect(() => {
     if (process.env.EXPO_PUBLIC_BROWSER_SMOKE !== "1") return;
@@ -756,9 +825,12 @@ export default function R3FGameMap({
       armyModels: ["infantry", "cavalry", "artillery"],
       selectedId: model.selectedId,
       targetIds: model.targetIds,
-      battleId: model.battle?.id ?? null,
-      battleActive: Boolean(model.battle),
+      sceneRevision: model.revision,
+      canonicalBattleId: model.battle?.id ?? null,
+      battleId: presentedBattle?.id ?? null,
+      battleActive: Boolean(presentedBattle),
       projected: projectedRef.current,
+      pickerMeshCount: pickerRef.current?.meshes.length ?? 0,
       camera: runtime.current.current,
     };
     (
@@ -766,7 +838,7 @@ export default function R3FGameMap({
         __WORLD_DOMINATION_R3F__?: typeof debug;
       }
     ).__WORLD_DOMINATION_R3F__ = debug;
-  }, [loaded, model]);
+  }, [loaded, model, presentedBattle]);
 
   return (
     <View testID="map-3d-root" style={styles.container} onLayout={handleLayout}>
@@ -800,11 +872,13 @@ export default function R3FGameMap({
         >
           <TabletopScene
             model={model}
+            battle={presentedBattle}
             runtime={runtime}
             aspect={aspect}
             layout={layout}
             onBridge={handleBridge}
             onLoaded={handleLoaded}
+            onBattleComplete={handleBattleComplete}
           />
         </Canvas>
       </R3FGestureSurface>

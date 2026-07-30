@@ -1,13 +1,18 @@
-import { deepEqual, equal, ok } from "node:assert/strict";
+import { deepEqual, equal, notEqual, ok } from "node:assert/strict";
 import { test } from "node:test";
 
+import { normalizeState } from "../../game/engine";
 import { activeTerritories, TERRITORY_MAP } from "../../game/mapData";
 import {
   MAP_SCENE_TERRITORY_HEIGHT,
   mapBoardPointToWorld,
   territoryMeshName,
 } from "../../game/mapSceneGeometry";
-import { buildMapSceneModel } from "../../game/mapSceneModel";
+import {
+  advanceMapScenePresentation,
+  buildMapSceneModel,
+  createMapScenePresentationState,
+} from "../../game/mapSceneModel";
 import type { BattleReport, TerritoryId } from "../../game/types";
 import {
   createClassicState,
@@ -161,4 +166,142 @@ test("scene model emits deterministic classic and same-time battle effects", () 
   );
   equal(sameTimeModel.battle?.from, "china");
   equal(sameTimeModel.battle?.to, "india");
+});
+
+test("scene revisions cover every renderer-facing field and survive JSON restoration", () => {
+  const game = createClassicState();
+  setTerritories(game, {
+    brazil: { owner: 0, armies: 6 },
+    northAfrica: { owner: 1, armies: 2 },
+  });
+  const baseline = buildMapSceneModel(
+    game,
+    "brazil",
+    new Set(["northAfrica"]),
+    new Set(["brazil", "northAfrica"]),
+    "board",
+  );
+  const restored = normalizeState(
+    JSON.parse(JSON.stringify(game)) as typeof game,
+  );
+  const restoredModel = buildMapSceneModel(
+    restored,
+    "brazil",
+    new Set(["northAfrica"]),
+    new Set(["brazil", "northAfrica"]),
+    "board",
+  );
+
+  deepEqual(restoredModel, baseline);
+
+  const armyChange = normalizeState(
+    JSON.parse(JSON.stringify(game)) as typeof game,
+  );
+  armyChange.territories.brazil = {
+    ...armyChange.territories.brazil,
+    armies: armyChange.territories.brazil.armies + 1,
+  };
+  notEqual(
+    buildMapSceneModel(
+      armyChange,
+      "brazil",
+      new Set(["northAfrica"]),
+      new Set(["brazil", "northAfrica"]),
+      "board",
+    ).revision,
+    baseline.revision,
+  );
+
+  notEqual(
+    buildMapSceneModel(
+      game,
+      "brazil",
+      new Set(["northAfrica"]),
+      new Set(["brazil"]),
+      "board",
+    ).revision,
+    baseline.revision,
+  );
+  notEqual(
+    buildMapSceneModel(
+      game,
+      "brazil",
+      new Set(["northAfrica"]),
+      new Set(["brazil", "northAfrica"]),
+      "ownership",
+    ).revision,
+    baseline.revision,
+  );
+});
+
+test("presentation state suppresses restored and repeated battles but emits new snapshots once", () => {
+  const restoredGame = createClassicState();
+  restoredGame.turn = 4;
+  restoredGame.battlesFought = 7;
+  restoredGame.lastBattle = battle("brazil", "northAfrica");
+  const restoredModel = buildMapSceneModel(
+    normalizeState(
+      JSON.parse(JSON.stringify(restoredGame)) as typeof restoredGame,
+    ),
+    null,
+    new Set(),
+    new Set(),
+    "board",
+  );
+  let state = createMapScenePresentationState(restoredModel);
+
+  let update = advanceMapScenePresentation(state, restoredModel);
+  equal(update.battle, null);
+  state = update.state;
+
+  const repeatedModel = buildMapSceneModel(
+    normalizeState(
+      JSON.parse(JSON.stringify(restoredGame)) as typeof restoredGame,
+    ),
+    null,
+    new Set(),
+    new Set(),
+    "board",
+  );
+  update = advanceMapScenePresentation(state, repeatedModel);
+  equal(update.battle, null);
+  state = update.state;
+
+  const nextGame = normalizeState(
+    JSON.parse(JSON.stringify(restoredGame)) as typeof restoredGame,
+  );
+  nextGame.battlesFought += 1;
+  nextGame.lastBattle = battle("china", "india");
+  const nextModel = buildMapSceneModel(
+    nextGame,
+    null,
+    new Set(),
+    new Set(),
+    "board",
+  );
+  update = advanceMapScenePresentation(state, nextModel);
+  equal(update.battle?.id, nextModel.battle?.id);
+  state = update.state;
+
+  update = advanceMapScenePresentation(state, nextModel);
+  equal(update.battle, null);
+  state = update.state;
+
+  const quietGame = normalizeState(
+    JSON.parse(JSON.stringify(nextGame)) as typeof nextGame,
+  );
+  quietGame.lastBattle = null;
+  const quietModel = buildMapSceneModel(
+    quietGame,
+    null,
+    new Set(),
+    new Set(),
+    "board",
+  );
+  update = advanceMapScenePresentation(state, quietModel);
+  equal(update.battle, null);
+  state = update.state;
+
+  update = advanceMapScenePresentation(state, restoredModel);
+  equal(update.battle, null);
 });

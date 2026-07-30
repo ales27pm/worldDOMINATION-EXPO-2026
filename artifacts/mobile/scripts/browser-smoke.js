@@ -553,6 +553,10 @@ async function assertR3FVerticalSlice(page) {
     `R3F preview loaded ${initial.territoryCount} territories`,
   );
   assert(
+    initial.pickerMeshCount === initial.territoryCount,
+    `R3F picker registered ${initial.pickerMeshCount}/${initial.territoryCount} territory meshes`,
+  );
+  assert(
     JSON.stringify(initial.armyModels) ===
       JSON.stringify(["infantry", "cavalry", "artillery"]),
     `R3F preview did not expose all army model classes: ${JSON.stringify(initial.armyModels)}`,
@@ -619,6 +623,258 @@ async function assertR3FVerticalSlice(page) {
     attacked.battleActive,
     "R3F attack did not create an on-map battle effect",
   );
+  const battleId = attacked.battleId;
+  assert(
+    attacked.canonicalBattleId === battleId,
+    "R3F presentation did not match the canonical battle",
+  );
+  await page.waitForFunction(
+    () =>
+      globalThis.__WORLD_DOMINATION_R3F__?.battleActive === false &&
+      globalThis.__WORLD_DOMINATION_R3F__?.battleId === null,
+    null,
+    { timeout: 5000 },
+  );
+  const settled = await page.evaluate(
+    () => globalThis.__WORLD_DOMINATION_R3F__,
+  );
+  assert(
+    settled.canonicalBattleId === battleId,
+    "R3F finite effect cleared the canonical battle state",
+  );
+  await page.waitForFunction(
+    () => {
+      const raw = window.localStorage.getItem("worlddomination.db.saveSlot");
+      if (!raw) return false;
+      try {
+        const state = JSON.parse(raw)?.state;
+        return (
+          state?.battlesFought > 0 &&
+          state?.lastBattle?.from === "brazil" &&
+          state?.lastBattle?.to === "northAfrica"
+        );
+      } catch {
+        return false;
+      }
+    },
+    null,
+    { timeout: 10000 },
+  );
+
+  console.log("checking - R3F save restore presentation");
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.waitForFunction(
+    (expectedBattleId) =>
+      globalThis.__WORLD_DOMINATION_R3F__?.ready === true &&
+      globalThis.__WORLD_DOMINATION_R3F__?.canonicalBattleId ===
+        expectedBattleId,
+    battleId,
+    { timeout: 30000 },
+  );
+  const restored = await page.evaluate(
+    () => globalThis.__WORLD_DOMINATION_R3F__,
+  );
+  assert(
+    restored.battleActive === false && restored.battleId === null,
+    "R3F replayed a historical battle after save restore",
+  );
+  await page.waitForTimeout(2400);
+  const restoredSettled = await page.evaluate(
+    () => globalThis.__WORLD_DOMINATION_R3F__,
+  );
+  assert(
+    restoredSettled.battleActive === false &&
+      restoredSettled.canonicalBattleId === battleId,
+    "R3F started a delayed historical battle after save restore",
+  );
+  await assertR3FCanvasPixels(page, "restored R3F tabletop");
+  console.log("ok - R3F save restore presentation");
+}
+
+async function assertR3FMultiplayerSnapshots(browser, origin, errors) {
+  const context = await browser.newContext({ viewport: VIEWPORTS.desktop });
+  await context.addInitScript(() => {
+    Object.defineProperty(globalThis, "WebSocket", {
+      configurable: true,
+      value: undefined,
+    });
+    Object.defineProperty(globalThis, "EventSource", {
+      configurable: true,
+      value: undefined,
+    });
+  });
+  const page = await context.newPage();
+  page.on("pageerror", (error) =>
+    errors.push(`rendered R3F multiplayer snapshots: ${error.message}`),
+  );
+
+  let snapshot = null;
+  let requestCount = 0;
+  await context.route("**/api/multiplayer/matches/**", async (route) => {
+    requestCount += 1;
+    await route.fulfill({
+      status: snapshot ? 200 : 503,
+      contentType: "application/json",
+      body: JSON.stringify(
+        snapshot ?? {
+          error: "SNAPSHOT_NOT_READY",
+          message: "Snapshot fixture is not ready.",
+        },
+      ),
+    });
+  });
+
+  try {
+    console.log("checking - rendered R3F multiplayer snapshots");
+    await assertRenderedRoute(
+      page,
+      `${origin}/game?autostart=1&attackDemo=1&players=2`,
+      ["Napoleon", "ATTACK", "BATTLES:"],
+      "rendered multiplayer snapshot seed",
+    );
+    await page.waitForFunction(
+      () => {
+        const raw = window.localStorage.getItem("worlddomination.db.saveSlot");
+        return Boolean(raw && JSON.parse(raw)?.state?.players?.length === 2);
+      },
+      null,
+      { timeout: 10000 },
+    );
+    const state = await page.evaluate(() => {
+      const raw = window.localStorage.getItem("worlddomination.db.saveSlot");
+      return JSON.parse(raw).state;
+    });
+    state.phase = "attack";
+    state.currentPlayer = 0;
+    state.awaitingHandoff = false;
+    state.pendingOccupy = null;
+    state.battlesFought = 5;
+    state.lastBattle = {
+      from: "brazil",
+      to: "northAfrica",
+      attacker: 0,
+      defender: 1,
+      attackerRolls: [6, 4, 2],
+      defenderRolls: [5, 1],
+      attackerLosses: 1,
+      defenderLosses: 1,
+      rounds: 1,
+      conquered: false,
+      attackerTier: "classicAttack",
+      defenderTier: "classicDefend",
+    };
+    snapshot = {
+      id: "renderer-contract",
+      version: 1,
+      createdAt: "2026-07-30T00:00:00.000Z",
+      updatedAt: "2026-07-30T00:00:01.000Z",
+      seats: [],
+      you: 0,
+      state,
+    };
+    await page.evaluate(
+      ({ apiBaseUrl }) => {
+        window.localStorage.setItem(
+          "worlddomination.multiplayer.session",
+          JSON.stringify({
+            apiBaseUrl,
+            matchId: "renderer-contract",
+            playerToken: "browser-renderer-seat",
+            playerId: 0,
+            updatedAt: "2026-07-30T00:00:01.000Z",
+          }),
+        );
+      },
+      { apiBaseUrl: `${origin}/api` },
+    );
+
+    await assertRenderedRoute(
+      page,
+      `${origin}/multiplayer-game?renderer=r3f`,
+      ["MULTIPLAYER BATTLEFIELD", "3D", "ATTACK"],
+      "rendered R3F multiplayer battlefield",
+    );
+    await page.waitForFunction(
+      () =>
+        globalThis.__WORLD_DOMINATION_R3F__?.ready === true &&
+        Boolean(globalThis.__WORLD_DOMINATION_R3F__?.canonicalBattleId),
+      null,
+      { timeout: 30000 },
+    );
+    const initial = await page.evaluate(
+      () => globalThis.__WORLD_DOMINATION_R3F__,
+    );
+    assert(
+      initial.battleActive === false && initial.battleId === null,
+      "R3F replayed historical battle data from the initial multiplayer snapshot",
+    );
+    const initialRevision = initial.sceneRevision;
+    const initialBattleId = initial.canonicalBattleId;
+    await assertR3FCanvasPixels(page, "multiplayer R3F tabletop");
+
+    const nextState = JSON.parse(JSON.stringify(state));
+    nextState.battlesFought = 6;
+    nextState.territories.china = {
+      ...nextState.territories.china,
+      armies: nextState.territories.china.armies + 1,
+    };
+    nextState.lastBattle = {
+      ...nextState.lastBattle,
+      from: "china",
+      to: "india",
+      attackerRolls: [6, 5, 3],
+      defenderRolls: [4, 2],
+    };
+    snapshot = {
+      ...snapshot,
+      version: 2,
+      updatedAt: "2026-07-30T00:00:02.000Z",
+      state: nextState,
+    };
+
+    await page.waitForFunction(
+      (previousBattleId) =>
+        globalThis.__WORLD_DOMINATION_R3F__?.battleActive === true &&
+        globalThis.__WORLD_DOMINATION_R3F__?.battleId !== previousBattleId,
+      initialBattleId,
+      { timeout: 8000 },
+    );
+    const updated = await page.evaluate(
+      () => globalThis.__WORLD_DOMINATION_R3F__,
+    );
+    assert(
+      updated.sceneRevision !== initialRevision,
+      "R3F scene revision did not change for a multiplayer army/battle update",
+    );
+    assert(
+      updated.canonicalBattleId === updated.battleId,
+      "R3F multiplayer presentation did not match the new canonical battle",
+    );
+    const updatedBattleId = updated.battleId;
+
+    await page.waitForFunction(
+      () => globalThis.__WORLD_DOMINATION_R3F__?.battleActive === false,
+      null,
+      { timeout: 5000 },
+    );
+    await page.waitForTimeout(3400);
+    const repeated = await page.evaluate(
+      () => globalThis.__WORLD_DOMINATION_R3F__,
+    );
+    assert(
+      repeated.battleActive === false &&
+        repeated.battleId === null &&
+        repeated.canonicalBattleId === updatedBattleId,
+      "R3F replayed a battle after an identical multiplayer polling snapshot",
+    );
+    assert(
+      requestCount >= 3,
+      `multiplayer R3F smoke observed too few snapshot requests: ${requestCount}`,
+    );
+    console.log("ok - rendered R3F multiplayer snapshots");
+  } finally {
+    await context.close();
+  }
 }
 
 async function assertRenderedPreview() {
@@ -1036,6 +1292,7 @@ async function assertRenderedPreview() {
       assertR3FVerticalSlice,
       VIEWPORTS.desktop,
     );
+    await assertR3FMultiplayerSnapshots(browser, origin, errors);
     await withFreshPage(
       "/game?autostart=1&turnStyle=sameTime&restricted=1&extra=1",
       [
@@ -1145,7 +1402,7 @@ async function assertRenderedPreview() {
       `rendered browser emitted page errors: ${errors.join("; ")}`,
     );
     console.log(
-      `ok - rendered browser smoke covered home/setup/restricted setup/records/tournament/multiplayer command+battlefield/classic standard+expanded maps/roster+dispatch/Same Time/orders/playback/save-restore across portrait/landscape/desktop with ${loadedImages} game images`,
+      `ok - rendered browser smoke covered home/setup/restricted setup/records/tournament/multiplayer command+battlefield/R3F multiplayer snapshots/classic standard+expanded maps/roster+dispatch/Same Time/orders/playback/R3F save-restore across portrait/landscape/desktop with ${loadedImages} game images`,
     );
   } finally {
     if (browser) await browser.close();

@@ -45,7 +45,7 @@ export function R3FTerritorySurface({
         </mesh>
         <mesh
           geometry={geometry}
-          name={`pick__${territory.id}`}
+          name={territory.pickMeshName}
           position={[0, 0.006, 0]}
         >
           <meshBasicMaterial
