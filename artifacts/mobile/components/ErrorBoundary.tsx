@@ -4,6 +4,18 @@ import { Colors } from '@/constants/colors';
 
 interface State { hasError: boolean; error: string }
 
+function errorMessage(error: unknown): string {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'message' in error &&
+    typeof error.message === 'string'
+  ) {
+    return error.message;
+  }
+  return String(error);
+}
+
 export class ErrorBoundary extends Component<{ children: React.ReactNode }, State> {
   constructor(props: { children: React.ReactNode }) {
     super(props);
@@ -11,7 +23,7 @@ export class ErrorBoundary extends Component<{ children: React.ReactNode }, Stat
   }
 
   static getDerivedStateFromError(error: unknown): State {
-    return { hasError: true, error: error instanceof Error ? error.message : String(error) };
+    return { hasError: true, error: errorMessage(error) };
   }
 
   render() {

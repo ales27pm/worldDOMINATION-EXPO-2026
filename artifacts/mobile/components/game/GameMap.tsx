@@ -1,6 +1,5 @@
-import React, { useCallback, useRef } from "react";
+import React, { Suspense, useCallback, useRef } from "react";
 import { MapViewport } from "@/components/game/MapViewport";
-import R3FGameMap from "@/components/game/R3FGameMap";
 import {
   MAP_VIEW_LABELS,
   MAP_VIEW_MODES,
@@ -9,6 +8,10 @@ import {
 } from "@/components/game/WorldBoard";
 import { hitTestTerritory } from "@/game/mapGeometry";
 import type { GameState, TerritoryId } from "@/game/types";
+
+const R3FGameMap = React.lazy(
+  () => import("@/components/game/R3FGameMap"),
+);
 
 export { MAP_VIEW_LABELS, MAP_VIEW_MODES };
 export type { MapViewMode };
@@ -87,14 +90,16 @@ export default function GameMap({
   if (rendererMode === "r3f") {
     return (
       <RendererBoundary fallback={svgMap}>
-        <R3FGameMap
-          game={game}
-          selected={selected}
-          targets={targets}
-          interactive={interactive}
-          viewMode={viewMode}
-          onTerritoryTap={onTerritoryTap}
-        />
+        <Suspense fallback={svgMap}>
+          <R3FGameMap
+            game={game}
+            selected={selected}
+            targets={targets}
+            interactive={interactive}
+            viewMode={viewMode}
+            onTerritoryTap={onTerritoryTap}
+          />
+        </Suspense>
       </RendererBoundary>
     );
   }

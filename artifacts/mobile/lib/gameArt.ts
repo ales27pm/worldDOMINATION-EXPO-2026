@@ -15,6 +15,9 @@
 /** The painted 1536×1024 RISK II world board. */
 export const WORLD_BOARD = require("../assets/game/world-map.webp");
 
+/** GPU-friendly PNG atlas used by expo-gl's native texture loader. */
+export const WORLD_BOARD_NATIVE = require("../assets/game/world-map-native.png");
+
 /** Canonical named territory meshes generated from game/mapShapes.ts. */
 export const MAP_SCENE_GLBS = {
   classic: require("../assets/game/map-3d/world-map-classic.glb"),

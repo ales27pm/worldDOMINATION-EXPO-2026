@@ -1,4 +1,5 @@
 import React, { useLayoutEffect, useMemo, useRef } from "react";
+import { Platform } from "react-native";
 import {
   BoxGeometry,
   BufferGeometry,
@@ -9,6 +10,7 @@ import {
   Euler,
   InstancedMesh,
   Matrix4,
+  MeshBasicMaterial,
   MeshStandardMaterial,
   Quaternion,
   SphereGeometry,
@@ -36,6 +38,7 @@ const DIGIT_SEGMENT_LENGTH = 0.042;
 const DIGIT_SEGMENT_THICKNESS = 0.011;
 const DIGIT_WIDTH = 0.052;
 const DIGIT_HEIGHT = 0.088;
+const DYNAMIC_SHADOWS = Platform.OS === "web";
 
 const DIGIT_SEGMENTS: Record<string, number[]> = {
   "0": [0, 1, 2, 3, 4, 5],
@@ -169,8 +172,8 @@ function ArmyInstances({
       key={`${type}:${territories.length}`}
       ref={ref}
       args={[geometry, material, territories.length]}
-      castShadow
-      receiveShadow
+      castShadow={DYNAMIC_SHADOWS}
+      receiveShadow={DYNAMIC_SHADOWS}
       frustumCulled={false}
       name={`army_instances__${type}`}
     />
@@ -209,6 +212,59 @@ function segmentInstances(territories: MapSceneTerritory[]): SegmentInstance[] {
     });
   }
   return result;
+}
+
+function ArmyContactShadows({
+  territories,
+}: {
+  territories: MapSceneTerritory[];
+}) {
+  const ref = useRef<InstancedMesh>(null);
+  const geometry = useMemo(() => new CircleGeometry(0.18, 20), []);
+  const material = useMemo(
+    () =>
+      new MeshBasicMaterial({
+        color: "#21180f",
+        transparent: true,
+        opacity: 0.24,
+        depthWrite: false,
+      }),
+    [],
+  );
+
+  useLayoutEffect(() => {
+    const mesh = ref.current;
+    if (!mesh) return;
+    const matrix = new Matrix4();
+    const rotation = new Quaternion().setFromEuler(
+      new Euler(-Math.PI / 2, 0, 0),
+    );
+    const scale = new Vector3(1.08, 0.56, 1);
+    territories.forEach((territory, index) => {
+      matrix.compose(
+        new Vector3(
+          territory.anchor[0] - 0.06,
+          territory.anchor[1] + 0.012,
+          territory.anchor[2] + 0.06,
+        ),
+        rotation,
+        scale,
+      );
+      mesh.setMatrixAt(index, matrix);
+    });
+    mesh.instanceMatrix.needsUpdate = true;
+  }, [territories]);
+
+  if (DYNAMIC_SHADOWS || territories.length === 0) return null;
+  return (
+    <instancedMesh
+      ref={ref}
+      args={[geometry, material, territories.length]}
+      frustumCulled={false}
+      name="army_contact_shadows"
+      renderOrder={1}
+    />
+  );
 }
 
 function ArmyRoundels({ territories }: { territories: MapSceneTerritory[] }) {
@@ -283,14 +339,14 @@ function ArmyRoundels({ territories }: { territories: MapSceneTerritory[] }) {
       <instancedMesh
         ref={roundelRef}
         args={[roundelGeometry, roundelMaterial, territories.length]}
-        receiveShadow
+        receiveShadow={DYNAMIC_SHADOWS}
         frustumCulled={false}
         name="army_count_roundels"
       />
       <instancedMesh
         ref={segmentRef}
         args={[segmentGeometry, segmentMaterial, segments.length]}
-        castShadow
+        castShadow={DYNAMIC_SHADOWS}
         frustumCulled={false}
         name="army_count_digits"
       />
@@ -337,7 +393,7 @@ function CapitalMarkers({ territories }: { territories: MapSceneTerritory[] }) {
     <instancedMesh
       ref={ref}
       args={[geometry, material, capitals.length]}
-      castShadow
+      castShadow={DYNAMIC_SHADOWS}
       frustumCulled={false}
       name="capital_markers"
     />
@@ -355,6 +411,7 @@ export function R3FArmyLayer({ model }: Props) {
 
   return (
     <>
+      <ArmyContactShadows territories={occupied} />
       {(["infantry", "cavalry", "artillery"] as const).map((type) => (
         <ArmyInstances
           key={type}

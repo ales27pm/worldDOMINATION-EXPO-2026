@@ -17,7 +17,6 @@ export function stepCriticalSpring(
   deltaSeconds: number,
   angularFrequency: number,
 ): AxisMotion {
-  'worklet';
   const dt = Math.min(Math.max(deltaSeconds, 0), 0.05);
   const omega = Math.max(0.001, angularFrequency);
   const displacement = position - target;
@@ -37,7 +36,6 @@ export function stepDecay(
   deltaSeconds: number,
   friction: number,
 ): AxisMotion {
-  'worklet';
   const dt = Math.min(Math.max(deltaSeconds, 0), 0.05);
   const safeFriction = Math.max(0.001, friction);
   const decay = Math.exp(-safeFriction * dt);
@@ -57,7 +55,6 @@ export function cameraZoomedAt(
   point: { x: number; y: number },
   nextViewWidth: number,
 ): Camera {
-  'worklet';
   const ratio = nextViewWidth / camera.vw;
   return {
     cx: point.x - (point.x - camera.cx) * ratio,

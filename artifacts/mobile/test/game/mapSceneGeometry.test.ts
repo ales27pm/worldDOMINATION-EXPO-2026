@@ -18,6 +18,7 @@ import {
   type MapVariant,
   type TerritoryMeshMetadata,
 } from "../../game/mapSceneGeometry";
+import { parseMapSceneGlb } from "../../game/mapSceneGlb";
 import { SHAPES_H, SHAPES_W } from "../../game/mapShapes";
 
 interface GltfAccessor {
@@ -249,5 +250,34 @@ test("checked-in map GLBs preserve canonical territory mesh IDs and geometry", a
 
   for (const variant of MAP_VARIANTS) {
     await validateVariant(variant, manifest);
+  }
+});
+
+test("runtime GLB parser builds indexed territory geometry without GLTFLoader", async () => {
+  for (const variant of MAP_VARIANTS) {
+    const territories = activeTerritories(
+      mapVariantIncludesExtraTerritories(variant),
+    );
+    const parsed = parseMapSceneGlb(
+      await readFile(
+        path.join(assetDirectory, `world-map-${variant}.glb`),
+      ),
+    );
+
+    try {
+      equal(parsed.geometries.size, territories.length);
+      for (const territory of territories) {
+        const geometry = parsed.geometries.get(
+          territoryMeshName(territory.id),
+        );
+        ok(geometry, `missing parsed geometry for ${territory.id}`);
+        ok(geometry.index, `${territory.id} must remain indexed`);
+        ok(geometry.getAttribute("position").count > 0);
+        ok(geometry.boundingBox);
+        ok(geometry.boundingSphere);
+      }
+    } finally {
+      parsed.dispose();
+    }
   }
 });

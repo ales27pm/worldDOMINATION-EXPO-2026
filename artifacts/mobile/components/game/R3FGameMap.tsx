@@ -1,5 +1,4 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { Asset } from "expo-asset";
 import React, {
   Suspense,
   useCallback,
@@ -19,31 +18,22 @@ import {
 import {
   AdditiveBlending,
   BufferGeometry,
-  Color,
   Float32BufferAttribute,
   Group,
   Line as ThreeLine,
   LineBasicMaterial,
   Mesh,
-  MeshBasicMaterial,
   PerspectiveCamera,
   Raycaster,
-  SRGBColorSpace,
-  TextureLoader,
   Vector2,
   Vector3,
   type Camera as ThreeCamera,
 } from "three";
-import { GLTFLoader, type GLTF } from "three/addons/loaders/GLTFLoader.js";
 
 import { R3FArmyLayer } from "@/components/game/R3FArmyLayer";
 import { R3FGestureSurface } from "@/components/game/R3FGestureSurface";
-import {
-  Canvas,
-  useFrame,
-  useLoader,
-  useThree,
-} from "@/components/game/r3fRuntime";
+import R3FTerritoryMeshes from "@/components/game/R3FTerritoryMeshes";
+import { Canvas, useFrame, useThree } from "@/components/game/r3fRuntime";
 import { MAP_H, MAP_W, clampCamera, type Camera } from "@/game/camera";
 import {
   applyCameraIntent,
@@ -61,17 +51,12 @@ import {
   type MapCameraRuntime,
 } from "@/game/mapCameraIntent";
 import {
-  MAP_SCENE_BOARD_PIXELS,
-  MAP_SCENE_UNITS_PER_PIXEL,
-} from "@/game/mapSceneGeometry";
-import {
   buildMapSceneModel,
   type MapSceneBattleEffect,
   type MapSceneModel,
   type MapViewMode,
 } from "@/game/mapSceneModel";
 import type { GameState, TerritoryId } from "@/game/types";
-import { MAP_SCENE_GLBS, WORLD_BOARD } from "@/lib/gameArt";
 
 interface Props {
   game: GameState;
@@ -89,6 +74,7 @@ interface LayoutSize {
 
 interface PickerState {
   camera: ThreeCamera;
+  invalidate: () => void;
   meshes: Mesh[];
 }
 
@@ -110,147 +96,14 @@ interface SceneBridgeState extends PickerState {
 
 const BUTTON_ZOOM = 1.45;
 const DOUBLE_TAP_ZOOM = 2.4;
-const BOARD_WIDTH = MAP_SCENE_BOARD_PIXELS[0] * MAP_SCENE_UNITS_PER_PIXEL;
-const BOARD_DEPTH = MAP_SCENE_BOARD_PIXELS[1] * MAP_SCENE_UNITS_PER_PIXEL;
-
-function collectTerritoryGeometries(scene: Group): Map<string, BufferGeometry> {
-  const result = new Map<string, BufferGeometry>();
-  scene.traverse((object) => {
-    if (object instanceof Mesh && object.name.startsWith("territory__")) {
-      result.set(object.name, object.geometry);
-    }
-  });
-  return result;
-}
-
-function loaderSource(module: number): number | string {
-  return Platform.OS === "web" ? Asset.fromModule(module).uri : module;
-}
-
-function interactionColor(interaction: string): string {
-  if (interaction === "selected") return "#f8cf45";
-  if (interaction === "target") return "#ee6049";
-  if (interaction === "interactive") return "#61c78b";
-  return "#ffffff";
-}
-
-function TerritoryMeshes({
-  model,
-  onLoaded,
-}: {
-  model: MapSceneModel;
-  onLoaded: () => void;
-}) {
-  const gltf = useLoader(
-    GLTFLoader,
-    loaderSource(MAP_SCENE_GLBS[model.variant]) as unknown as string,
-  ) as GLTF;
-  const boardTexture = useLoader(
-    TextureLoader,
-    loaderSource(WORLD_BOARD) as unknown as string,
-  );
-  const geometries = useMemo(
-    () => collectTerritoryGeometries(gltf.scene),
-    [gltf.scene],
-  );
-
-  useEffect(() => {
-    boardTexture.colorSpace = SRGBColorSpace;
-    boardTexture.anisotropy = 8;
-    boardTexture.needsUpdate = true;
-  }, [boardTexture]);
-
-  useEffect(() => {
-    if (geometries.size === model.territories.length) onLoaded();
-  }, [geometries, model.territories.length, onLoaded]);
-
-  return (
-    <>
-      <mesh
-        name="painted_board"
-        position={[0, -0.018, 0]}
-        rotation={[-Math.PI / 2, 0, 0]}
-        receiveShadow
-      >
-        <planeGeometry args={[BOARD_WIDTH, BOARD_DEPTH]} />
-        <meshStandardMaterial
-          map={boardTexture}
-          color="#ffffff"
-          roughness={0.9}
-          metalness={0}
-        />
-      </mesh>
-
-      {model.territories.map((territory) => {
-        const geometry = geometries.get(territory.meshName);
-        if (!geometry) return null;
-        const highlight = interactionColor(territory.interaction);
-        const highlighted = territory.interaction !== "idle";
-        return (
-          <React.Fragment key={territory.id}>
-            <mesh
-              geometry={geometry}
-              name={territory.meshName}
-              receiveShadow
-              castShadow
-            >
-              <meshStandardMaterial
-                map={boardTexture}
-                color={territory.surfaceTint ?? "#ffffff"}
-                emissive={highlighted ? highlight : "#000000"}
-                emissiveIntensity={highlighted ? 0.28 : 0}
-                roughness={0.76}
-                metalness={0.02}
-              />
-            </mesh>
-            <mesh
-              geometry={geometry}
-              name={`pick__${territory.id}`}
-              position={[0, 0.006, 0]}
-            >
-              <meshBasicMaterial
-                transparent
-                opacity={0}
-                depthWrite={false}
-                colorWrite={false}
-              />
-            </mesh>
-            {highlighted ? (
-              <mesh
-                name={`halo__${territory.id}`}
-                position={[
-                  territory.anchor[0],
-                  territory.anchor[1] + 0.1,
-                  territory.anchor[2],
-                ]}
-                rotation={[-Math.PI / 2, 0, 0]}
-              >
-                <ringGeometry
-                  args={[
-                    territory.interaction === "selected" ? 0.23 : 0.2,
-                    territory.interaction === "selected" ? 0.32 : 0.28,
-                    32,
-                  ]}
-                />
-                <meshBasicMaterial
-                  color={highlight}
-                  transparent
-                  opacity={territory.interaction === "interactive" ? 0.5 : 0.9}
-                  depthWrite={false}
-                />
-              </mesh>
-            ) : null}
-          </React.Fragment>
-        );
-      })}
-    </>
-  );
-}
+const DYNAMIC_SHADOWS = Platform.OS === "web";
+const BATTLE_EFFECT_DURATION = 2.05;
 
 function BattleEffect({ battle }: { battle: MapSceneBattleEffect }) {
   const projectile = useRef<Mesh>(null);
   const impact = useRef<Group>(null);
   const startedAt = useRef<number | null>(null);
+  const invalidate = useThree((state) => state.invalidate);
   const start = useMemo(() => new Vector3(...battle.fromAnchor), [battle]);
   const end = useMemo(() => new Vector3(...battle.toAnchor), [battle]);
   const lineGeometry = useMemo(() => {
@@ -284,12 +137,19 @@ function BattleEffect({ battle }: { battle: MapSceneBattleEffect }) {
 
   useEffect(() => {
     startedAt.current = null;
-  }, [battle.id]);
+    line.visible = true;
+  }, [battle.id, line]);
 
   useFrame(({ clock }) => {
     if (startedAt.current === null) startedAt.current = clock.elapsedTime;
     const elapsed = clock.elapsedTime - startedAt.current;
-    const cycle = elapsed % 2.4;
+    if (elapsed >= BATTLE_EFFECT_DURATION) {
+      line.visible = false;
+      if (projectile.current) projectile.current.visible = false;
+      if (impact.current) impact.current.visible = false;
+      return;
+    }
+    const cycle = elapsed;
     const t = Math.min(1, cycle / 1.25);
     const projectileMesh = projectile.current;
     if (projectileMesh) {
@@ -309,6 +169,7 @@ function BattleEffect({ battle }: { battle: MapSceneBattleEffect }) {
       impactGroup.scale.setScalar(0.2 + impactTime * 1.8);
       impactGroup.rotation.y = impactTime * Math.PI;
     }
+    if (Platform.OS !== "web") invalidate();
   });
 
   return (
@@ -354,17 +215,83 @@ function CameraRig({
   aspect: number;
 }) {
   const camera = useThree((state) => state.camera);
+  const invalidate = useThree((state) => state.invalidate);
+  const lastApplied = useRef({
+    cx: Number.NaN,
+    cy: Number.NaN,
+    vw: Number.NaN,
+    aspect: Number.NaN,
+  });
 
   useFrame((_state, deltaSeconds) => {
-    stepMapCameraRuntime(runtime.current, deltaSeconds, aspect);
-    const pose = perspectivePoseForCamera(runtime.current.current, aspect);
+    const moved = stepMapCameraRuntime(runtime.current, deltaSeconds, aspect);
+    const current = runtime.current.current;
+    const previous = lastApplied.current;
+    if (
+      !moved &&
+      previous.cx === current.cx &&
+      previous.cy === current.cy &&
+      previous.vw === current.vw &&
+      previous.aspect === aspect
+    ) {
+      return;
+    }
+
+    const pose = perspectivePoseForCamera(current, aspect);
     camera.position.set(...pose.position);
     camera.lookAt(...pose.target);
-    if (camera instanceof PerspectiveCamera) {
-      camera.fov = pose.fov;
-      camera.near = pose.near;
-      camera.far = pose.far;
-      camera.updateProjectionMatrix();
+    const perspectiveCamera = camera as PerspectiveCamera;
+    if (perspectiveCamera.isPerspectiveCamera) {
+      perspectiveCamera.fov = pose.fov;
+      perspectiveCamera.near = pose.near;
+      perspectiveCamera.far = pose.far;
+      perspectiveCamera.updateProjectionMatrix();
+    }
+    previous.cx = current.cx;
+    previous.cy = current.cy;
+    previous.vw = current.vw;
+    previous.aspect = aspect;
+    if (process.env.EXPO_PUBLIC_BROWSER_SMOKE === "1") {
+      const debug = (
+        globalThis as typeof globalThis & {
+          __WORLD_DOMINATION_R3F__?: Record<string, unknown>;
+        }
+      ).__WORLD_DOMINATION_R3F__;
+      if (debug) debug.camera = current;
+    }
+    if (runtime.current.motion !== "idle" && Platform.OS !== "web") {
+      invalidate();
+    }
+  });
+
+  return null;
+}
+
+function WebSceneProjection({
+  model,
+  layout,
+  camera,
+  projected,
+}: {
+  model: MapSceneModel;
+  layout: LayoutSize;
+  camera: ThreeCamera;
+  projected: Record<string, { x: number; y: number }>;
+}) {
+  const point = useRef(new Vector3());
+
+  useFrame(() => {
+    for (const territory of model.territories) {
+      const screenPoint = point.current
+        .set(
+          territory.anchor[0],
+          territory.anchor[1],
+          territory.anchor[2],
+        )
+        .project(camera);
+      const target = projected[territory.id];
+      target.x = ((screenPoint.x + 1) / 2) * layout.width;
+      target.y = ((1 - screenPoint.y) / 2) * layout.height;
     }
   });
 
@@ -382,35 +309,39 @@ function SceneBridge({
 }) {
   const camera = useThree((state) => state.camera);
   const scene = useThree((state) => state.scene);
-  const meshes = useRef<Mesh[]>([]);
-  const frame = useRef(0);
+  const invalidate = useThree((state) => state.invalidate);
+  const projected = useMemo(
+    () =>
+      Platform.OS === "web"
+        ? Object.fromEntries(
+            model.territories.map((territory) => [
+              territory.id,
+              { x: 0, y: 0 },
+            ]),
+          )
+        : {},
+    [model.territories],
+  );
 
   useEffect(() => {
-    const nextMeshes: Mesh[] = [];
+    const meshes: Mesh[] = [];
     scene.traverse((object) => {
-      if (object instanceof Mesh && object.name.startsWith("pick__")) {
-        nextMeshes.push(object);
+      const mesh = object as Mesh;
+      if (mesh.isMesh && mesh.name.startsWith("pick__")) {
+        meshes.push(mesh);
       }
     });
-    meshes.current = nextMeshes;
-    onBridge({ camera, meshes: nextMeshes, projected: {} });
-  }, [camera, model.variant, onBridge, scene]);
-
-  useFrame(() => {
-    frame.current += 1;
-    if (frame.current % 4 !== 0) return;
-    const projected: Record<string, { x: number; y: number }> = {};
-    for (const territory of model.territories) {
-      const point = new Vector3(...territory.anchor).project(camera);
-      projected[territory.id] = {
-        x: ((point.x + 1) / 2) * layout.width,
-        y: ((1 - point.y) / 2) * layout.height,
-      };
-    }
-    onBridge({ camera, meshes: meshes.current, projected });
+    onBridge({ camera, invalidate, meshes, projected });
   });
 
-  return null;
+  return Platform.OS === "web" ? (
+    <WebSceneProjection
+      model={model}
+      layout={layout}
+      camera={camera}
+      projected={projected}
+    />
+  ) : null;
 }
 
 function PerformanceProbe() {
@@ -428,7 +359,8 @@ function PerformanceProbe() {
       }
     ).__WORLD_DOMINATION_R3F__;
     if (debug) debug.fps = fps;
-    sample.current = { frames: 0, elapsed: 0 };
+    sample.current.frames = 0;
+    sample.current.elapsed = 0;
   });
 
   return null;
@@ -455,7 +387,7 @@ function TabletopScene({
       <ambientLight intensity={0.78} />
       <hemisphereLight args={["#fff0c4", "#72542c", 1.1]} />
       <directionalLight
-        castShadow
+        castShadow={DYNAMIC_SHADOWS}
         color="#fff1ca"
         intensity={2.1}
         position={[-4.5, 9, 5.5]}
@@ -469,13 +401,13 @@ function TabletopScene({
         shadow-camera-bottom={-7}
       />
       <Suspense fallback={null}>
-        <TerritoryMeshes model={model} onLoaded={onLoaded} />
+        <R3FTerritoryMeshes model={model} onLoaded={onLoaded} />
         <R3FArmyLayer model={model} />
         {model.battle ? <BattleEffect battle={model.battle} /> : null}
         <SceneBridge model={model} layout={layout} onBridge={onBridge} />
       </Suspense>
       <CameraRig runtime={runtime} aspect={aspect} />
-      <PerformanceProbe />
+      {Platform.OS === "web" ? <PerformanceProbe /> : null}
     </>
   );
 }
@@ -515,8 +447,8 @@ export default function R3FGameMap({
   onTerritoryTap,
 }: Props) {
   const [layout, setLayout] = useState<LayoutSize>({
-    width: MAP_W,
-    height: MAP_H,
+    width: 0,
+    height: 0,
   });
   const [loaded, setLoaded] = useState(false);
   const [focusActive, setFocusActive] = useState(false);
@@ -543,8 +475,12 @@ export default function R3FGameMap({
     ),
   );
   const initializedLayout = useRef(false);
+  const requestRender = useCallback(() => {
+    pickerRef.current?.invalidate();
+  }, []);
 
   useEffect(() => {
+    if (layout.width <= 0 || layout.height <= 0) return;
     if (!initializedLayout.current) {
       runtime.current = createMapCameraRuntime(
         initialCameraIntent(game, selected, aspect, layout.width),
@@ -557,9 +493,10 @@ export default function R3FGameMap({
       target: clampCamera(runtime.current.current, aspect),
       transition: "snap",
     });
+    requestRender();
     // State and selection changes must not steal camera ownership.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aspect, layout.width]);
+  }, [aspect, layout.height, layout.width, requestRender]);
 
   useEffect(() => {
     setLoaded(false);
@@ -574,7 +511,11 @@ export default function R3FGameMap({
   );
 
   const handleBridge = useCallback((bridge: SceneBridgeState) => {
-    pickerRef.current = { camera: bridge.camera, meshes: bridge.meshes };
+    pickerRef.current = {
+      camera: bridge.camera,
+      invalidate: bridge.invalidate,
+      meshes: bridge.meshes,
+    };
     if (Object.keys(bridge.projected).length > 0) {
       projectedRef.current = bridge.projected;
     }
@@ -590,12 +531,14 @@ export default function R3FGameMap({
       }
     }
   }, []);
+  const handleLoaded = useCallback(() => setLoaded(true), []);
 
   const beginPan = useCallback(() => {
     stopCameraMotion(runtime.current);
     panStartRef.current = { ...runtime.current.current };
     setFocusActive(false);
-  }, []);
+    requestRender();
+  }, [requestRender]);
 
   const updatePan = useCallback(
     (translationX: number, translationY: number) => {
@@ -611,8 +554,9 @@ export default function R3FGameMap({
           translationY,
         ),
       );
+      requestRender();
     },
-    [aspect, layout.width],
+    [aspect, layout.width, requestRender],
   );
 
   const endPan = useCallback(
@@ -625,8 +569,9 @@ export default function R3FGameMap({
         -velocityY * boardUnitsPerPixel,
       );
       panStartRef.current = null;
+      requestRender();
     },
-    [layout.width],
+    [layout.width, requestRender],
   );
 
   const beginPinch = useCallback(
@@ -644,8 +589,9 @@ export default function R3FGameMap({
         ),
       };
       setFocusActive(false);
+      requestRender();
     },
-    [layout.height, layout.width],
+    [layout.height, layout.width, requestRender],
   );
 
   const updatePinch = useCallback(
@@ -663,8 +609,9 @@ export default function R3FGameMap({
           "snap",
         ),
       );
+      requestRender();
     },
-    [aspect],
+    [aspect, requestRender],
   );
 
   const endPinch = useCallback(() => {
@@ -712,8 +659,9 @@ export default function R3FGameMap({
           "spring",
         ),
       );
+      requestRender();
     },
-    [aspect, layout.height, layout.width],
+    [aspect, layout.height, layout.width, requestRender],
   );
 
   const focusAction = useCallback(() => {
@@ -722,12 +670,14 @@ export default function R3FGameMap({
       focusCameraIntent(game, selected, aspect, layout.width),
     );
     setFocusActive(true);
-  }, [aspect, game, layout.width, selected]);
+    requestRender();
+  }, [aspect, game, layout.width, requestRender, selected]);
 
   const fullAction = useCallback(() => {
     applyCameraIntent(runtime.current, fullCameraIntent(aspect));
     setFocusActive(true);
-  }, [aspect]);
+    requestRender();
+  }, [aspect, requestRender]);
 
   const zoomBy = useCallback(
     (factor: number) => {
@@ -744,8 +694,9 @@ export default function R3FGameMap({
         ),
       );
       setFocusActive(false);
+      requestRender();
     },
-    [aspect],
+    [aspect, requestRender],
   );
 
   const handleWheel = useCallback(
@@ -784,8 +735,9 @@ export default function R3FGameMap({
         ),
       );
       setFocusActive(false);
+      requestRender();
     },
-    [aspect, layout.height, layout.width],
+    [aspect, layout.height, layout.width, requestRender],
   );
 
   const webWheelProps =
@@ -836,8 +788,9 @@ export default function R3FGameMap({
       >
         <Canvas
           style={StyleSheet.absoluteFillObject}
-          shadows
-          dpr={[1, 2]}
+          shadows={DYNAMIC_SHADOWS}
+          dpr={Platform.OS === "web" ? [1, 2] : 1.25}
+          frameloop={Platform.OS === "web" ? "always" : "demand"}
           camera={{
             fov: 35,
             near: 0.05,
@@ -851,7 +804,7 @@ export default function R3FGameMap({
             aspect={aspect}
             layout={layout}
             onBridge={handleBridge}
-            onLoaded={() => setLoaded(true)}
+            onLoaded={handleLoaded}
           />
         </Canvas>
       </R3FGestureSurface>

@@ -14,6 +14,7 @@ import {
   Vector2,
 } from "three";
 import { GLTFExporter } from "three/addons/exporters/GLTFExporter.js";
+import { mergeVertices } from "three/addons/utils/BufferGeometryUtils.js";
 
 import {
   activeTerritories,
@@ -183,16 +184,18 @@ function buildScene(variant: MapVariant): {
     const shapes = parseLinearSvgPath(sourcePath).map(
       (points) => new Shape(points),
     );
-    const geometry = new ExtrudeGeometry(shapes, {
+    const sourceGeometry = new ExtrudeGeometry(shapes, {
       bevelEnabled: false,
       curveSegments: 1,
       depth: MAP_SCENE_TERRITORY_HEIGHT,
       steps: 1,
     });
-    geometry.rotateX(-Math.PI / 2);
-    geometry.clearGroups();
-    geometry.computeVertexNormals();
-    applyAtlasUvs(geometry);
+    sourceGeometry.rotateX(-Math.PI / 2);
+    sourceGeometry.clearGroups();
+    sourceGeometry.computeVertexNormals();
+    applyAtlasUvs(sourceGeometry);
+    const geometry = mergeVertices(sourceGeometry, 1e-6);
+    sourceGeometry.dispose();
     geometry.computeBoundingBox();
     geometry.computeBoundingSphere();
 

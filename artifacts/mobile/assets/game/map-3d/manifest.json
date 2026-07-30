@@ -14,8 +14,8 @@
   "variants": {
     "classic": {
       "file": "world-map-classic.glb",
-      "sha256": "9f46d17bb9beb3aa6476f4ace5015287e5306560e27db9206f3947f76a00db10",
-      "byteLength": 1663540,
+      "sha256": "efb2c8d441456f0ceeeb30509d82620348601feb2e102448e389dcf071cc917f",
+      "byteLength": 980496,
       "territoryCount": 42,
       "canonicalGeometrySha256": "60cac29430d5bea19f6e8cf7aab6af5f9b3d39494f4f0291055a45d3fe193d79",
       "meshNames": [
@@ -65,8 +65,8 @@
     },
     "expanded": {
       "file": "world-map-expanded.glb",
-      "sha256": "68f4ae7ef1082ea2d7b19a9a1500f9a03de3f3a8ba6fc3050a56e0231addae6f",
-      "byteLength": 1722396,
+      "sha256": "225528dd4ae9fd471c33d69924916784e1f009680f75e11e936ed6827b4395ec",
+      "byteLength": 1019592,
       "territoryCount": 48,
       "canonicalGeometrySha256": "a4d7622317cc81f4d8567b363db9ed1b76ca9990af6b9b29c770dd5b0044ad4f",
       "meshNames": [
