@@ -1,4 +1,5 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
+import * as Device from "expo-device";
 import React, {
   Suspense,
   useCallback,
@@ -64,7 +65,12 @@ import {
   summarizeMapFrameProfile,
   type MapFrameProfileAccumulator,
   type MapFrameProfileKind,
+  type MapFrameProfileReport,
 } from "@/game/mapFrameProfile";
+import {
+  qualifyMapRendererPerformance,
+  type MapPerformanceEnvironment,
+} from "@/game/mapFrameQualification";
 import {
   createMapScenePickIndex,
   pickTerritoryFromIntersections,
@@ -114,6 +120,19 @@ const R3F_DEBUG_ENABLED =
 const ENABLE_SCENE_PROJECTION =
   Platform.OS === "web" ||
   R3F_DEBUG_ENABLED;
+const PERFORMANCE_ENVIRONMENT: MapPerformanceEnvironment =
+  Platform.OS === "web"
+    ? "browser"
+    : Device.isDevice
+      ? "physical"
+      : "simulator";
+const PERFORMANCE_DEVICE = {
+  modelName: Device.modelName,
+  modelId: Device.modelId,
+  osName: Device.osName,
+  osVersion: Device.osVersion,
+  deviceYearClass: Device.deviceYearClass,
+};
 
 function updateR3FDebug(values: Record<string, unknown>): void {
   if (!R3F_DEBUG_ENABLED) return;
@@ -407,17 +426,30 @@ function SceneBridge({
 
 interface ActiveFrameProfile {
   accumulator: MapFrameProfileAccumulator;
-  skipNextFrame: boolean;
 }
 
-function publishFrameProfile(profile: ActiveFrameProfile): void {
+function publishFrameProfile(
+  profile: ActiveFrameProfile,
+  completedProfiles: Partial<
+    Record<MapFrameProfileKind, MapFrameProfileReport>
+  >,
+): void {
   const report = summarizeMapFrameProfile(profile.accumulator);
   if (!report) return;
+  completedProfiles[report.kind] = report;
   updateR3FDebug({
     frameProfile: {
       status: "complete",
       platform: Platform.OS,
       ...report,
+    },
+    performanceQualification: {
+      platform: Platform.OS,
+      device: PERFORMANCE_DEVICE,
+      ...qualifyMapRendererPerformance(
+        completedProfiles,
+        PERFORMANCE_ENVIRONMENT,
+      ),
     },
   });
 }
@@ -431,6 +463,9 @@ function PerformanceProbe({
 }) {
   const ambientSample = useRef({ frames: 0, elapsed: 0 });
   const activeProfile = useRef<ActiveFrameProfile | null>(null);
+  const completedProfiles = useRef<
+    Partial<Record<MapFrameProfileKind, MapFrameProfileReport>>
+  >({});
 
   useFrame((_state, deltaSeconds) => {
     if (!R3F_DEBUG_ENABLED) return;
@@ -457,7 +492,7 @@ function PerformanceProbe({
     const current = activeProfile.current;
 
     if (current && current.accumulator.kind !== kind) {
-      publishFrameProfile(current);
+      publishFrameProfile(current, completedProfiles.current);
       activeProfile.current = null;
     }
     if (!kind) return;
@@ -465,7 +500,6 @@ function PerformanceProbe({
     if (!activeProfile.current) {
       activeProfile.current = {
         accumulator: createMapFrameProfile(kind),
-        skipNextFrame: true,
       };
       updateR3FDebug({
         frameProfile: {
@@ -479,23 +513,40 @@ function PerformanceProbe({
       return;
     }
 
-    if (activeProfile.current.skipNextFrame) {
-      activeProfile.current.skipNextFrame = false;
-      return;
-    }
     recordMapFrameSample(
       activeProfile.current.accumulator,
       deltaSeconds,
     );
   });
 
-  useEffect(
-    () => () => {
-      if (activeProfile.current) publishFrameProfile(activeProfile.current);
+  useEffect(() => {
+    const current = activeProfile.current;
+    if (battle || current?.accumulator.kind !== "battle") return;
+    publishFrameProfile(current, completedProfiles.current);
+    activeProfile.current = null;
+  }, [battle]);
+
+  useEffect(() => {
+    completedProfiles.current = {};
+    updateR3FDebug({
+      frameProfile: null,
+      performanceQualification: {
+        platform: Platform.OS,
+        device: PERFORMANCE_DEVICE,
+        ...qualifyMapRendererPerformance({}, PERFORMANCE_ENVIRONMENT),
+      },
+    });
+    return () => {
+      if (activeProfile.current) {
+        publishFrameProfile(
+          activeProfile.current,
+          completedProfiles.current,
+        );
+      }
       activeProfile.current = null;
-    },
-    [],
-  );
+      completedProfiles.current = {};
+    };
+  }, []);
 
   return null;
 }

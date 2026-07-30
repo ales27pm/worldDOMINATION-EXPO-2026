@@ -752,6 +752,35 @@ async function assertR3FVerticalSlice(page) {
   );
   await page.waitForFunction(
     () => {
+      const qualification =
+        globalThis.__WORLD_DOMINATION_R3F__?.performanceQualification;
+      return (
+        qualification?.status === "ineligible" &&
+        qualification.environment === "browser" &&
+        qualification.missingKinds.length === 0 &&
+        qualification.profiles.camera?.report.kind === "camera" &&
+        qualification.profiles.battle?.report.kind === "battle"
+      );
+    },
+    null,
+    { timeout: 10000 },
+  );
+  const performanceQualification = await page.evaluate(
+    () => globalThis.__WORLD_DOMINATION_R3F__.performanceQualification,
+  );
+  assert(
+    performanceQualification.contractVersion === 1 &&
+      performanceQualification.targetFps === 60 &&
+      ["pass", "fail"].includes(performanceQualification.metricStatus),
+    `R3F performance qualification was incomplete: ${JSON.stringify(performanceQualification)}`,
+  );
+  assert(
+    performanceQualification.status === "ineligible",
+    "Browser metrics incorrectly satisfied the physical-device gate",
+  );
+  console.log("ok - fail-closed R3F performance qualification");
+  await page.waitForFunction(
+    () => {
       const raw = window.localStorage.getItem("worlddomination.db.saveSlot");
       if (!raw) return false;
       try {
