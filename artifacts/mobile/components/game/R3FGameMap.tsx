@@ -60,6 +60,13 @@ import {
   type MapViewMode,
 } from "@/game/mapSceneModel";
 import {
+  createMapFrameProfile,
+  recordMapFrameSample,
+  summarizeMapFrameProfile,
+  type MapFrameProfileAccumulator,
+  type MapFrameProfileKind,
+} from "@/game/mapFrameProfile";
+import {
   createMapScenePickIndex,
   pickTerritoryFromIntersections,
 } from "@/game/mapScenePicking";
@@ -105,9 +112,22 @@ const BUTTON_ZOOM = 1.45;
 const DOUBLE_TAP_ZOOM = 2.4;
 const DYNAMIC_SHADOWS = Platform.OS === "web";
 const BATTLE_EFFECT_DURATION = 2.05;
+const R3F_DEBUG_ENABLED =
+  process.env.EXPO_PUBLIC_BROWSER_SMOKE === "1";
 const ENABLE_SCENE_PROJECTION =
   Platform.OS === "web" ||
-  process.env.EXPO_PUBLIC_BROWSER_SMOKE === "1";
+  R3F_DEBUG_ENABLED;
+
+function updateR3FDebug(values: Record<string, unknown>): void {
+  if (!R3F_DEBUG_ENABLED) return;
+  const root = globalThis as typeof globalThis & {
+    __WORLD_DOMINATION_R3F__?: Record<string, unknown>;
+  };
+  root.__WORLD_DOMINATION_R3F__ = {
+    ...root.__WORLD_DOMINATION_R3F__,
+    ...values,
+  };
+}
 
 function BattleEffect({
   battle,
@@ -283,14 +303,7 @@ function CameraRig({
     previous.cy = current.cy;
     previous.vw = current.vw;
     previous.aspect = aspect;
-    if (process.env.EXPO_PUBLIC_BROWSER_SMOKE === "1") {
-      const debug = (
-        globalThis as typeof globalThis & {
-          __WORLD_DOMINATION_R3F__?: Record<string, unknown>;
-        }
-      ).__WORLD_DOMINATION_R3F__;
-      if (debug) debug.camera = current;
-    }
+    updateR3FDebug({ camera: current });
     if (runtime.current.motion !== "idle" && Platform.OS !== "web") {
       invalidate();
     }
@@ -385,24 +398,97 @@ function SceneBridge({
   ) : null;
 }
 
-function PerformanceProbe() {
-  const sample = useRef({ frames: 0, elapsed: 0 });
+interface ActiveFrameProfile {
+  accumulator: MapFrameProfileAccumulator;
+  skipNextFrame: boolean;
+}
+
+function publishFrameProfile(profile: ActiveFrameProfile): void {
+  const report = summarizeMapFrameProfile(profile.accumulator);
+  if (!report) return;
+  updateR3FDebug({
+    frameProfile: {
+      status: "complete",
+      platform: Platform.OS,
+      ...report,
+    },
+  });
+}
+
+function PerformanceProbe({
+  runtime,
+  battle,
+}: {
+  runtime: React.MutableRefObject<MapCameraRuntime>;
+  battle: MapSceneBattleEffect | null;
+}) {
+  const ambientSample = useRef({ frames: 0, elapsed: 0 });
+  const activeProfile = useRef<ActiveFrameProfile | null>(null);
 
   useFrame((_state, deltaSeconds) => {
-    if (process.env.EXPO_PUBLIC_BROWSER_SMOKE !== "1") return;
-    sample.current.frames += 1;
-    sample.current.elapsed += deltaSeconds;
-    if (sample.current.elapsed < 1) return;
-    const fps = sample.current.frames / sample.current.elapsed;
-    const debug = (
-      globalThis as typeof globalThis & {
-        __WORLD_DOMINATION_R3F__?: Record<string, unknown>;
+    if (!R3F_DEBUG_ENABLED) return;
+
+    if (Platform.OS === "web") {
+      ambientSample.current.frames += 1;
+      ambientSample.current.elapsed += deltaSeconds;
+      if (ambientSample.current.elapsed >= 1) {
+        updateR3FDebug({
+          fps:
+            ambientSample.current.frames /
+            ambientSample.current.elapsed,
+        });
+        ambientSample.current.frames = 0;
+        ambientSample.current.elapsed = 0;
       }
-    ).__WORLD_DOMINATION_R3F__;
-    if (debug) debug.fps = fps;
-    sample.current.frames = 0;
-    sample.current.elapsed = 0;
+    }
+
+    const kind: MapFrameProfileKind | null = battle
+      ? "battle"
+      : runtime.current.motion !== "idle"
+        ? "camera"
+        : null;
+    const current = activeProfile.current;
+
+    if (current && current.accumulator.kind !== kind) {
+      publishFrameProfile(current);
+      activeProfile.current = null;
+    }
+    if (!kind) return;
+
+    if (!activeProfile.current) {
+      activeProfile.current = {
+        accumulator: createMapFrameProfile(kind),
+        skipNextFrame: true,
+      };
+      updateR3FDebug({
+        frameProfile: {
+          status: "active",
+          platform: Platform.OS,
+          contractVersion: 1,
+          kind,
+          targetFps: 60,
+        },
+      });
+      return;
+    }
+
+    if (activeProfile.current.skipNextFrame) {
+      activeProfile.current.skipNextFrame = false;
+      return;
+    }
+    recordMapFrameSample(
+      activeProfile.current.accumulator,
+      deltaSeconds,
+    );
   });
+
+  useEffect(
+    () => () => {
+      if (activeProfile.current) publishFrameProfile(activeProfile.current);
+      activeProfile.current = null;
+    },
+    [],
+  );
 
   return null;
 }
@@ -454,7 +540,9 @@ function TabletopScene({
         <SceneBridge model={model} layout={layout} onBridge={onBridge} />
       </Suspense>
       <CameraRig runtime={runtime} aspect={aspect} />
-      {Platform.OS === "web" ? <PerformanceProbe /> : null}
+      {R3F_DEBUG_ENABLED ? (
+        <PerformanceProbe runtime={runtime} battle={battle} />
+      ) : null}
     </>
   );
 }
@@ -582,17 +670,11 @@ export default function R3FGameMap({
     if (Object.keys(bridge.projected).length > 0) {
       projectedRef.current = bridge.projected;
     }
-    if (process.env.EXPO_PUBLIC_BROWSER_SMOKE === "1") {
-      const debug = (
-        globalThis as typeof globalThis & {
-          __WORLD_DOMINATION_R3F__?: Record<string, unknown>;
-        }
-      ).__WORLD_DOMINATION_R3F__;
-      if (debug) {
-        debug.projected = projectedRef.current;
-        debug.camera = runtime.current.current;
-      }
-    }
+    updateR3FDebug({
+      projected: projectedRef.current,
+      pickerMeshCount: bridge.meshes.length,
+      camera: runtime.current.current,
+    });
   }, []);
   const handleLoaded = useCallback(() => setLoaded(true), []);
 
@@ -815,8 +897,8 @@ export default function R3FGameMap({
   }, []);
 
   useEffect(() => {
-    if (process.env.EXPO_PUBLIC_BROWSER_SMOKE !== "1") return;
-    const debug = {
+    if (!R3F_DEBUG_ENABLED) return;
+    updateR3FDebug({
       ready: loaded,
       renderer: "r3f",
       contractVersion: model.contractVersion,
@@ -832,12 +914,7 @@ export default function R3FGameMap({
       projected: projectedRef.current,
       pickerMeshCount: pickerRef.current?.meshes.length ?? 0,
       camera: runtime.current.current,
-    };
-    (
-      globalThis as typeof globalThis & {
-        __WORLD_DOMINATION_R3F__?: typeof debug;
-      }
-    ).__WORLD_DOMINATION_R3F__ = debug;
+    });
   }, [loaded, model, presentedBattle]);
 
   return (

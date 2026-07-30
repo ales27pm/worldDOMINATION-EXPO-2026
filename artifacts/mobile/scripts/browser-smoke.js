@@ -577,6 +577,47 @@ async function assertR3FVerticalSlice(page) {
     { timeout: 10000 },
   );
   console.log("ok - R3F camera zoom");
+  await page.waitForFunction(
+    () =>
+      globalThis.__WORLD_DOMINATION_R3F__?.frameProfile?.status ===
+        "complete" &&
+      globalThis.__WORLD_DOMINATION_R3F__?.frameProfile?.kind === "camera",
+    null,
+    { timeout: 10000 },
+  );
+  const cameraProfile = await page.evaluate(
+    () => globalThis.__WORLD_DOMINATION_R3F__.frameProfile,
+  );
+  assert(
+    cameraProfile.contractVersion === 1 &&
+      cameraProfile.targetFps === 60 &&
+      cameraProfile.sampleCount >= 3,
+    `R3F camera frame profile was incomplete: ${JSON.stringify(cameraProfile)}`,
+  );
+  for (const field of [
+    "durationMs",
+    "averageFps",
+    "p50FrameMs",
+    "p95FrameMs",
+    "p99FrameMs",
+    "maxFrameMs",
+    "withinBudgetRatio",
+  ]) {
+    assert(
+      Number.isFinite(cameraProfile[field]),
+      `R3F camera frame profile had invalid ${field}: ${JSON.stringify(cameraProfile)}`,
+    );
+  }
+  console.log("ok - R3F active camera frame profile");
+  await page.getByLabel("Show full board").first().click({ timeout: 10000 });
+  await page.waitForFunction(
+    (viewWidth) =>
+      globalThis.__WORLD_DOMINATION_R3F__?.camera?.vw > viewWidth &&
+      globalThis.__WORLD_DOMINATION_R3F__?.frameProfile?.status ===
+        "complete",
+    initialViewWidth,
+    { timeout: 10000 },
+  );
 
   const brazil = await page.evaluate(
     () => globalThis.__WORLD_DOMINATION_R3F__.projected.brazil,
