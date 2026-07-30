@@ -736,6 +736,32 @@ async function assertR3FVerticalSlice(page) {
     attacked.canonicalBattleId === battleId,
     "R3F presentation did not match the canonical battle",
   );
+  await page.waitForTimeout(2300);
+  const suspendedBattle = await page.evaluate(
+    () => globalThis.__WORLD_DOMINATION_R3F__,
+  );
+  assert(
+    suspendedBattle.battleActive &&
+      !suspendedBattle.performanceQualification?.profiles?.battle,
+    "R3F battle effect or profiler advanced behind the battle scene",
+  );
+  await page.getByText("TAP TO ROLL").waitFor({ timeout: 10000 });
+  const viewport = page.viewportSize();
+  assert(viewport, "R3F battle scene viewport was unavailable");
+  await page.mouse.click(viewport.width / 2, viewport.height / 2);
+  await page.waitForFunction(
+    () =>
+      document.body.innerText.includes("TAP TO CONTINUE") ||
+      document.body.innerText.includes("RETREAT"),
+    null,
+    { timeout: 10000 },
+  );
+  const retreat = page.getByText(/RETREAT/);
+  if (await retreat.isVisible()) {
+    await retreat.click();
+  } else {
+    await page.mouse.click(viewport.width / 2, viewport.height / 2);
+  }
   await page.waitForFunction(
     () =>
       globalThis.__WORLD_DOMINATION_R3F__?.battleActive === false &&
@@ -777,6 +803,47 @@ async function assertR3FVerticalSlice(page) {
   assert(
     performanceQualification.status === "ineligible",
     "Browser metrics incorrectly satisfied the physical-device gate",
+  );
+  await page.waitForFunction(
+    () => {
+      const raw = window.localStorage.getItem(
+        "worlddomination.mapPerformanceEvidence.v1",
+      );
+      if (!raw) return false;
+      try {
+        const evidence = JSON.parse(raw);
+        return (
+          evidence.evidenceVersion === 1 &&
+          evidence.platform === "web" &&
+          evidence.scene?.variant === "classic" &&
+          evidence.scene?.territoryCount === 42 &&
+          evidence.qualification?.environment === "browser" &&
+          evidence.qualification?.status === "ineligible" &&
+          evidence.qualification?.missingKinds?.length === 0
+        );
+      } catch {
+        return false;
+      }
+    },
+    null,
+    { timeout: 10000 },
+  );
+  const performanceEvidence = await page.evaluate(() =>
+    JSON.parse(
+      window.localStorage.getItem(
+        "worlddomination.mapPerformanceEvidence.v1",
+      ),
+    ),
+  );
+  assert(
+    Number.isFinite(Date.parse(performanceEvidence.capturedAt)) &&
+      typeof performanceEvidence.application?.sessionId === "string" &&
+      performanceEvidence.application.sessionId.length > 0,
+    `R3F performance evidence omitted provenance: ${JSON.stringify(performanceEvidence)}`,
+  );
+  assert(
+    await page.getByTestId("map-performance-evidence").isEnabled(),
+    "Completed R3F performance evidence was not exportable",
   );
   console.log("ok - fail-closed R3F performance qualification");
   await page.waitForFunction(
@@ -968,6 +1035,9 @@ async function assertR3FMultiplayerSnapshots(browser, origin, errors) {
     const initialRevision = initial.sceneRevision;
     const initialBattleId = initial.canonicalBattleId;
     await assertR3FCanvasPixels(page, "multiplayer R3F tabletop");
+    await page.getByLabel("Battle scene pacing").first().click();
+    await page.getByLabel("Battle scene pacing").first().click();
+    await page.getByText("BATTLES: OFF").waitFor({ timeout: 10000 });
 
     const nextState = JSON.parse(JSON.stringify(state));
     nextState.battlesFought = 6;

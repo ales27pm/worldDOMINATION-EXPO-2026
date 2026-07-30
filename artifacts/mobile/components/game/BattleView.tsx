@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Image,
   Modal,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -62,6 +63,7 @@ export function BattleView({ game, dispatch }: Props) {
   const CAV_W = SW * 0.148;
   const CAV_H = (CAV_W * 40) / 38;
   const [scene, setScene] = useState<BattleReport | null>(null);
+  const [modalVisible, setModalVisible] = useState(false);
   // How many dice exchanges have been revealed so far — 0 means the tray is
   // still idle. Every tap reveals exactly one more round; nothing advances
   // on its own, so the player watches (and confirms) each dice turn.
@@ -82,11 +84,18 @@ export function BattleView({ game, dispatch }: Props) {
     stopFns.current = [];
   }, []);
 
-  const dismiss = useCallback(() => {
-    clearAll();
+  const finishDismiss = useCallback(() => {
     setScene(null);
     setBattleSceneVisible(false);
-  }, [clearAll]);
+  }, []);
+
+  const dismiss = useCallback(() => {
+    clearAll();
+    setModalVisible(false);
+    if (Platform.OS === "android") {
+      setTimeout(finishDismiss, 0);
+    }
+  }, [clearAll, finishDismiss]);
 
   // Watch for a new battle — the shared policy decides whether it earns a
   // scene (player assaults always; AI assaults on the player only when
@@ -101,6 +110,7 @@ export function BattleView({ game, dispatch }: Props) {
     clearAll();
     setRevealed(0);
     setScene(report);
+    setModalVisible(true);
     setBattleSceneVisible(true);
   }, [game, sceneMode, clearAll]);
 
@@ -213,7 +223,14 @@ export function BattleView({ game, dispatch }: Props) {
   const maxNextDice = aCount !== null ? Math.max(1, Math.min(3, aCount - 1)) : 3;
 
   return (
-    <Modal visible transparent animationType="fade" statusBarTranslucent>
+    <Modal
+      visible={modalVisible}
+      transparent
+      animationType="fade"
+      statusBarTranslucent
+      onDismiss={finishDismiss}
+      onRequestClose={dismiss}
+    >
       <View style={styles.root}>
         {/* Territory aerial painting (bundled) — themed night field when a
             territory has no recovered painting (extended-map additions). */}

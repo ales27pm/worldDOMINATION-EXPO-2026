@@ -1,4 +1,5 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
+import Constants from "expo-constants";
 import * as Device from "expo-device";
 import React, {
   Suspense,
@@ -35,7 +36,11 @@ import { R3FArmyLayer } from "@/components/game/R3FArmyLayer";
 import { R3FGestureSurface } from "@/components/game/R3FGestureSurface";
 import R3FTerritoryLabels from "@/components/game/R3FTerritoryLabels";
 import R3FTerritoryMeshes from "@/components/game/R3FTerritoryMeshes";
-import { Canvas, useFrame, useThree } from "@/components/game/r3fRuntime";
+import {
+  Canvas,
+  useFrame,
+  useThree,
+} from "@/components/game/r3fRuntime";
 import { MAP_H, MAP_W, clampCamera, type Camera } from "@/game/camera";
 import {
   applyCameraIntent,
@@ -69,18 +74,30 @@ import {
 } from "@/game/mapFrameProfile";
 import {
   qualifyMapRendererPerformance,
+  type MapRendererPerformanceQualification,
   type MapPerformanceEnvironment,
 } from "@/game/mapFrameQualification";
+import {
+  createMapPerformanceEvidence,
+  type MapPerformanceEvidence,
+  type MapPerformancePlatform,
+} from "@/game/mapPerformanceEvidence";
 import {
   createMapScenePickIndex,
   pickTerritoryFromIntersections,
 } from "@/game/mapScenePicking";
 import type { GameState, TerritoryId } from "@/game/types";
+import {
+  getBattleSceneVisibilityRevision,
+  getBattleSceneVisible,
+  useBattleSceneVisible,
+} from "@/lib/battleScenes";
 
 interface Props {
   game: GameState;
   model: MapSceneModel;
   onTerritoryTap: (id: TerritoryId) => void;
+  onPerformanceEvidence?: (evidence: MapPerformanceEvidence) => void;
 }
 
 interface LayoutSize {
@@ -117,11 +134,20 @@ const DYNAMIC_SHADOWS = Platform.OS === "web";
 const BATTLE_EFFECT_DURATION = 2.05;
 const R3F_DEBUG_ENABLED =
   process.env.EXPO_PUBLIC_BROWSER_SMOKE === "1";
+const R3F_QUALIFICATION_ENABLED =
+  R3F_DEBUG_ENABLED ||
+  process.env.EXPO_PUBLIC_R3F_QUALIFICATION === "1";
 const ENABLE_SCENE_PROJECTION =
   Platform.OS === "web" ||
   R3F_DEBUG_ENABLED;
+const PERFORMANCE_PLATFORM: MapPerformancePlatform =
+  Platform.OS === "ios"
+    ? "ios"
+    : Platform.OS === "android"
+      ? "android"
+      : "web";
 const PERFORMANCE_ENVIRONMENT: MapPerformanceEnvironment =
-  Platform.OS === "web"
+  PERFORMANCE_PLATFORM === "web"
     ? "browser"
     : Device.isDevice
       ? "physical"
@@ -133,6 +159,42 @@ const PERFORMANCE_DEVICE = {
   osVersion: Device.osVersion,
   deviceYearClass: Device.deviceYearClass,
 };
+const nativeBuildVersion =
+  PERFORMANCE_PLATFORM === "ios"
+    ? Constants.platform?.ios?.buildNumber ??
+      Constants.expoConfig?.ios?.buildNumber ??
+      null
+    : PERFORMANCE_PLATFORM === "android"
+      ? String(
+          Constants.platform?.android?.versionCode ??
+            Constants.expoConfig?.android?.versionCode ??
+            "",
+        ) || null
+      : null;
+const PERFORMANCE_APPLICATION = {
+  version: Constants.expoConfig?.version ?? null,
+  nativeBuildVersion,
+  sourceRevision:
+    process.env.EXPO_PUBLIC_SOURCE_REVISION?.trim() || null,
+  sessionId: Constants.sessionId,
+};
+const MAX_ACTIVE_FRAME_GAP_MS = 250;
+
+function activeFrameTimeMs(): number {
+  // iOS can resume GL one callback before performance.now() catches up after
+  // a UIKit modal. Wall time is current on that first callback; visibility
+  // revisions and the frame-gap guard keep covered time out of the sample.
+  return Date.now();
+}
+
+function activeFrameDeltaSeconds(
+  previousFrameAtMs: number,
+  frameAtMs: number,
+): number | null {
+  const deltaMs = frameAtMs - previousFrameAtMs;
+  if (deltaMs < 0 || deltaMs > MAX_ACTIVE_FRAME_GAP_MS) return null;
+  return deltaMs / 1000;
+}
 
 function updateR3FDebug(values: Record<string, unknown>): void {
   if (!R3F_DEBUG_ENABLED) return;
@@ -148,13 +210,19 @@ function updateR3FDebug(values: Record<string, unknown>): void {
 function BattleEffect({
   battle,
   onComplete,
+  suspended,
 }: {
   battle: MapSceneBattleEffect;
   onComplete: (battleId: string) => void;
+  suspended: boolean;
 }) {
   const projectile = useRef<Mesh>(null);
   const impact = useRef<Group>(null);
-  const startedAt = useRef<number | null>(null);
+  const elapsed = useRef(0);
+  const lastActiveFrameAtMs = useRef<number | null>(null);
+  const observedVisibilityRevision = useRef(
+    getBattleSceneVisibilityRevision(),
+  );
   const completed = useRef(false);
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
@@ -191,10 +259,22 @@ function BattleEffect({
   );
 
   useEffect(() => {
-    startedAt.current = null;
+    elapsed.current = 0;
+    lastActiveFrameAtMs.current = null;
     completed.current = false;
     line.visible = true;
-  }, [battle.id, line]);
+    if (Platform.OS !== "web") invalidate();
+  }, [battle.id, invalidate, line]);
+
+  useEffect(() => {
+    if (!suspended) return;
+    elapsed.current = 0;
+    lastActiveFrameAtMs.current = null;
+    completed.current = false;
+    line.visible = true;
+    if (projectile.current) projectile.current.visible = true;
+    if (impact.current) impact.current.visible = false;
+  }, [line, suspended]);
 
   useEffect(
     () => () => {
@@ -204,10 +284,45 @@ function BattleEffect({
     [lineGeometry, lineMaterial],
   );
 
-  useFrame(({ clock }) => {
-    if (startedAt.current === null) startedAt.current = clock.elapsedTime;
-    const elapsed = clock.elapsedTime - startedAt.current;
-    if (elapsed >= BATTLE_EFFECT_DURATION) {
+  useFrame(() => {
+    const visibilityRevision = getBattleSceneVisibilityRevision();
+    if (observedVisibilityRevision.current !== visibilityRevision) {
+      observedVisibilityRevision.current = visibilityRevision;
+      elapsed.current = 0;
+      lastActiveFrameAtMs.current = null;
+      completed.current = false;
+      line.visible = true;
+      if (projectile.current) projectile.current.visible = true;
+      if (impact.current) impact.current.visible = false;
+      if (Platform.OS !== "web") invalidate();
+      return;
+    }
+    if (getBattleSceneVisible()) {
+      lastActiveFrameAtMs.current = null;
+      return;
+    }
+    const frameAtMs = activeFrameTimeMs();
+    const previousFrameAtMs = lastActiveFrameAtMs.current;
+    lastActiveFrameAtMs.current = frameAtMs;
+    if (previousFrameAtMs === null) {
+      if (Platform.OS !== "web") invalidate();
+      return;
+    }
+    const deltaSeconds = activeFrameDeltaSeconds(
+      previousFrameAtMs,
+      frameAtMs,
+    );
+    if (deltaSeconds === null) {
+      elapsed.current = 0;
+      completed.current = false;
+      line.visible = true;
+      if (projectile.current) projectile.current.visible = true;
+      if (impact.current) impact.current.visible = false;
+      if (Platform.OS !== "web") invalidate();
+      return;
+    }
+    elapsed.current += deltaSeconds;
+    if (elapsed.current >= BATTLE_EFFECT_DURATION) {
       line.visible = false;
       if (projectile.current) projectile.current.visible = false;
       if (impact.current) impact.current.visible = false;
@@ -217,7 +332,7 @@ function BattleEffect({
       }
       return;
     }
-    const cycle = elapsed;
+    const cycle = elapsed.current;
     const t = Math.min(1, cycle / 1.25);
     const projectileMesh = projectile.current;
     if (projectileMesh) {
@@ -428,11 +543,36 @@ interface ActiveFrameProfile {
   accumulator: MapFrameProfileAccumulator;
 }
 
+type CompletedMapFrameProfiles = Partial<
+  Record<MapFrameProfileKind, MapFrameProfileReport>
+>;
+
+function publishPerformanceQualification(
+  completedProfiles: CompletedMapFrameProfiles,
+  onQualification?: (
+    qualification: MapRendererPerformanceQualification,
+  ) => void,
+): void {
+  const qualification = qualifyMapRendererPerformance(
+    completedProfiles,
+    PERFORMANCE_ENVIRONMENT,
+  );
+  updateR3FDebug({
+    performanceQualification: {
+      platform: Platform.OS,
+      device: PERFORMANCE_DEVICE,
+      ...qualification,
+    },
+  });
+  onQualification?.(qualification);
+}
+
 function publishFrameProfile(
   profile: ActiveFrameProfile,
-  completedProfiles: Partial<
-    Record<MapFrameProfileKind, MapFrameProfileReport>
-  >,
+  completedProfiles: CompletedMapFrameProfiles,
+  onQualification?: (
+    qualification: MapRendererPerformanceQualification,
+  ) => void,
 ): void {
   const report = summarizeMapFrameProfile(profile.accumulator);
   if (!report) return;
@@ -443,34 +583,53 @@ function publishFrameProfile(
       platform: Platform.OS,
       ...report,
     },
-    performanceQualification: {
-      platform: Platform.OS,
-      device: PERFORMANCE_DEVICE,
-      ...qualifyMapRendererPerformance(
-        completedProfiles,
-        PERFORMANCE_ENVIRONMENT,
-      ),
-    },
   });
+  publishPerformanceQualification(completedProfiles, onQualification);
 }
 
 function PerformanceProbe({
   runtime,
   battle,
+  suspended,
+  completedProfiles,
+  onQualification,
 }: {
   runtime: React.MutableRefObject<MapCameraRuntime>;
   battle: MapSceneBattleEffect | null;
+  suspended: boolean;
+  completedProfiles: React.MutableRefObject<CompletedMapFrameProfiles>;
+  onQualification?: (
+    qualification: MapRendererPerformanceQualification,
+  ) => void;
 }) {
   const ambientSample = useRef({ frames: 0, elapsed: 0 });
   const activeProfile = useRef<ActiveFrameProfile | null>(null);
-  const completedProfiles = useRef<
-    Partial<Record<MapFrameProfileKind, MapFrameProfileReport>>
-  >({});
+  const lastBattleFrameAtMs = useRef<number | null>(null);
+  const observedVisibilityRevision = useRef(
+    getBattleSceneVisibilityRevision(),
+  );
+  const onQualificationRef = useRef(onQualification);
+  onQualificationRef.current = onQualification;
 
   useFrame((_state, deltaSeconds) => {
-    if (!R3F_DEBUG_ENABLED) return;
+    const visibilityRevision = getBattleSceneVisibilityRevision();
+    if (observedVisibilityRevision.current !== visibilityRevision) {
+      observedVisibilityRevision.current = visibilityRevision;
+      if (activeProfile.current?.accumulator.kind === "battle") {
+        activeProfile.current = null;
+      }
+      lastBattleFrameAtMs.current = null;
+      return;
+    }
+    if (getBattleSceneVisible()) {
+      if (activeProfile.current?.accumulator.kind === "battle") {
+        activeProfile.current = null;
+      }
+      lastBattleFrameAtMs.current = null;
+      return;
+    }
 
-    if (Platform.OS === "web") {
+    if (R3F_DEBUG_ENABLED && Platform.OS === "web") {
       ambientSample.current.frames += 1;
       ambientSample.current.elapsed += deltaSeconds;
       if (ambientSample.current.elapsed >= 1) {
@@ -489,10 +648,33 @@ function PerformanceProbe({
       : runtime.current.motion !== "idle"
         ? "camera"
         : null;
+    let activeDeltaSeconds = deltaSeconds;
+    if (battle) {
+      const frameAtMs = activeFrameTimeMs();
+      const previousFrameAtMs = lastBattleFrameAtMs.current;
+      lastBattleFrameAtMs.current = frameAtMs;
+      const deltaSeconds =
+        previousFrameAtMs === null
+          ? 0
+          : activeFrameDeltaSeconds(previousFrameAtMs, frameAtMs);
+      if (deltaSeconds === null) {
+        if (activeProfile.current?.accumulator.kind === "battle") {
+          activeProfile.current = null;
+        }
+        return;
+      }
+      activeDeltaSeconds = deltaSeconds;
+    } else {
+      lastBattleFrameAtMs.current = null;
+    }
     const current = activeProfile.current;
 
     if (current && current.accumulator.kind !== kind) {
-      publishFrameProfile(current, completedProfiles.current);
+      publishFrameProfile(
+        current,
+        completedProfiles.current,
+        onQualificationRef.current,
+      );
       activeProfile.current = null;
     }
     if (!kind) return;
@@ -515,38 +697,49 @@ function PerformanceProbe({
 
     recordMapFrameSample(
       activeProfile.current.accumulator,
-      deltaSeconds,
+      activeDeltaSeconds,
     );
   });
 
   useEffect(() => {
     const current = activeProfile.current;
     if (battle || current?.accumulator.kind !== "battle") return;
-    publishFrameProfile(current, completedProfiles.current);
+    publishFrameProfile(
+      current,
+      completedProfiles.current,
+      onQualificationRef.current,
+    );
     activeProfile.current = null;
   }, [battle]);
 
   useEffect(() => {
-    completedProfiles.current = {};
+    if (!suspended) return;
+    if (activeProfile.current?.accumulator.kind === "battle") {
+      activeProfile.current = null;
+    }
+    lastBattleFrameAtMs.current = null;
+  }, [suspended]);
+
+  useEffect(() => {
+    lastBattleFrameAtMs.current = null;
     updateR3FDebug({
       frameProfile: null,
-      performanceQualification: {
-        platform: Platform.OS,
-        device: PERFORMANCE_DEVICE,
-        ...qualifyMapRendererPerformance({}, PERFORMANCE_ENVIRONMENT),
-      },
     });
+    publishPerformanceQualification(
+      completedProfiles.current,
+      onQualificationRef.current,
+    );
     return () => {
       if (activeProfile.current) {
         publishFrameProfile(
           activeProfile.current,
           completedProfiles.current,
+          onQualificationRef.current,
         );
       }
       activeProfile.current = null;
-      completedProfiles.current = {};
     };
-  }, []);
+  }, [completedProfiles]);
 
   return null;
 }
@@ -554,21 +747,29 @@ function PerformanceProbe({
 function TabletopScene({
   model,
   battle,
+  battleSceneVisible,
   runtime,
   aspect,
   layout,
   onBridge,
   onLoaded,
   onBattleComplete,
+  completedProfiles,
+  onPerformanceQualification,
 }: {
   model: MapSceneModel;
   battle: MapSceneBattleEffect | null;
+  battleSceneVisible: boolean;
   runtime: React.MutableRefObject<MapCameraRuntime>;
   aspect: number;
   layout: LayoutSize;
   onBridge: (bridge: SceneBridgeState) => void;
   onLoaded: () => void;
   onBattleComplete: (battleId: string) => void;
+  completedProfiles: React.MutableRefObject<CompletedMapFrameProfiles>;
+  onPerformanceQualification?: (
+    qualification: MapRendererPerformanceQualification,
+  ) => void;
 }) {
   return (
     <>
@@ -594,13 +795,23 @@ function TabletopScene({
         <R3FTerritoryLabels model={model} />
         <R3FArmyLayer model={model} />
         {battle ? (
-          <BattleEffect battle={battle} onComplete={onBattleComplete} />
+          <BattleEffect
+            battle={battle}
+            onComplete={onBattleComplete}
+            suspended={battleSceneVisible}
+          />
         ) : null}
         <SceneBridge model={model} layout={layout} onBridge={onBridge} />
       </Suspense>
       <CameraRig runtime={runtime} aspect={aspect} />
-      {R3F_DEBUG_ENABLED ? (
-        <PerformanceProbe runtime={runtime} battle={battle} />
+      {R3F_QUALIFICATION_ENABLED ? (
+        <PerformanceProbe
+          runtime={runtime}
+          battle={battle}
+          suspended={battleSceneVisible}
+          completedProfiles={completedProfiles}
+          onQualification={onPerformanceQualification}
+        />
       ) : null}
     </>
   );
@@ -619,7 +830,10 @@ function CameraButton({
 }) {
   return (
     <Pressable
+      accessibilityRole="button"
       accessibilityLabel={label}
+      accessibilityState={{ selected: active }}
+      hitSlop={4}
       onPress={onPress}
       style={({ pressed }) => [
         styles.cameraButton,
@@ -636,6 +850,7 @@ export default function R3FGameMap({
   game,
   model,
   onTerritoryTap,
+  onPerformanceEvidence,
 }: Props) {
   const [layout, setLayout] = useState<LayoutSize>({
     width: 0,
@@ -643,8 +858,18 @@ export default function R3FGameMap({
   });
   const [loaded, setLoaded] = useState(false);
   const [focusActive, setFocusActive] = useState(false);
+  const [nativeCanvasGeneration, setNativeCanvasGeneration] =
+    useState(0);
+  const battleSceneVisible = useBattleSceneVisible();
+  const previousBattleSceneVisible = useRef(battleSceneVisible);
   const pickerRef = useRef<PickerState | null>(null);
   const projectedRef = useRef<Record<string, { x: number; y: number }>>({});
+  const completedProfiles = useRef<CompletedMapFrameProfiles>({});
+  const completedProfilesVariant = useRef(model.variant);
+  if (completedProfilesVariant.current !== model.variant) {
+    completedProfilesVariant.current = model.variant;
+    completedProfiles.current = {};
+  }
   const panStartRef = useRef<Camera | null>(null);
   const pinchStartRef = useRef<{
     camera: Camera;
@@ -674,6 +899,17 @@ export default function R3FGameMap({
   }, []);
 
   useEffect(() => {
+    const resumed =
+      previousBattleSceneVisible.current && !battleSceneVisible;
+    previousBattleSceneVisible.current = battleSceneVisible;
+    if (resumed && Platform.OS === "ios") {
+      pickerRef.current = null;
+      setLoaded(false);
+      setNativeCanvasGeneration((generation) => generation + 1);
+    }
+  }, [battleSceneVisible]);
+
+  useEffect(() => {
     const update = advanceMapScenePresentation(
       presentationRef.current ?? createMapScenePresentationState(model),
       model,
@@ -694,6 +930,7 @@ export default function R3FGameMap({
         ),
       );
       initializedLayout.current = true;
+      requestRender();
       return;
     }
     applyCameraIntent(runtime.current, {
@@ -733,6 +970,7 @@ export default function R3FGameMap({
       territoryLabelCount: bridge.territoryLabelCount,
       camera: runtime.current.current,
     });
+    if (Platform.OS !== "web") bridge.invalidate();
   }, []);
   const handleLoaded = useCallback(() => setLoaded(true), []);
 
@@ -879,7 +1117,7 @@ export default function R3FGameMap({
 
   const fullAction = useCallback(() => {
     applyCameraIntent(runtime.current, fullCameraIntent(aspect));
-    setFocusActive(true);
+    setFocusActive(false);
     requestRender();
   }, [aspect, requestRender]);
 
@@ -953,6 +1191,26 @@ export default function R3FGameMap({
       current?.id === battleId ? null : current,
     );
   }, []);
+  const handlePerformanceQualification = useCallback(
+    (qualification: MapRendererPerformanceQualification) => {
+      onPerformanceEvidence?.(
+        createMapPerformanceEvidence({
+          platform: PERFORMANCE_PLATFORM,
+          application: PERFORMANCE_APPLICATION,
+          device: PERFORMANCE_DEVICE,
+          scene: {
+            contractVersion: model.contractVersion,
+            variant: model.variant,
+            viewMode: model.viewMode,
+            revision: model.revision,
+            territoryCount: model.territories.length,
+          },
+          qualification,
+        }),
+      );
+    },
+    [model, onPerformanceEvidence],
+  );
 
   useEffect(() => {
     if (!R3F_DEBUG_ENABLED) return;
@@ -1001,10 +1259,17 @@ export default function R3FGameMap({
         onDoubleTap={handleDoubleTap}
       >
         <Canvas
+          key={`map-canvas-${nativeCanvasGeneration}`}
           style={StyleSheet.absoluteFillObject}
           shadows={DYNAMIC_SHADOWS}
           dpr={Platform.OS === "web" ? [1, 2] : 1.25}
-          frameloop={Platform.OS === "web" ? "always" : "demand"}
+          frameloop={
+            battleSceneVisible
+              ? "never"
+              : Platform.OS === "web"
+                ? "always"
+                : "demand"
+          }
           camera={{
             fov: 35,
             near: 0.05,
@@ -1015,12 +1280,15 @@ export default function R3FGameMap({
           <TabletopScene
             model={model}
             battle={presentedBattle}
+            battleSceneVisible={battleSceneVisible}
             runtime={runtime}
             aspect={aspect}
             layout={layout}
             onBridge={handleBridge}
             onLoaded={handleLoaded}
             onBattleComplete={handleBattleComplete}
+            completedProfiles={completedProfiles}
+            onPerformanceQualification={handlePerformanceQualification}
           />
         </Canvas>
       </R3FGestureSurface>
@@ -1082,6 +1350,8 @@ const styles = StyleSheet.create({
     right: 12,
     bottom: 180,
     gap: 7,
+    zIndex: 2,
+    elevation: 2,
   },
   cameraControlsLandscape: {
     right: 344,

@@ -7,6 +7,9 @@
     "preview": {
       "distribution": "internal",
       "channel": "preview",
+      "env": {
+        "EXPO_PUBLIC_R3F_QUALIFICATION": "1"
+      },
       "android": {
         "buildType": "apk"
       },

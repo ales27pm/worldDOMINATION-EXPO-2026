@@ -99,12 +99,22 @@ export function shouldShowBattleScene(
 // covers the screen, so the modal publishes its visibility here.
 
 let sceneVisible = false;
+let sceneVisibilityRevision = 0;
 const visListeners = new Set<() => void>();
 
 export function setBattleSceneVisible(value: boolean): void {
   if (sceneVisible === value) return;
   sceneVisible = value;
+  sceneVisibilityRevision += 1;
   visListeners.forEach((fn) => fn());
+}
+
+export function getBattleSceneVisible(): boolean {
+  return sceneVisible;
+}
+
+export function getBattleSceneVisibilityRevision(): number {
+  return sceneVisibilityRevision;
 }
 
 function subscribeVisible(fn: () => void): () => void {
@@ -114,10 +124,10 @@ function subscribeVisible(fn: () => void): () => void {
   };
 }
 
-function getSceneVisible(): boolean {
-  return sceneVisible;
-}
-
 export function useBattleSceneVisible(): boolean {
-  return useSyncExternalStore(subscribeVisible, getSceneVisible, getSceneVisible);
+  return useSyncExternalStore(
+    subscribeVisible,
+    getBattleSceneVisible,
+    getBattleSceneVisible,
+  );
 }

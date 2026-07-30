@@ -6,9 +6,11 @@ import React, {
   useState,
 } from "react";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   Alert,
   Pressable,
+  Share,
   StyleSheet,
   Text,
   useWindowDimensions,
@@ -27,6 +29,11 @@ import { electionBudget } from "@/game/engine";
 import { TERRITORY_MAP } from "@/game/mapData";
 import { friendlyReachableSet } from "@/game/sameTime";
 import { tournamentResult } from "@/game/tournament";
+import {
+  isCompleteMapPerformanceEvidence,
+  serializeMapPerformanceEvidence,
+  type MapPerformanceEvidence,
+} from "@/game/mapPerformanceEvidence";
 import { Colors } from "@/constants/colors";
 import { MAP_HUD_TEXT_SHADOW, MapHud } from "@/constants/mapHud";
 import type {
@@ -45,6 +52,10 @@ import {
   cycleBattleSceneMode,
   useBattleSceneMode,
 } from "@/lib/battleScenes";
+import {
+  loadMapPerformanceEvidence,
+  saveMapPerformanceEvidence,
+} from "@/lib/mapPerformanceEvidence";
 import GameMap, {
   MAP_VIEW_LABELS,
   MAP_VIEW_MODES,
@@ -69,6 +80,10 @@ import {
   SameTimeBattlePlayback,
   VictoryOverlay,
 } from "@/components/game/GameOverlays";
+
+const MAP_PERFORMANCE_QUALIFICATION_ENABLED =
+  process.env.EXPO_PUBLIC_BROWSER_SMOKE === "1" ||
+  process.env.EXPO_PUBLIC_R3F_QUALIFICATION === "1";
 
 export default function GameScreen() {
   const router = useRouter();
@@ -433,6 +448,86 @@ export function CampaignScreen({
   const [viewMode, setViewMode] = useState<MapViewMode>("board");
   const [rendererMode, setRendererMode] =
     useState<MapRendererMode>(initialRendererMode);
+  const [currentPerformanceEvidence, setCurrentPerformanceEvidence] =
+    useState<MapPerformanceEvidence | null>(null);
+  const [savedPerformanceEvidence, setSavedPerformanceEvidence] =
+    useState<MapPerformanceEvidence | null>(null);
+
+  useEffect(() => {
+    if (!MAP_PERFORMANCE_QUALIFICATION_ENABLED) return;
+    let cancelled = false;
+    void loadMapPerformanceEvidence(AsyncStorage)
+      .then((evidence) => {
+        if (!cancelled) setSavedPerformanceEvidence(evidence);
+      })
+      .catch((error) => {
+        console.warn("Unable to load map performance evidence.", error);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handlePerformanceEvidence = useCallback(
+    (evidence: MapPerformanceEvidence) => {
+      setCurrentPerformanceEvidence(evidence);
+      if (!isCompleteMapPerformanceEvidence(evidence)) return;
+      setSavedPerformanceEvidence(evidence);
+      void saveMapPerformanceEvidence(AsyncStorage, evidence).catch(
+        (error) => {
+          console.warn("Unable to save map performance evidence.", error);
+        },
+      );
+    },
+    [],
+  );
+
+  const shareablePerformanceEvidence =
+    currentPerformanceEvidence &&
+    isCompleteMapPerformanceEvidence(currentPerformanceEvidence)
+      ? currentPerformanceEvidence
+      : savedPerformanceEvidence;
+  const performanceStatus =
+    currentPerformanceEvidence?.qualification.status ??
+    savedPerformanceEvidence?.qualification.status ??
+    "pending";
+  const performanceColor =
+    performanceStatus === "pass"
+      ? "#66b87a"
+      : performanceStatus === "fail"
+        ? Colors.crimsonLight
+        : performanceStatus === "ineligible"
+          ? Colors.textMuted
+          : Colors.gold;
+  const performanceIcon: React.ComponentProps<typeof Ionicons>["name"] =
+    performanceStatus === "pass"
+      ? "checkmark-circle-outline"
+      : performanceStatus === "fail"
+        ? "close-circle-outline"
+        : performanceStatus === "ineligible"
+          ? "remove-circle-outline"
+          : "speedometer-outline";
+  const sharePerformanceEvidence = useCallback(() => {
+    if (!shareablePerformanceEvidence) return;
+    void Share.share(
+      {
+        title: "worldDOMINATION map performance evidence",
+        message: serializeMapPerformanceEvidence(
+          shareablePerformanceEvidence,
+        ),
+      },
+      {
+        dialogTitle: "Share map performance evidence",
+        subject: "worldDOMINATION map performance evidence",
+      },
+    ).catch((error) => {
+      console.warn("Unable to share map performance evidence.", error);
+      Alert.alert(
+        "Evidence Export Failed",
+        "The completed qualification remains saved on this device.",
+      );
+    });
+  }, [shareablePerformanceEvidence]);
 
   // Landscape: the map spans the full width, chrome docks right (RISK II
   // keeps the board full-bleed — the panel must never eat the map).
@@ -879,6 +974,11 @@ export function CampaignScreen({
           viewMode={viewMode}
           rendererMode={rendererMode}
           onTerritoryTap={handleTerritoryTap}
+          onPerformanceEvidence={
+            MAP_PERFORMANCE_QUALIFICATION_ENABLED
+              ? handlePerformanceEvidence
+              : undefined
+          }
         />
       </View>
 
@@ -950,6 +1050,30 @@ export function CampaignScreen({
               {MAP_VIEW_LABELS[viewMode].toUpperCase()}
             </Text>
           </Pressable>
+          {MAP_PERFORMANCE_QUALIFICATION_ENABLED &&
+          rendererMode === "r3f" ? (
+            <Pressable
+              testID="map-performance-evidence"
+              accessibilityRole="button"
+              accessibilityLabel={`Map performance qualification ${performanceStatus}`}
+              accessibilityState={{
+                disabled: !shareablePerformanceEvidence,
+              }}
+              disabled={!shareablePerformanceEvidence}
+              onPress={sharePerformanceEvidence}
+              style={({ pressed }) => [
+                styles.performanceEvidenceBtn,
+                { borderColor: performanceColor },
+                pressed && styles.performanceEvidenceBtnPressed,
+              ]}
+            >
+              <Ionicons
+                name={performanceIcon}
+                size={17}
+                color={performanceColor}
+              />
+            </Pressable>
+          ) : null}
           <Pressable
             onPress={cycleBattleSceneMode}
             style={styles.viewModeBtn}
@@ -1094,6 +1218,17 @@ const styles = StyleSheet.create({
     fontFamily: "Alegreya_600SemiBold",
     fontSize: 9,
     letterSpacing: 2,
+  },
+  performanceEvidenceBtn: {
+    width: 30,
+    height: 28,
+    borderWidth: 1,
+    backgroundColor: MapHud.control,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  performanceEvidenceBtnPressed: {
+    opacity: 0.72,
   },
   bottomChrome: {
     position: "absolute",

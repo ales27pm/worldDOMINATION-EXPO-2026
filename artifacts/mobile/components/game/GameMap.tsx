@@ -14,6 +14,7 @@ import {
 } from "@/game/mapSceneModel";
 import { WorldBoard } from "@/components/game/WorldBoard";
 import { hitTestTerritory } from "@/game/mapGeometry";
+import type { MapPerformanceEvidence } from "@/game/mapPerformanceEvidence";
 import type { GameState, TerritoryId } from "@/game/types";
 
 const R3FGameMap = React.lazy(
@@ -36,6 +37,7 @@ interface Props {
   viewMode: MapViewMode;
   rendererMode?: MapRendererMode;
   onTerritoryTap: (id: TerritoryId) => void;
+  onPerformanceEvidence?: (evidence: MapPerformanceEvidence) => void;
 }
 
 interface RendererBoundaryProps {
@@ -74,6 +76,7 @@ export default function GameMap({
   viewMode,
   rendererMode = "svg",
   onTerritoryTap,
+  onPerformanceEvidence,
 }: Props) {
   const activeIdsRef = useRef(game.activeIds);
   activeIdsRef.current = game.activeIds;
@@ -118,6 +121,7 @@ export default function GameMap({
             game={game}
             model={model}
             onTerritoryTap={onTerritoryTap}
+            onPerformanceEvidence={onPerformanceEvidence}
           />
         </Suspense>
       </RendererBoundary>
