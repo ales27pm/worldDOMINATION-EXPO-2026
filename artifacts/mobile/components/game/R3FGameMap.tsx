@@ -32,6 +32,7 @@ import {
 
 import { R3FArmyLayer } from "@/components/game/R3FArmyLayer";
 import { R3FGestureSurface } from "@/components/game/R3FGestureSurface";
+import R3FTerritoryLabels from "@/components/game/R3FTerritoryLabels";
 import R3FTerritoryMeshes from "@/components/game/R3FTerritoryMeshes";
 import { Canvas, useFrame, useThree } from "@/components/game/r3fRuntime";
 import { MAP_H, MAP_W, clampCamera, type Camera } from "@/game/camera";
@@ -101,6 +102,7 @@ interface WebWheelEvent {
 
 interface SceneBridgeState extends PickerState {
   projected: Record<string, { x: number; y: number }>;
+  territoryLabelCount: number;
 }
 
 const BUTTON_ZOOM = 1.45;
@@ -368,8 +370,18 @@ function SceneBridge({
         meshes.push(mesh);
       }
     });
+    const labelLayer = scene.getObjectByName("territory_labels");
+    const territoryLabelCount = Number(
+      labelLayer?.userData.territoryCount ?? 0,
+    );
     publishedMeshCount.current = meshes.length;
-    onBridge({ camera, invalidate, meshes, projected });
+    onBridge({
+      camera,
+      invalidate,
+      meshes,
+      projected,
+      territoryLabelCount,
+    });
   }, [camera, invalidate, onBridge, projected, scene]);
 
   useEffect(() => {
@@ -528,6 +540,7 @@ function TabletopScene({
       />
       <Suspense fallback={null}>
         <R3FTerritoryMeshes model={model} onLoaded={onLoaded} />
+        <R3FTerritoryLabels model={model} />
         <R3FArmyLayer model={model} />
         {battle ? (
           <BattleEffect battle={battle} onComplete={onBattleComplete} />
@@ -666,6 +679,7 @@ export default function R3FGameMap({
     updateR3FDebug({
       projected: projectedRef.current,
       pickerMeshCount: bridge.meshes.length,
+      territoryLabelCount: bridge.territoryLabelCount,
       camera: runtime.current.current,
     });
   }, []);

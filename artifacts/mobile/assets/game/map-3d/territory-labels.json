@@ -1,0 +1,261 @@
+{
+  "format": "worlddomination-territory-label-atlas",
+  "contractVersion": 1,
+  "file": "territory-labels.png",
+  "sha256": "39a08d962e2eca221a99a3b3f6a0c306447b74e9a62a29f6a2e15880e775c11f",
+  "byteLength": 250218,
+  "width": 1024,
+  "height": 1024,
+  "columns": 4,
+  "rows": 16,
+  "cellWidth": 256,
+  "cellHeight": 64,
+  "font": {
+    "source": "@expo-google-fonts/im-fell-english/400Regular/IMFellEnglish_400Regular.ttf",
+    "sha256": "ac506157d2920e96b9f95297207b439cb707fcaff9fb22ecefd23e40e5c338c9",
+    "family": "IM Fell English",
+    "pixelSize": 30
+  },
+  "labels": [
+    {
+      "territoryId": "alaska",
+      "displayName": "Alaska",
+      "stableIndex": 0
+    },
+    {
+      "territoryId": "northwestTerritory",
+      "displayName": "NW Territory",
+      "stableIndex": 1
+    },
+    {
+      "territoryId": "greenland",
+      "displayName": "Greenland",
+      "stableIndex": 2
+    },
+    {
+      "territoryId": "alberta",
+      "displayName": "Alberta",
+      "stableIndex": 3
+    },
+    {
+      "territoryId": "ontario",
+      "displayName": "Ontario",
+      "stableIndex": 4
+    },
+    {
+      "territoryId": "quebec",
+      "displayName": "Quebec",
+      "stableIndex": 5
+    },
+    {
+      "territoryId": "westernUS",
+      "displayName": "W. United States",
+      "stableIndex": 6
+    },
+    {
+      "territoryId": "easternUS",
+      "displayName": "E. United States",
+      "stableIndex": 7
+    },
+    {
+      "territoryId": "centralAmerica",
+      "displayName": "Central America",
+      "stableIndex": 8
+    },
+    {
+      "territoryId": "hawaii",
+      "displayName": "Hawaii",
+      "stableIndex": 9
+    },
+    {
+      "territoryId": "venezuela",
+      "displayName": "Venezuela",
+      "stableIndex": 10
+    },
+    {
+      "territoryId": "peru",
+      "displayName": "Peru",
+      "stableIndex": 11
+    },
+    {
+      "territoryId": "brazil",
+      "displayName": "Brazil",
+      "stableIndex": 12
+    },
+    {
+      "territoryId": "argentina",
+      "displayName": "Argentina",
+      "stableIndex": 13
+    },
+    {
+      "territoryId": "falklandIslands",
+      "displayName": "Falkland Is.",
+      "stableIndex": 14
+    },
+    {
+      "territoryId": "iceland",
+      "displayName": "Iceland",
+      "stableIndex": 15
+    },
+    {
+      "territoryId": "scandinavia",
+      "displayName": "Scandinavia",
+      "stableIndex": 16
+    },
+    {
+      "territoryId": "greatBritain",
+      "displayName": "Great Britain",
+      "stableIndex": 17
+    },
+    {
+      "territoryId": "northernEurope",
+      "displayName": "N. Europe",
+      "stableIndex": 18
+    },
+    {
+      "territoryId": "westernEurope",
+      "displayName": "W. Europe",
+      "stableIndex": 19
+    },
+    {
+      "territoryId": "southernEurope",
+      "displayName": "S. Europe",
+      "stableIndex": 20
+    },
+    {
+      "territoryId": "ukraine",
+      "displayName": "Ukraine",
+      "stableIndex": 21
+    },
+    {
+      "territoryId": "svalbard",
+      "displayName": "Svalbard",
+      "stableIndex": 22
+    },
+    {
+      "territoryId": "northAfrica",
+      "displayName": "N. Africa",
+      "stableIndex": 23
+    },
+    {
+      "territoryId": "egypt",
+      "displayName": "Egypt",
+      "stableIndex": 24
+    },
+    {
+      "territoryId": "eastAfrica",
+      "displayName": "E. Africa",
+      "stableIndex": 25
+    },
+    {
+      "territoryId": "congo",
+      "displayName": "Congo",
+      "stableIndex": 26
+    },
+    {
+      "territoryId": "southAfrica",
+      "displayName": "S. Africa",
+      "stableIndex": 27
+    },
+    {
+      "territoryId": "madagascar",
+      "displayName": "Madagascar",
+      "stableIndex": 28
+    },
+    {
+      "territoryId": "westAfrica",
+      "displayName": "W. Africa",
+      "stableIndex": 29
+    },
+    {
+      "territoryId": "ural",
+      "displayName": "Ural",
+      "stableIndex": 30
+    },
+    {
+      "territoryId": "siberia",
+      "displayName": "Siberia",
+      "stableIndex": 31
+    },
+    {
+      "territoryId": "yakutsk",
+      "displayName": "Yakutsk",
+      "stableIndex": 32
+    },
+    {
+      "territoryId": "kamchatka",
+      "displayName": "Kamchatka",
+      "stableIndex": 33
+    },
+    {
+      "territoryId": "irkutsk",
+      "displayName": "Irkutsk",
+      "stableIndex": 34
+    },
+    {
+      "territoryId": "mongolia",
+      "displayName": "Mongolia",
+      "stableIndex": 35
+    },
+    {
+      "territoryId": "japan",
+      "displayName": "Japan",
+      "stableIndex": 36
+    },
+    {
+      "territoryId": "afghanistan",
+      "displayName": "Afghanistan",
+      "stableIndex": 37
+    },
+    {
+      "territoryId": "china",
+      "displayName": "China",
+      "stableIndex": 38
+    },
+    {
+      "territoryId": "middleEast",
+      "displayName": "Middle East",
+      "stableIndex": 39
+    },
+    {
+      "territoryId": "india",
+      "displayName": "India",
+      "stableIndex": 40
+    },
+    {
+      "territoryId": "siam",
+      "displayName": "Siam",
+      "stableIndex": 41
+    },
+    {
+      "territoryId": "philippines",
+      "displayName": "Philippines",
+      "stableIndex": 42
+    },
+    {
+      "territoryId": "indonesia",
+      "displayName": "Indonesia",
+      "stableIndex": 43
+    },
+    {
+      "territoryId": "newGuinea",
+      "displayName": "New Guinea",
+      "stableIndex": 44
+    },
+    {
+      "territoryId": "westernAustralia",
+      "displayName": "W. Australia",
+      "stableIndex": 45
+    },
+    {
+      "territoryId": "easternAustralia",
+      "displayName": "E. Australia",
+      "stableIndex": 46
+    },
+    {
+      "territoryId": "newZealand",
+      "displayName": "New Zealand",
+      "stableIndex": 47
+    }
+  ]
+}

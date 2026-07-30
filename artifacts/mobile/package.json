@@ -17,6 +17,8 @@
     "map:glb:check": "tsx scripts/export-map-glb.ts --check && pnpm run map:glb:validate",
     "map:glb:smoke": "node scripts/map-glb-smoke.js",
     "map:glb:validate": "node scripts/validate-map-glb.cjs",
+    "map:labels": "tsx scripts/export-map-label-atlas.ts",
+    "map:labels:check": "tsx scripts/export-map-label-atlas.ts --check",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "android": "expo run:android",
     "ios": "expo run:ios"

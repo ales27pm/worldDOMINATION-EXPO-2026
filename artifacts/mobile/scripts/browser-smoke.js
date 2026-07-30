@@ -176,6 +176,15 @@ function assertExportShape() {
   );
   for (const file of mapGlbs) assertFile(file, "bundled canonical map GLB");
 
+  const territoryLabelAtlases = files.filter((file) =>
+    /assets\/game\/map-3d\/territory-labels\.[^.]+\.png$/.test(file),
+  );
+  assert(
+    territoryLabelAtlases.length === 1,
+    `expected one bundled territory-label atlas, found ${territoryLabelAtlases.length}`,
+  );
+  assertFile(territoryLabelAtlases[0], "bundled territory-label atlas");
+
   const pieceAssets = files.filter((file) =>
     /assets\/game\/pieces\/piece-(infantry|cavalry|artillery)\.[^.]+\.png$/.test(
       file,
@@ -557,6 +566,10 @@ async function assertR3FVerticalSlice(page) {
     `R3F picker registered ${initial.pickerMeshCount}/${initial.territoryCount} territory meshes`,
   );
   assert(
+    initial.territoryLabelCount === initial.territoryCount,
+    `R3F label layer registered ${initial.territoryLabelCount}/${initial.territoryCount} territory labels`,
+  );
+  assert(
     JSON.stringify(initial.armyModels) ===
       JSON.stringify(["infantry", "cavalry", "artillery"]),
     `R3F preview did not expose all army model classes: ${JSON.stringify(initial.armyModels)}`,
@@ -614,6 +627,10 @@ async function assertR3FVerticalSlice(page) {
   assert(
     remounted.pickerMeshCount === initial.territoryCount,
     `R3F remount registered ${remounted.pickerMeshCount}/${initial.territoryCount} pick meshes`,
+  );
+  assert(
+    remounted.territoryLabelCount === initial.territoryCount,
+    `R3F remount registered ${remounted.territoryLabelCount}/${initial.territoryCount} territory labels`,
   );
   console.log("ok - shared SVG/R3F scene model");
 
@@ -780,6 +797,26 @@ async function assertR3FVerticalSlice(page) {
   );
   await assertR3FCanvasPixels(page, "restored R3F tabletop");
   console.log("ok - R3F save restore presentation");
+}
+
+async function assertR3FExpandedLabelLayer(page) {
+  console.log("checking - expanded R3F territory labels");
+  await page.waitForFunction(
+    () => {
+      const scene = globalThis.__WORLD_DOMINATION_R3F__;
+      return (
+        scene?.ready === true &&
+        scene.variant === "expanded" &&
+        scene.territoryCount === 48 &&
+        scene.pickerMeshCount === 48 &&
+        scene.territoryLabelCount === 48
+      );
+    },
+    null,
+    { timeout: 30000 },
+  );
+  await assertR3FCanvasPixels(page, "expanded R3F tabletop");
+  console.log("ok - expanded R3F territory labels");
 }
 
 async function assertR3FMultiplayerSnapshots(browser, origin, errors) {
@@ -1381,6 +1418,13 @@ async function assertRenderedPreview() {
       ["Napoleon", "ATTACK", "3D", "BATTLES:"],
       "rendered R3F attack vertical slice",
       assertR3FVerticalSlice,
+      VIEWPORTS.desktop,
+    );
+    await withFreshPage(
+      "/game?autostart=1&renderer=r3f&extra=1&players=2",
+      ["Napoleon", "REINFORCE", "3D", "BATTLES:"],
+      "rendered expanded R3F label layer",
+      assertR3FExpandedLabelLayer,
       VIEWPORTS.desktop,
     );
     await assertR3FMultiplayerSnapshots(browser, origin, errors);
