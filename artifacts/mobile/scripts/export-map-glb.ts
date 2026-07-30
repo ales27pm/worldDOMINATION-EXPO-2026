@@ -27,6 +27,7 @@ import {
   MAP_SCENE_TERRITORY_HEIGHT,
   MAP_SCENE_UNITS_PER_PIXEL,
   MAP_VARIANTS,
+  mapBoardPointToWorld,
   mapSceneAssetFilename,
   mapVariantIncludesExtraTerritories,
   territoryMeshName,
@@ -209,11 +210,7 @@ function buildScene(variant: MapVariant): {
       stableIndex,
       isExtra: territory.isExtra,
       pathSha256: sha256(sourcePath),
-      anchor: [
-        (territory.x * SHAPES_W - SHAPES_W / 2) * MAP_SCENE_UNITS_PER_PIXEL,
-        MAP_SCENE_TERRITORY_HEIGHT,
-        (territory.y * SHAPES_H - SHAPES_H / 2) * MAP_SCENE_UNITS_PER_PIXEL,
-      ],
+      anchor: mapBoardPointToWorld(territory.x, territory.y),
     };
     scene.add(mesh);
   }

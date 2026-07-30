@@ -2,6 +2,7 @@ import type { ContinentId, TerritoryId } from "./types";
 
 export const MAP_SCENE_CONTRACT_VERSION = 1 as const;
 export const MAP_SCENE_FORMAT = "worlddomination-map-scene" as const;
+export const MAP_SCENE_BOARD_PIXELS = [1536, 1024] as const;
 export const MAP_SCENE_UNITS_PER_PIXEL = 0.01;
 export const MAP_SCENE_TERRITORY_HEIGHT = 0.08;
 
@@ -24,6 +25,19 @@ export function mapSceneAssetFilename(
 
 export function territoryMeshName(id: TerritoryId): TerritoryMeshName {
   return `territory__${id}`;
+}
+
+export function mapBoardPointToWorld(
+  x: number,
+  y: number,
+  elevation = MAP_SCENE_TERRITORY_HEIGHT,
+): [number, number, number] {
+  const [boardWidth, boardHeight] = MAP_SCENE_BOARD_PIXELS;
+  return [
+    (x * boardWidth - boardWidth / 2) * MAP_SCENE_UNITS_PER_PIXEL,
+    elevation,
+    (y * boardHeight - boardHeight / 2) * MAP_SCENE_UNITS_PER_PIXEL,
+  ];
 }
 
 export interface TerritoryMeshMetadata {
