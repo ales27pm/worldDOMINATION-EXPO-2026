@@ -567,7 +567,57 @@ async function assertR3FVerticalSlice(page) {
   );
   await assertR3FCanvasPixels(page, "R3F tabletop");
 
-  const initialViewWidth = initial.camera.vw;
+  const sharedR3FModel = await page.evaluate(
+    () => globalThis.__WORLD_DOMINATION_MAP_SCENE__,
+  );
+  assert(
+    sharedR3FModel?.rendererMode === "r3f" &&
+      sharedR3FModel.sceneRevision === initial.sceneRevision &&
+      sharedR3FModel.territoryCount === initial.territoryCount,
+    `R3F did not consume the shared scene model: ${JSON.stringify(sharedR3FModel)}`,
+  );
+  console.log("checking - shared SVG/R3F scene model");
+  await page.getByLabel("Use 2D map renderer").first().click({
+    timeout: 10000,
+  });
+  await page.waitForFunction(
+    (expectedRevision) =>
+      globalThis.__WORLD_DOMINATION_MAP_SCENE__?.rendererMode === "svg" &&
+      globalThis.__WORLD_DOMINATION_MAP_SCENE__?.sceneRevision ===
+        expectedRevision &&
+      globalThis.__WORLD_DOMINATION_R3F__?.ready === false,
+    initial.sceneRevision,
+    { timeout: 10000 },
+  );
+  const sharedSVGModel = await page.evaluate(
+    () => globalThis.__WORLD_DOMINATION_MAP_SCENE__,
+  );
+  assert(
+    sharedSVGModel.territoryCount === initial.territoryCount &&
+      sharedSVGModel.variant === initial.variant,
+    `SVG did not consume the shared scene model: ${JSON.stringify(sharedSVGModel)}`,
+  );
+  await page.getByLabel("Use 3D map renderer").first().click({
+    timeout: 10000,
+  });
+  await page.waitForFunction(
+    (expectedRevision) =>
+      globalThis.__WORLD_DOMINATION_MAP_SCENE__?.rendererMode === "r3f" &&
+      globalThis.__WORLD_DOMINATION_R3F__?.ready === true &&
+      globalThis.__WORLD_DOMINATION_R3F__?.sceneRevision === expectedRevision,
+    initial.sceneRevision,
+    { timeout: 30000 },
+  );
+  const remounted = await page.evaluate(
+    () => globalThis.__WORLD_DOMINATION_R3F__,
+  );
+  assert(
+    remounted.pickerMeshCount === initial.territoryCount,
+    `R3F remount registered ${remounted.pickerMeshCount}/${initial.territoryCount} pick meshes`,
+  );
+  console.log("ok - shared SVG/R3F scene model");
+
+  const initialViewWidth = remounted.camera.vw;
   await page.getByLabel("Zoom in").first().click({ timeout: 10000 });
   console.log("checking - R3F camera zoom");
   await page.waitForFunction(

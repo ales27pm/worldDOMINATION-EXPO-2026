@@ -70,6 +70,7 @@ export interface MapSceneBattleEffect {
 export interface MapSceneModel {
   contractVersion: 1;
   variant: MapVariant;
+  viewMode: MapViewMode;
   revision: string;
   territories: MapSceneTerritory[];
   selectedId: TerritoryId | null;
@@ -286,6 +287,7 @@ export function buildMapSceneModel(
   const scene: Omit<MapSceneModel, "revision"> = {
     contractVersion: 1,
     variant,
+    viewMode,
     territories,
     selectedId: selected,
     targetIds,

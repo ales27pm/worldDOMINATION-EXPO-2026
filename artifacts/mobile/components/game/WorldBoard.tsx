@@ -15,8 +15,7 @@ import Svg, {
 import { WORLD_BOARD } from "@/lib/gameArt";
 import { MapPiece } from "@/components/game/PieceSprite";
 import { BattleArrowLayer } from "@/components/game/BattleArrowLayer";
-import { borderThreat, largestEmpire } from "@/game/analysis";
-import { activeTerritories, CONTINENTS, TERRITORY_MAP } from "@/game/mapData";
+import { activeTerritories, CONTINENTS } from "@/game/mapData";
 import {
   CLASSIC_NORTH_AFRICA_SEAM,
   getTerritoryPath,
@@ -25,9 +24,10 @@ import { buildSeaRouteEdges } from "@/game/mapRoutes";
 import {
   MAP_VIEW_LABELS,
   MAP_VIEW_MODES,
+  type MapSceneModel,
+  type MapSceneTerritory,
   type MapViewMode,
 } from "@/game/mapSceneModel";
-import { dominantPiece } from "@/game/pieces";
 import { Fonts } from "@/constants/typography";
 import { MAP_HUD_TEXT_SHADOW, MapHud } from "@/constants/mapHud";
 import type { ContinentId, GameState, TerritoryId } from "@/game/types";
@@ -49,12 +49,6 @@ const PIECE_SHADOW_OFFSET_Y = PIECE_BASE_OFFSET_Y + scaleBoard(2);
 const PIECE_SPRITE_BASE_OFFSET_Y = PIECE_BASE_OFFSET_Y + scaleBoard(1);
 const ARMY_ROUNDEL_OFFSET_X = scaleBoard(13);
 const ARMY_ROUNDEL_OFFSET_Y = PIECE_BASE_OFFSET_Y - scaleBoard(7);
-
-/** Blue (safe/weak) → red (dangerous/strong) heat color. */
-function heat(t: number): string {
-  const clamped = Math.min(1, Math.max(0, t));
-  return `hsl(${Math.round(215 - 215 * clamped)}, 78%, 46%)`;
-}
 
 // ─── Presentational bits ──────────────────────────────────────────────────────
 
@@ -91,10 +85,18 @@ function OceanLabel({
 
 interface WorldBoardProps {
   game: GameState;
-  selected: TerritoryId | null;
-  targets: Set<TerritoryId>;
-  interactive: Set<TerritoryId>;
-  viewMode: MapViewMode;
+  model: MapSceneModel;
+}
+
+function sceneTerritory(
+  territories: ReadonlyMap<TerritoryId, MapSceneTerritory>,
+  id: TerritoryId,
+): MapSceneTerritory {
+  const territory = territories.get(id);
+  if (!territory) {
+    throw new Error(`MapSceneModel is missing active territory ${id}`);
+  }
+  return territory;
 }
 
 /**
@@ -106,68 +108,32 @@ interface WorldBoardProps {
  */
 export const WorldBoard = React.memo(function WorldBoard({
   game,
-  selected,
-  targets,
-  interactive,
-  viewMode,
+  model,
 }: WorldBoardProps) {
   const defs = useMemo(
-    () => activeTerritories(game.setup.useExtraTerritories),
-    [game.setup.useExtraTerritories],
+    () => activeTerritories(model.variant === "expanded"),
+    [model.variant],
   );
   const edges = useMemo(
-    () => buildSeaRouteEdges(game.setup.useExtraTerritories, W, H),
-    [game.setup.useExtraTerritories],
+    () => buildSeaRouteEdges(model.variant === "expanded", W, H),
+    [model.variant],
   );
-  const includeExtra = game.setup.useExtraTerritories;
-  const capitals = useMemo(() => {
-    // Capital RISK secrecy (manual, Ch. 6): capitals stay hidden from other
-    // commanders until the reveal fires — a viewer always knows their own.
-    const viewerId = game.players.find((p) => p.isHuman)?.id;
-    const map = new Map<TerritoryId, number>();
-    for (const p of game.players) {
-      if (p.capital && (game.capitalsRevealed || p.id === viewerId))
-        map.set(p.capital, p.id);
-    }
-    return map;
-  }, [game.players, game.capitalsRevealed]);
-
-  // View-modifier tint per territory (manual, Chapter 9: The View Modifier).
-  const overlay = useMemo(() => {
-    if (viewMode === "board") return null;
-    const map = new Map<TerritoryId, string>();
-    if (viewMode === "ownership") {
-      for (const id of game.activeIds) {
-        const owner = game.players[game.territories[id].owner];
-        if (owner) map.set(id, owner.color);
-      }
-    } else if (viewMode === "threats") {
-      for (const id of game.activeIds) {
-        const territory = game.territories[id];
-        if (territory.owner < 0) continue;
-        const threat = borderThreat(game, id, territory.owner);
-        const ratio = threat / Math.max(1, territory.armies);
-        map.set(id, heat(ratio / 3));
-      }
-    } else if (viewMode === "strength") {
-      const max = Math.max(
-        1,
-        ...game.activeIds.map((id) => game.territories[id].armies),
-      );
-      for (const id of game.activeIds) {
-        if (game.territories[id].owner < 0) continue;
-        map.set(id, heat(game.territories[id].armies / max));
-      }
-    } else if (viewMode === "empire") {
-      for (const player of game.players) {
-        if (!player.alive) continue;
-        for (const id of largestEmpire(game, player.id)) {
-          map.set(id, player.color);
-        }
-      }
-    }
-    return map;
-  }, [game, viewMode]);
+  const includeExtra = model.variant === "expanded";
+  const territoryById = useMemo(
+    () =>
+      new Map(
+        model.territories.map((territory) => [territory.id, territory]),
+      ),
+    [model.territories],
+  );
+  const interactiveIds = useMemo(
+    () => new Set(model.interactiveIds),
+    [model.interactiveIds],
+  );
+  const targetIds = useMemo(
+    () => new Set(model.targetIds),
+    [model.targetIds],
+  );
 
   return (
     <View style={styles.board} pointerEvents="none">
@@ -257,9 +223,12 @@ export const WorldBoard = React.memo(function WorldBoard({
         )}
 
         {/* View-modifier tints — fill the actual territory shape */}
-        {overlay &&
+        {model.viewMode !== "board" &&
           defs.map((def) => {
-            const tint = overlay.get(def.id);
+            const tint = sceneTerritory(
+              territoryById,
+              def.id,
+            ).surfaceTint;
             if (!tint) return null;
             return (
               <Path
@@ -275,14 +244,10 @@ export const WorldBoard = React.memo(function WorldBoard({
           })}
 
         {/* Interactive shimmer on the board view (web shows it on hover; mobile marks tappable shapes) */}
-        {viewMode === "board" &&
+        {model.viewMode === "board" &&
           defs.map((def) => {
-            if (
-              !interactive.has(def.id) ||
-              targets.has(def.id) ||
-              selected === def.id
-            )
-              return null;
+            const territory = sceneTerritory(territoryById, def.id);
+            if (territory.interaction !== "interactive") return null;
             return (
               <Path
                 key={`int-${def.id}`}
@@ -298,8 +263,9 @@ export const WorldBoard = React.memo(function WorldBoard({
 
         {/* Selection / target outlines on the traced territory borders */}
         {defs.map((def) => {
-          const isSelected = selected === def.id;
-          const isTarget = targets.has(def.id);
+          const territory = sceneTerritory(territoryById, def.id);
+          const isSelected = territory.interaction === "selected";
+          const isTarget = territory.interaction === "target";
           if (!isSelected && !isTarget) return null;
           return (
             <Path
@@ -338,11 +304,11 @@ export const WorldBoard = React.memo(function WorldBoard({
 
         {/* Unclaimed territory markers + piece shadows and plastic bases */}
         {defs.map((def) => {
-          const territory = game.territories[def.id];
+          const territory = sceneTerritory(territoryById, def.id);
           const cx = def.x * W;
           const cy = def.y * H;
-          if (territory.owner < 0) {
-            const isInteractive = interactive.has(def.id);
+          if (territory.ownerId < 0) {
+            const isInteractive = interactiveIds.has(def.id);
             return (
               <G key={`node-${def.id}`}>
                 <Circle
@@ -357,8 +323,7 @@ export const WorldBoard = React.memo(function WorldBoard({
               </G>
             );
           }
-          const owner = game.players[territory.owner];
-          const color = owner?.color ?? "#666666";
+          const color = territory.ownerColor ?? "#666666";
           return (
             <G key={`node-${def.id}`}>
               <Ellipse
@@ -406,14 +371,13 @@ export const WorldBoard = React.memo(function WorldBoard({
 
       {/* Figures — native RNImages tinted per player */}
       {defs.map((def) => {
-        const territory = game.territories[def.id];
-        if (territory.owner < 0) return null;
-        const owner = game.players[territory.owner];
+        const territory = sceneTerritory(territoryById, def.id);
+        if (territory.ownerId < 0 || !territory.pieceType) return null;
         return (
           <MapPiece
             key={`piece-${def.id}`}
-            type={dominantPiece(territory.armies)}
-            color={owner?.color ?? "#666666"}
+            type={territory.pieceType}
+            color={territory.ownerColor ?? "#666666"}
             cx={def.x * W}
             baseY={def.y * H + PIECE_SPRITE_BASE_OFFSET_Y}
             scale={BOARD_SCALE}
@@ -424,10 +388,10 @@ export const WorldBoard = React.memo(function WorldBoard({
       {/* Over layer: capital stars, roundels, name labels — native Text
           (react-native-svg text is unreliable on web, so labels are RN) */}
       {defs.map((def) => {
-        const territory = game.territories[def.id];
+        const territory = sceneTerritory(territoryById, def.id);
         const cx = def.x * W;
         const cy = def.y * H;
-        if (territory.owner < 0) {
+        if (territory.ownerId < 0) {
           return (
             <View
               key={`label-${def.id}`}
@@ -437,18 +401,20 @@ export const WorldBoard = React.memo(function WorldBoard({
                 { left: cx - 100, top: cy + scaleBoard(17) },
               ]}
             >
-              <Text style={styles.nameLabel}>{def.name}</Text>
+              <Text style={styles.nameLabel}>{territory.displayName}</Text>
             </View>
           );
         }
-        const dim = !(interactive.has(def.id) || targets.has(def.id));
+        const dim = !(
+          interactiveIds.has(def.id) || targetIds.has(def.id)
+        );
         return (
           <View
             key={`label-${def.id}`}
             pointerEvents="none"
             style={dim && styles.dimmed}
           >
-            {capitals.has(def.id) && (
+            {territory.isCapital && (
               <Text
                 style={[
                   styles.capitalStar,
@@ -486,7 +452,7 @@ export const WorldBoard = React.memo(function WorldBoard({
                 { left: cx - 100, top: cy + scaleBoard(23) },
               ]}
             >
-              <Text style={styles.nameLabel}>{def.name}</Text>
+              <Text style={styles.nameLabel}>{territory.displayName}</Text>
             </View>
           </View>
         );

@@ -68,6 +68,7 @@ test("scene model preserves stable territory identities and renderer state", () 
 
   equal(model.contractVersion, 1);
   equal(model.variant, "classic");
+  equal(model.viewMode, "board");
   deepEqual(
     model.territories.map((territory) => territory.id),
     definitions.map((territory) => territory.id),
@@ -105,6 +106,7 @@ test("scene model preserves stable territory identities and renderer state", () 
     new Set(),
     "ownership",
   );
+  equal(ownership.viewMode, "ownership");
   equal(
     ownership.territories.find(({ id }) => id === "brazil")?.surfaceTint,
     game.players[0].color,

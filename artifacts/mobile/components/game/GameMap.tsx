@@ -1,11 +1,18 @@
-import React, { Suspense, useCallback, useRef } from "react";
+import React, {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+} from "react";
 import { MapViewport } from "@/components/game/MapViewport";
 import {
+  buildMapSceneModel,
   MAP_VIEW_LABELS,
   MAP_VIEW_MODES,
-  WorldBoard,
   type MapViewMode,
-} from "@/components/game/WorldBoard";
+} from "@/game/mapSceneModel";
+import { WorldBoard } from "@/components/game/WorldBoard";
 import { hitTestTerritory } from "@/game/mapGeometry";
 import type { GameState, TerritoryId } from "@/game/types";
 
@@ -17,6 +24,9 @@ export { MAP_VIEW_LABELS, MAP_VIEW_MODES };
 export type { MapViewMode };
 
 export type MapRendererMode = "svg" | "r3f";
+
+const MAP_SCENE_DEBUG_ENABLED =
+  process.env.EXPO_PUBLIC_BROWSER_SMOKE === "1";
 
 interface Props {
   game: GameState;
@@ -74,16 +84,29 @@ export default function GameMap({
     const id = hitTestTerritory(x, y, activeIdsRef.current);
     if (id) onTapRef.current(id);
   }, []);
+  const model = useMemo(
+    () => buildMapSceneModel(game, selected, targets, interactive, viewMode),
+    [game, interactive, selected, targets, viewMode],
+  );
+
+  useEffect(() => {
+    if (!MAP_SCENE_DEBUG_ENABLED) return;
+    const root = globalThis as typeof globalThis & {
+      __WORLD_DOMINATION_MAP_SCENE__?: Record<string, unknown>;
+    };
+    root.__WORLD_DOMINATION_MAP_SCENE__ = {
+      contractVersion: model.contractVersion,
+      rendererMode,
+      sceneRevision: model.revision,
+      variant: model.variant,
+      viewMode: model.viewMode,
+      territoryCount: model.territories.length,
+    };
+  }, [model, rendererMode]);
 
   const svgMap = (
     <MapViewport game={game} selected={selected} onBoardTap={handleBoardTap}>
-      <WorldBoard
-        game={game}
-        selected={selected}
-        targets={targets}
-        interactive={interactive}
-        viewMode={viewMode}
-      />
+      <WorldBoard game={game} model={model} />
     </MapViewport>
   );
 
@@ -93,10 +116,7 @@ export default function GameMap({
         <Suspense fallback={svgMap}>
           <R3FGameMap
             game={game}
-            selected={selected}
-            targets={targets}
-            interactive={interactive}
-            viewMode={viewMode}
+            model={model}
             onTerritoryTap={onTerritoryTap}
           />
         </Suspense>

@@ -52,12 +52,10 @@ import {
 } from "@/game/mapCameraIntent";
 import {
   advanceMapScenePresentation,
-  buildMapSceneModel,
   createMapScenePresentationState,
   type MapSceneBattleEffect,
   type MapSceneModel,
   type MapScenePresentationState,
-  type MapViewMode,
 } from "@/game/mapSceneModel";
 import {
   createMapFrameProfile,
@@ -74,10 +72,7 @@ import type { GameState, TerritoryId } from "@/game/types";
 
 interface Props {
   game: GameState;
-  selected: TerritoryId | null;
-  targets: Set<TerritoryId>;
-  interactive: Set<TerritoryId>;
-  viewMode: MapViewMode;
+  model: MapSceneModel;
   onTerritoryTap: (id: TerritoryId) => void;
 }
 
@@ -575,10 +570,7 @@ function CameraButton({
 
 export default function R3FGameMap({
   game,
-  selected,
-  targets,
-  interactive,
-  viewMode,
+  model,
   onTerritoryTap,
 }: Props) {
   const [layout, setLayout] = useState<LayoutSize>({
@@ -600,10 +592,6 @@ export default function R3FGameMap({
     layout.width > 0 && layout.height > 0
       ? layout.width / layout.height
       : MAP_W / MAP_H;
-  const model = useMemo(
-    () => buildMapSceneModel(game, selected, targets, interactive, viewMode),
-    [game, interactive, selected, targets, viewMode],
-  );
   const presentationRef = useRef<MapScenePresentationState | null>(null);
   if (!presentationRef.current) {
     presentationRef.current = createMapScenePresentationState(model);
@@ -613,7 +601,7 @@ export default function R3FGameMap({
   const pickIndex = useMemo(() => createMapScenePickIndex(model), [model]);
   const runtime = useRef(
     createMapCameraRuntime(
-      initialCameraIntent(game, selected, aspect, layout.width),
+      initialCameraIntent(game, model.selectedId, aspect, layout.width),
     ),
   );
   const initializedLayout = useRef(false);
@@ -634,7 +622,12 @@ export default function R3FGameMap({
     if (layout.width <= 0 || layout.height <= 0) return;
     if (!initializedLayout.current) {
       runtime.current = createMapCameraRuntime(
-        initialCameraIntent(game, selected, aspect, layout.width),
+        initialCameraIntent(
+          game,
+          model.selectedId,
+          aspect,
+          layout.width,
+        ),
       );
       initializedLayout.current = true;
       return;
@@ -813,11 +806,11 @@ export default function R3FGameMap({
   const focusAction = useCallback(() => {
     applyCameraIntent(
       runtime.current,
-      focusCameraIntent(game, selected, aspect, layout.width),
+      focusCameraIntent(game, model.selectedId, aspect, layout.width),
     );
     setFocusActive(true);
     requestRender();
-  }, [aspect, game, layout.width, requestRender, selected]);
+  }, [aspect, game, layout.width, model.selectedId, requestRender]);
 
   const fullAction = useCallback(() => {
     applyCameraIntent(runtime.current, fullCameraIntent(aspect));
@@ -916,6 +909,13 @@ export default function R3FGameMap({
       camera: runtime.current.current,
     });
   }, [loaded, model, presentedBattle]);
+
+  useEffect(
+    () => () => {
+      updateR3FDebug({ ready: false });
+    },
+    [],
+  );
 
   return (
     <View testID="map-3d-root" style={styles.container} onLayout={handleLayout}>
