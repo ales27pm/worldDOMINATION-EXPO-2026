@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
 import { Colors } from '@/constants/colors';
+import { MAP_HUD_TEXT_SHADOW, MapHud } from '@/constants/mapHud';
 import { Fonts } from '@/constants/typography';
 import type { GamePhase, GameState } from '@/game/types';
 
@@ -67,6 +68,7 @@ export function PhaseBanner({ game }: { game: GameState }) {
   return (
     <View style={styles.wrap} pointerEvents="none">
       <Animated.View
+        testID="map-phase-banner"
         style={[
           styles.banner,
           {
@@ -94,7 +96,7 @@ const styles = StyleSheet.create({
     zIndex: 9,
   },
   banner: {
-    backgroundColor: 'rgba(21,13,9,0.86)',
+    backgroundColor: MapHud.control,
     borderWidth: 1,
     borderColor: 'rgba(222,190,115,0.55)',
     paddingHorizontal: 18,
@@ -103,12 +105,14 @@ const styles = StyleSheet.create({
     maxWidth: '86%',
   },
   title: {
+    ...MAP_HUD_TEXT_SHADOW,
     color: Colors.gold,
     fontFamily: Fonts.display,
     fontSize: 17,
     letterSpacing: 3,
   },
   sub: {
+    ...MAP_HUD_TEXT_SHADOW,
     color: Colors.textMuted,
     fontFamily: Fonts.bodyItalic,
     fontSize: 11,

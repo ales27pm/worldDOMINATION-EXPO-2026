@@ -9,7 +9,8 @@
   },
   "scripts": {
     "push": "drizzle-kit push --config ./drizzle.config.ts",
-    "push-force": "drizzle-kit push --force --config ./drizzle.config.ts"
+    "push-force": "drizzle-kit push --force --config ./drizzle.config.ts",
+    "verify:multiplayer-schema": "node ./scripts/verify-multiplayer-schema.cjs"
   },
   "dependencies": {
     "drizzle-orm": "catalog:",

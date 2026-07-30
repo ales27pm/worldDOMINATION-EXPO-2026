@@ -47,3 +47,26 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# Local environments and release credentials
+.env
+.env.*
+!.env.example
+*.jks
+*.keystore
+*.mobileprovision
+*.p8
+*.p12
+*.pem
+*.storepass
+credentials.json
+*service-account*.json
+
+# Generated test, browser, and native build output
+.test-build/
+.browser-build/
+artifacts/mobile/android/
+artifacts/mobile/ios/
+*.aab
+*.apk
+*.ipa

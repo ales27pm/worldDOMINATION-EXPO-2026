@@ -4,6 +4,7 @@ import {
   ActivityIndicator, ScrollView, Alert, Platform,
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
+import type { Href } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { GradientFill } from '@/components/GradientFill';
 import { useGame } from '@/context/GameContext';
@@ -197,6 +198,11 @@ export default function HomeScreen() {
           <MenuButton
             label="Tournament"
             onPress={() => router.push('/tournament')}
+          />
+
+          <MenuButton
+            label="Multiplayer Command"
+            onPress={() => router.push('/multiplayer' as Href)}
           />
 
           <MenuButton

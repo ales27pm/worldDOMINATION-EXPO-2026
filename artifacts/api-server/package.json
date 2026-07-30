@@ -7,6 +7,10 @@
     "dev": "export NODE_ENV=development && pnpm run build && pnpm run start",
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
+    "smoke:multiplayer:load": "node ./scripts/multiplayer-load-smoke.cjs",
+    "smoke:multiplayer:multiworker": "node ./scripts/multiplayer-multiworker-smoke.cjs",
+    "test:authority": "node -e \"const fs=require('node:fs'); fs.rmSync('.test-build', { recursive: true, force: true }); fs.mkdirSync('.test-build', { recursive: true }); fs.writeFileSync('.test-build/package.json', '{\\\"type\\\":\\\"commonjs\\\"}\\n')\" && tsc -p tsconfig.test.json && MULTIPLAYER_DATABASE_STORE=0 MULTIPLAYER_MATCH_STORE_PATH= node --test .test-build/artifacts/api-server/test/**/*.test.js",
+    "test:authority:postgres": "node -e \"if (!process.env.DATABASE_URL) { console.error('DATABASE_URL is required for test:authority:postgres'); process.exit(1); }\" && pnpm run test:authority",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
@@ -19,14 +23,18 @@
     "express": "^5.2.1",
     "express-rate-limit": "^8.5.2",
     "google-auth-library": "^10.9.0",
+    "nodemailer": "^9.0.3",
     "pino": "^9.14.0",
-    "pino-http": "^10.5.0"
+    "pino-http": "^10.5.0",
+    "ws": "^8.21.1"
   },
   "devDependencies": {
     "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/node": "catalog:",
+    "@types/nodemailer": "^8.0.1",
+    "@types/ws": "^8.18.1",
     "esbuild": "^0.28.1",
     "esbuild-plugin-pino": "^2.3.3",
     "pino-pretty": "^13.1.3",

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/colors';
+import { MAP_HUD_TEXT_SHADOW, MapHud } from '@/constants/mapHud';
 import { CARD_TYPE_LABEL, findBestSet, isValidSet } from '@/game/cards';
 import type { GameAction, GameState, RiskCard } from '@/game/types';
 
@@ -57,7 +58,7 @@ export default function CardHand({ game, dispatch, open, onClose }: Props) {
   return (
     <Modal visible={open} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.backdrop}>
-        <SafeAreaView style={styles.sheet} edges={['bottom']}>
+        <SafeAreaView testID="map-card-hand" style={styles.sheet} edges={['bottom']}>
           <View style={styles.header}>
             <Text style={styles.title}>RISK CARDS</Text>
             <View style={styles.headerRight}>
@@ -138,26 +139,27 @@ function CardTile({ card, selected, onPress, ownedTerritory }: {
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: '#00000088', justifyContent: 'flex-end' },
-  sheet: { backgroundColor: Colors.bgModal, borderTopWidth: 1, borderTopColor: Colors.border, padding: 16, gap: 12 },
+  backdrop: { flex: 1, backgroundColor: MapHud.scrim, justifyContent: 'flex-end' },
+  sheet: { backgroundColor: MapHud.modal, borderTopWidth: 1, borderTopColor: Colors.border, padding: 16, gap: 12 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  title: { color: Colors.gold, fontFamily: 'Alegreya_700Bold', fontSize: 14, letterSpacing: 3 },
+  title: { ...MAP_HUD_TEXT_SHADOW, color: Colors.gold, fontFamily: 'Alegreya_700Bold', fontSize: 14, letterSpacing: 3 },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  mustTrade: { color: Colors.textCrimson, fontFamily: 'Alegreya_600SemiBold', fontSize: 12 },
+  mustTrade: { ...MAP_HUD_TEXT_SHADOW, color: Colors.textCrimson, fontFamily: 'Alegreya_600SemiBold', fontSize: 12 },
   closeBtn: { padding: 4 },
-  closeText: { color: Colors.textMuted, fontSize: 18 },
-  hint: { color: Colors.textMuted, fontFamily: 'Alegreya_400Regular', fontSize: 12 },
+  closeText: { ...MAP_HUD_TEXT_SHADOW, color: Colors.textMuted, fontSize: 18 },
+  hint: { ...MAP_HUD_TEXT_SHADOW, color: Colors.textMuted, fontFamily: 'Alegreya_400Regular', fontSize: 12 },
   cards: { maxHeight: 160 },
   cardsContent: { gap: 8, paddingHorizontal: 4 },
   card: { opacity: 1 },
   cardSelected: { transform: [{ translateY: -8 }] },
   cardInner: {
     width: 90, height: 130, borderWidth: 2,
-    backgroundColor: Colors.bgCard, alignItems: 'center', overflow: 'hidden',
+    backgroundColor: MapHud.modal, alignItems: 'center', overflow: 'hidden',
   },
   cardType: { width: '100%', paddingVertical: 6, alignItems: 'center' },
   cardTypeText: { color: '#fff', fontFamily: 'Alegreya_700Bold', fontSize: 11, letterSpacing: 1 },
   cardTerritory: {
+    ...MAP_HUD_TEXT_SHADOW,
     flex: 1, color: Colors.textMuted, fontFamily: 'Alegreya_400Regular', fontSize: 10,
     textAlign: 'center', padding: 8, paddingTop: 12,
   },
@@ -166,15 +168,15 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.gold, borderRadius: 10, paddingHorizontal: 4, paddingVertical: 2,
   },
   bonusDotText: { color: Colors.bg, fontFamily: 'Alegreya_700Bold', fontSize: 9 },
-  empty: { color: Colors.textMuted, fontFamily: 'Alegreya_400Regular', fontSize: 14, textAlign: 'center', padding: 20 },
+  empty: { ...MAP_HUD_TEXT_SHADOW, color: Colors.textMuted, fontFamily: 'Alegreya_400Regular', fontSize: 14, textAlign: 'center', padding: 20 },
   actions: { flexDirection: 'row', gap: 10 },
   autoBtn: {
-    flex: 1, backgroundColor: Colors.bgField, borderWidth: 1, borderColor: Colors.gold,
+    flex: 1, backgroundColor: MapHud.control, borderWidth: 1, borderColor: Colors.gold,
     paddingVertical: 12, alignItems: 'center',
   },
-  autoBtnText: { color: Colors.gold, fontFamily: 'Alegreya_600SemiBold', fontSize: 13 },
+  autoBtnText: { ...MAP_HUD_TEXT_SHADOW, color: Colors.gold, fontFamily: 'Alegreya_600SemiBold', fontSize: 13 },
   tradeBtn: { flex: 1, backgroundColor: Colors.gold, paddingVertical: 12, alignItems: 'center' },
-  tradeBtnDisabled: { backgroundColor: Colors.disabled },
+  tradeBtnDisabled: { backgroundColor: MapHud.control },
   tradeBtnText: { color: Colors.bg, fontFamily: 'Alegreya_700Bold', fontSize: 13 },
   tradeBtnTextDisabled: { color: Colors.disabledText },
 });

@@ -67,8 +67,8 @@ export const ALL_TERRITORIES: TerritoryDef[] = [
   t("eastAfrica", "E. Africa", 0.5384, 0.6016, "africa", ["egypt", "northAfrica", "congo", "southAfrica", "madagascar", "middleEast"]),
   t("congo", "Congo", 0.5052, 0.6719, "africa", ["northAfrica", "eastAfrica", "southAfrica", "westAfrica"]),
   t("southAfrica", "S. Africa", 0.5000, 0.7920, "africa", ["congo", "eastAfrica", "madagascar"]),
-  t("madagascar", "Madagascar", 0.5762, 0.7607, "africa", ["eastAfrica", "southAfrica", "falklandIslands"], true),
-  t("westAfrica", "W. Africa", 0.4688, 0.6035, "africa", ["northAfrica", "congo"]),
+  t("madagascar", "Madagascar", 0.5762, 0.7607, "africa", ["eastAfrica", "southAfrica", "falklandIslands"]),
+  t("westAfrica", "W. Africa", 0.4688, 0.6035, "africa", ["northAfrica", "congo"], true),
   // Asia
   t("ural", "Ural", 0.6569, 0.2393, "asia", ["ukraine", "siberia", "china", "afghanistan"]),
   t("siberia", "Siberia", 0.7188, 0.1992, "asia", ["ural", "yakutsk", "irkutsk", "mongolia", "china"]),

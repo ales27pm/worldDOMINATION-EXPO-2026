@@ -1,6 +1,16 @@
 import { totalTroops } from "./analysis";
 import { GENERALS } from "./generals";
-import type { Allocation, CardRule, GameSetup, GameState, GeneralId, Objective, PlayerSetup } from "./types";
+import {
+  ALLOCATION_INFO,
+  OBJECTIVE_INFO,
+  type Allocation,
+  type CardRule,
+  type GameSetup,
+  type GameState,
+  type GeneralId,
+  type Objective,
+  type PlayerSetup,
+} from "./types";
 
 /**
  * The RISK II Tournament (manual, Chapter 9): 16 campaigns played in
@@ -42,6 +52,34 @@ export const TOURNAMENT_LENGTH = TOURNAMENT_GAMES.length;
 /** Points for a win + a kill per opponent + most troops (manual points system). */
 export function tournamentMaxPoints(def: TournamentGameDef): number {
   return 150 + def.opponents.length * 20 + 30;
+}
+
+export interface TournamentCampaignSummary {
+  objectiveName: string;
+  allocationName: string;
+  opponentCount: number;
+  territoryCount: number;
+  difficulty: number;
+  difficultyMarks: string;
+  maxPoints: number;
+}
+
+/** Compact, UI-safe metadata for the 16-game tournament ledger. */
+export function tournamentCampaignSummary(def: TournamentGameDef): TournamentCampaignSummary {
+  const averageDifficulty =
+    def.opponents.reduce((sum, generalId) => sum + GENERALS[generalId].difficulty, 0) /
+    def.opponents.length;
+  const difficulty = Math.round(averageDifficulty);
+
+  return {
+    objectiveName: OBJECTIVE_INFO[def.objective].name,
+    allocationName: ALLOCATION_INFO[def.allocation].name,
+    opponentCount: def.opponents.length,
+    territoryCount: def.useExtraTerritories ? 48 : 42,
+    difficulty,
+    difficultyMarks: "★".repeat(difficulty),
+    maxPoints: tournamentMaxPoints(def),
+  };
 }
 
 /** Build a full GameSetup for a tournament battle. */

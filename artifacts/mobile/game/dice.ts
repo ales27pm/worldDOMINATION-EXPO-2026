@@ -1,5 +1,7 @@
 import type { DiceTier } from "./types";
 
+export type RandomSource = () => number;
+
 /**
  * Tiered D12 dice system ported from RiskConquest DiceSystem.swift.
  * The tier color escalates with committed army strength and drives the
@@ -40,9 +42,9 @@ export function tierForDefender(armies: number): DiceTier {
   return "red";
 }
 
-export function rollTier(tier: DiceTier): number {
+export function rollTier(tier: DiceTier, random: RandomSource = Math.random): number {
   const faces = DICE_FACES[tier];
-  return faces[Math.floor(Math.random() * faces.length)] ?? 3;
+  return faces[Math.floor(random() * faces.length)] ?? 3;
 }
 
 /** Tier rank (white=1 ... black=5) — Same Time casualties equal the lower side's rank (manual, Chapter 9). */
@@ -50,6 +52,11 @@ const TIER_RANK: Record<DiceTier, number> = { white: 1, yellow: 2, orange: 3, re
 
 export function rankOf(tier: DiceTier): number {
   return TIER_RANK[tier];
+}
+
+/** Same Time casualties scale to the lower-ranked tier in the current exchange. */
+export function tieredCasualtyCount(tierA: DiceTier, tierB: DiceTier): number {
+  return Math.min(rankOf(tierA), rankOf(tierB));
 }
 
 export interface BattleRound {
@@ -71,14 +78,15 @@ export function resolveBattleRound(
   attackerArmies: number,
   defenderArmies: number,
   attackerDice?: number,
+  random: RandomSource = Math.random,
 ): BattleRound {
   const maxAttackDice = Math.max(1, Math.min(3, attackerArmies - 1));
   const attackCount = Math.max(1, Math.min(attackerDice ?? maxAttackDice, maxAttackDice));
   const defendCount = Math.min(2, defenderArmies);
-  const attackerRolls = Array.from({ length: attackCount }, () => 1 + Math.floor(Math.random() * 6)).sort(
+  const attackerRolls = Array.from({ length: attackCount }, () => 1 + Math.floor(random() * 6)).sort(
     (a, b) => b - a,
   );
-  const defenderRolls = Array.from({ length: defendCount }, () => 1 + Math.floor(Math.random() * 6)).sort(
+  const defenderRolls = Array.from({ length: defendCount }, () => 1 + Math.floor(random() * 6)).sort(
     (a, b) => b - a,
   );
   let attackerLosses = 0;

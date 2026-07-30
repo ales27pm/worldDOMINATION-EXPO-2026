@@ -1,6 +1,7 @@
 import type { CardRule, CardType, RiskCard, TerritoryId } from "./types";
 
 let cardCounter = 0;
+export type RandomSource = () => number;
 
 function nextCardId(): string {
   cardCounter += 1;
@@ -20,10 +21,10 @@ export function buildDeck(territoryIds: TerritoryId[]): RiskCard[] {
   return shuffle(deck);
 }
 
-export function shuffle<T>(items: T[]): T[] {
+export function shuffle<T>(items: T[], random: RandomSource = Math.random): T[] {
   const result = [...items];
   for (let i = result.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = Math.floor(random() * (i + 1));
     const a = result[i];
     const b = result[j];
     if (a !== undefined && b !== undefined) {

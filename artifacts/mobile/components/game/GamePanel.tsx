@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { Colors } from '@/constants/colors';
+import { MAP_HUD_TEXT_SHADOW, MapHud } from '@/constants/mapHud';
 import { allianceBetween } from '@/game/analysis';
 import { TERRITORY_MAP } from '@/game/mapData';
 import { ALLIANCE_LEVEL_INFO } from '@/game/types';
@@ -25,11 +26,14 @@ interface Props {
   onOpenCards: () => void;
   onOpenRoster: () => void;
   onOpenLog: () => void;
+  canAct?: boolean;
+  inactiveHint?: string;
 }
 
 export default function GamePanel({
   game, selected, targets, stagedMove, setStagedMove,
   diceCount, setDiceCount, dispatch, onOpenCards, onOpenRoster, onOpenLog,
+  canAct = true, inactiveHint,
 }: Props) {
   const player = game.players[game.currentPlayer];
   const phase = game.phase;
@@ -68,6 +72,9 @@ export default function GamePanel({
   };
 
   const renderActions = () => {
+    if (!canAct) {
+      return inactiveHint ? <Text style={styles.hint}>{inactiveHint}</Text> : null;
+    }
     if (game.awaitingHandoff || !player.isHuman) return null;
 
     if (phase === 'territoryGrab') {
@@ -383,10 +390,20 @@ export default function GamePanel({
           </View>
         )}
         <View style={{ flex: 1 }} />
-        <Pressable onPress={onOpenRoster} style={styles.iconBtn}>
+        <Pressable
+          onPress={onOpenRoster}
+          style={styles.iconBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Open commander roster"
+        >
           <Text style={styles.iconBtnText}>👥</Text>
         </Pressable>
-        <Pressable onPress={onOpenLog} style={styles.iconBtn}>
+        <Pressable
+          onPress={onOpenLog}
+          style={styles.iconBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Open field dispatch"
+        >
           <Text style={styles.iconBtnText}>📋</Text>
         </Pressable>
       </View>
@@ -499,57 +516,69 @@ const styles = StyleSheet.create({
   },
   statusRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   playerDot: { width: 10, height: 10, borderRadius: 5 },
-  playerName: { color: Colors.text, fontFamily: 'Alegreya_600SemiBold', fontSize: 13, flexShrink: 1 },
-  phase: { color: Colors.goldDim, fontFamily: 'Alegreya_500Medium', fontSize: 10, letterSpacing: 2 },
+  playerName: {
+    ...MAP_HUD_TEXT_SHADOW,
+    color: Colors.text,
+    fontFamily: 'Alegreya_600SemiBold',
+    fontSize: 13,
+    flexShrink: 1,
+  },
+  phase: {
+    ...MAP_HUD_TEXT_SHADOW,
+    color: Colors.goldDim,
+    fontFamily: 'Alegreya_500Medium',
+    fontSize: 10,
+    letterSpacing: 2,
+  },
   badge: { backgroundColor: Colors.gold, borderRadius: 10, paddingHorizontal: 7, paddingVertical: 2 },
   badgeText: { color: Colors.bg, fontFamily: 'Alegreya_700Bold', fontSize: 11 },
   iconBtn: { padding: 4 },
   iconBtnText: { fontSize: 18 },
   selectedRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  selectedName: { color: Colors.text, fontFamily: 'Alegreya_600SemiBold', fontSize: 13 },
-  selectedArmies: { color: Colors.textMuted, fontFamily: 'Alegreya_400Regular', fontSize: 12 },
+  selectedName: { ...MAP_HUD_TEXT_SHADOW, color: Colors.text, fontFamily: 'Alegreya_600SemiBold', fontSize: 13 },
+  selectedArmies: { ...MAP_HUD_TEXT_SHADOW, color: Colors.textMuted, fontFamily: 'Alegreya_400Regular', fontSize: 12 },
   ownerDot: { width: 8, height: 8, borderRadius: 4 },
-  ownerSelf: { color: Colors.gold, fontFamily: 'Alegreya_500Medium', fontSize: 10, letterSpacing: 1 },
-  allianceBadge: { color: '#90a860', fontFamily: 'Alegreya_500Medium', fontSize: 10 },
-  phaseHint: { color: Colors.textMuted, fontFamily: 'Alegreya_400Regular', fontSize: 12 },
-  hint: { color: Colors.textMuted, fontFamily: 'Alegreya_400Regular', fontSize: 12 },
+  ownerSelf: { ...MAP_HUD_TEXT_SHADOW, color: Colors.gold, fontFamily: 'Alegreya_500Medium', fontSize: 10, letterSpacing: 1 },
+  allianceBadge: { ...MAP_HUD_TEXT_SHADOW, color: '#90a860', fontFamily: 'Alegreya_500Medium', fontSize: 10 },
+  phaseHint: { ...MAP_HUD_TEXT_SHADOW, color: Colors.textMuted, fontFamily: 'Alegreya_400Regular', fontSize: 12 },
+  hint: { ...MAP_HUD_TEXT_SHADOW, color: Colors.textMuted, fontFamily: 'Alegreya_400Regular', fontSize: 12 },
   actions: { gap: 6 },
   actionGroup: { gap: 6 },
   deployRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  fortifyHint: { flex: 1, color: Colors.textMuted, fontFamily: 'Alegreya_400Regular', fontSize: 12 },
+  fortifyHint: { ...MAP_HUD_TEXT_SHADOW, flex: 1, color: Colors.textMuted, fontFamily: 'Alegreya_400Regular', fontSize: 12 },
   diceRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  diceLabel: { color: Colors.text, fontFamily: 'Alegreya_500Medium', fontSize: 13 },
+  diceLabel: { ...MAP_HUD_TEXT_SHADOW, color: Colors.text, fontFamily: 'Alegreya_500Medium', fontSize: 13 },
   diceBtn: {
     width: 30, height: 30, borderWidth: 1, borderColor: Colors.border,
-    backgroundColor: 'rgba(53,37,25,0.72)', justifyContent: 'center', alignItems: 'center', borderRadius: 4,
+    backgroundColor: MapHud.control, justifyContent: 'center', alignItems: 'center', borderRadius: 4,
   },
-  diceBtnActive: { borderColor: Colors.gold, backgroundColor: Colors.gold + '33' },
+  diceBtnActive: { borderColor: Colors.gold, backgroundColor: MapHud.focused },
   diceBtnDisabled: { borderColor: Colors.disabled, opacity: 0.4 },
-  diceBtnText: { color: Colors.textMuted, fontSize: 14, fontFamily: 'Alegreya_700Bold' },
+  diceBtnText: { ...MAP_HUD_TEXT_SHADOW, color: Colors.textMuted, fontSize: 14, fontFamily: 'Alegreya_700Bold' },
   diceBtnTextActive: { color: Colors.gold },
   diceBtnTextDisabled: { color: Colors.disabledText },
-  attackHint: { color: Colors.textMuted, fontFamily: 'Alegreya_400Regular', fontSize: 12 },
-  stagedLabel: { color: Colors.text, fontFamily: 'Alegreya_600SemiBold', fontSize: 13 },
+  attackHint: { ...MAP_HUD_TEXT_SHADOW, color: Colors.textMuted, fontFamily: 'Alegreya_400Regular', fontSize: 12 },
+  stagedLabel: { ...MAP_HUD_TEXT_SHADOW, color: Colors.text, fontFamily: 'Alegreya_600SemiBold', fontSize: 13 },
   ordersList: { maxHeight: 32 },
   orderChip: {
-    borderWidth: 1, borderColor: Colors.border, backgroundColor: 'rgba(53,37,25,0.72)',
+    borderWidth: 1, borderColor: Colors.border, backgroundColor: MapHud.control,
     paddingVertical: 6, paddingHorizontal: 10, marginRight: 6, justifyContent: 'center',
   },
-  orderChipText: { color: Colors.textMuted, fontFamily: 'Alegreya_500Medium', fontSize: 11 },
+  orderChipText: { ...MAP_HUD_TEXT_SHADOW, color: Colors.textMuted, fontFamily: 'Alegreya_500Medium', fontSize: 11 },
   btn: {
-    borderWidth: 1, borderColor: Colors.border, backgroundColor: 'rgba(53,37,25,0.72)',
+    borderWidth: 1, borderColor: Colors.border, backgroundColor: MapHud.control,
     paddingVertical: 10, paddingHorizontal: 14, alignItems: 'center',
   },
-  btnGold: { borderColor: Colors.gold, backgroundColor: 'rgba(42,29,8,0.85)' },
-  btnDisabled: { borderColor: Colors.disabled, backgroundColor: Colors.disabled },
-  btnText: { color: Colors.text, fontFamily: 'Alegreya_600SemiBold', fontSize: 13, letterSpacing: 1 },
+  btnGold: { borderColor: Colors.gold, backgroundColor: MapHud.focused },
+  btnDisabled: { borderColor: Colors.disabled, backgroundColor: MapHud.control },
+  btnText: { ...MAP_HUD_TEXT_SHADOW, color: Colors.text, fontFamily: 'Alegreya_600SemiBold', fontSize: 13, letterSpacing: 1 },
   btnTextGold: { color: Colors.gold },
   btnTextDisabled: { color: Colors.disabledText },
   stepper: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   stepBtn: {
     width: 32, height: 32, justifyContent: 'center', alignItems: 'center',
-    borderWidth: 1, borderColor: Colors.border, backgroundColor: 'rgba(53,37,25,0.72)',
+    borderWidth: 1, borderColor: Colors.border, backgroundColor: MapHud.control,
   },
-  stepBtnText: { color: Colors.text, fontFamily: 'Alegreya_700Bold', fontSize: 18 },
-  stepValue: { color: Colors.gold, fontFamily: 'Alegreya_700Bold', fontSize: 20, minWidth: 36, textAlign: 'center' },
+  stepBtnText: { ...MAP_HUD_TEXT_SHADOW, color: Colors.text, fontFamily: 'Alegreya_700Bold', fontSize: 18 },
+  stepValue: { ...MAP_HUD_TEXT_SHADOW, color: Colors.gold, fontFamily: 'Alegreya_700Bold', fontSize: 20, minWidth: 36, textAlign: 'center' },
 });

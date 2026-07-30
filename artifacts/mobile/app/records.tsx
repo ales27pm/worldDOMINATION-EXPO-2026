@@ -2,8 +2,8 @@ import React, { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { listCampaigns, listCommanderStats } from '@/db/repository';
-import type { CampaignRecord, CommanderRecord } from '@/db/types';
+import { listCampaigns, listCommanderStats, listHighScores } from '@/db/repository';
+import type { CampaignRecord, CommanderRecord, HighScoreRecord } from '@/db/types';
 import { OBJECTIVE_INFO } from '@/game/types';
 import type { Objective } from '@/game/types';
 import { Colors } from '@/constants/colors';
@@ -26,18 +26,23 @@ export default function RecordsScreen() {
   const router = useRouter();
   const [campaigns, setCampaigns] = useState<CampaignRecord[] | null>(null);
   const [commanders, setCommanders] = useState<CommanderRecord[]>([]);
+  const [scores, setScores] = useState<HighScoreRecord[]>([]);
 
   useFocusEffect(
     useCallback(() => {
       let active = true;
-      Promise.all([listCampaigns(), listCommanderStats()])
-        .then(([c, s]) => {
+      Promise.all([listCampaigns(), listCommanderStats(), listHighScores()])
+        .then(([c, commandersList, highScores]) => {
           if (!active) return;
           setCampaigns(c);
-          setCommanders(s);
+          setCommanders(commandersList);
+          setScores(highScores);
         })
         .catch(() => {
-          if (active) setCampaigns([]);
+          if (!active) return;
+          setCampaigns([]);
+          setCommanders([]);
+          setScores([]);
         });
       return () => {
         active = false;
@@ -84,8 +89,33 @@ export default function RecordsScreen() {
               <LedgerStat label="Longest (turns)" value={longest} />
             </View>
 
-            {/* II. Commanders of Renown */}
-            <SectionTitle index="II" title="Commanders of Renown" />
+            {/* II. Tournament High Scores */}
+            <SectionTitle index="II" title="Tournament High Scores" />
+            {scores.length === 0 ? (
+              <Text style={styles.emptyText}>No tournament scores have yet been recorded.</Text>
+            ) : (
+              <View style={styles.panel}>
+                {scores.slice(0, 12).map((score, i) => (
+                  <View
+                    key={`${score.name}-${i}`}
+                    style={[styles.scoreRow, score.isHuman && styles.scoreRowHuman]}
+                  >
+                    <Text style={styles.rank}>{i + 1}.</Text>
+                    <Text style={styles.scoreName} numberOfLines={1}>
+                      {i === 0 ? '★ ' : ''}
+                      {score.name}
+                    </Text>
+                    <Text style={styles.kindTag}>{score.isHuman ? 'HUMAN' : 'AI'}</Text>
+                    <Text style={styles.scoreStats}>
+                      {score.score} pts · {score.gamesCompleted} games
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {/* III. Commanders of Renown */}
+            <SectionTitle index="III" title="Commanders of Renown" />
             {commanders.length === 0 ? (
               <Text style={styles.emptyText}>No commander has yet concluded a campaign.</Text>
             ) : (
@@ -111,8 +141,8 @@ export default function RecordsScreen() {
               </View>
             )}
 
-            {/* III. Campaign Archive */}
-            <SectionTitle index="III" title="Campaign Archive" />
+            {/* IV. Campaign Archive */}
+            <SectionTitle index="IV" title="Campaign Archive" />
             {list.length === 0 ? (
               <Text style={styles.emptyText}>
                 The archive is empty. Conclude a campaign and history shall remember it.
@@ -206,10 +236,14 @@ const styles = StyleSheet.create({
   panel: { borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.bgCard, padding: 6, gap: 2 },
   commanderRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 8, paddingVertical: 7 },
   commanderRowTop: { borderWidth: 1, borderColor: Colors.goldDim, backgroundColor: 'rgba(222,190,115,0.08)' },
+  scoreRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 8, paddingVertical: 7 },
+  scoreRowHuman: { borderWidth: 1, borderColor: Colors.goldDim, backgroundColor: 'rgba(222,190,115,0.08)' },
   rank: { color: Colors.gold, fontFamily: 'Alegreya_700Bold', fontSize: 12, width: 22 },
   commanderName: { color: Colors.text, fontFamily: 'Alegreya_600SemiBold', fontSize: 14, flex: 1 },
+  scoreName: { color: Colors.text, fontFamily: 'Alegreya_600SemiBold', fontSize: 14, flex: 1 },
   kindTag: { color: Colors.textMuted, fontFamily: 'Alegreya_400Regular', fontSize: 9, letterSpacing: 1.5 },
   commanderStats: { color: Colors.textMuted, fontFamily: 'Alegreya_500Medium', fontSize: 12, width: 86, textAlign: 'right' },
+  scoreStats: { color: Colors.textMuted, fontFamily: 'Alegreya_500Medium', fontSize: 12, width: 126, textAlign: 'right' },
 
   archiveList: { gap: 8 },
   record: {

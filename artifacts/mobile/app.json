@@ -1,6 +1,7 @@
 {
   "expo": {
     "name": "worldDOMINATION",
+    "owner": "ales27pm",
     "slug": "worlddomination",
     "version": "1.0.0",
     "orientation": "default",
@@ -15,29 +16,38 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.worlddomination.app"
+      "bundleIdentifier": "com.worlddomination.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
-      "package": "com.worlddomination.app"
+      "package": "com.worlddomination.app",
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ]
     },
     "web": {
       "favicon": "./assets/images/icon.png"
     },
     "plugins": [
-      [
-        "expo-router",
-        {
-          "origin": "https://replit.com/"
-        }
-      ],
+      "expo-router",
       "expo-font",
       "expo-web-browser",
       "expo-sqlite",
-      "expo-audio"
+      "expo-audio",
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "f9205fa6-ad0e-4808-877d-a8f4cf1856fb"
+      }
     }
   }
 }

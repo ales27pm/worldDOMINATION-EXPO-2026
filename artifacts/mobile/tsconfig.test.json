@@ -1,0 +1,25 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "module": "Node16",
+    "moduleResolution": "Node16",
+    "noEmit": false,
+    "outDir": ".test-build",
+    "rootDir": ".",
+    "sourceMap": true,
+    "target": "ES2022",
+    "tsBuildInfoFile": ".test-build/tsconfig.test.tsbuildinfo",
+    "verbatimModuleSyntax": false
+  },
+  "include": [
+    "test/**/*.ts"
+  ],
+  "exclude": [
+    ".test-build",
+    "node_modules"
+  ],
+  "references": []
+}

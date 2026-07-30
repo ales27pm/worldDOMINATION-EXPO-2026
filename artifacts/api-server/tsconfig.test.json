@@ -1,0 +1,42 @@
+{
+  "compilerOptions": {
+    "alwaysStrict": true,
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "esModuleInterop": true,
+    "lib": ["es2022"],
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "noEmit": false,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitAny": true,
+    "noImplicitReturns": true,
+    "noImplicitThis": true,
+    "noUncheckedIndexedAccess": false,
+    "outDir": ".test-build",
+    "rootDir": "../../",
+    "skipLibCheck": true,
+    "sourceMap": true,
+    "strictBindCallApply": true,
+    "strictNullChecks": true,
+    "strictPropertyInitialization": true,
+    "target": "ES2022",
+    "tsBuildInfoFile": ".test-build/tsconfig.test.tsbuildinfo",
+    "types": ["node"],
+    "useUnknownInCatchVariables": true
+  },
+  "include": [
+    "src/lib/multiplayerAuth.ts",
+    "src/lib/accountIdentity.ts",
+    "src/lib/multiplayerAuthority.ts",
+    "src/lib/multiplayerContacts.ts",
+    "src/lib/multiplayerDeploymentPreflight.ts",
+    "src/lib/multiplayerInvitationDelivery.ts",
+    "src/lib/multiplayerSocket.ts",
+    "src/routes/multiplayer.ts",
+    "test/**/*.ts",
+    "../mobile/game/**/*.ts",
+    "../../lib/db/src/**/*.ts"
+  ]
+}

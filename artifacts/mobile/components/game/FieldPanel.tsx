@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { GradientFill } from '@/components/GradientFill';
 import { Colors } from '@/constants/colors';
+import { MapHud } from '@/constants/mapHud';
 import { Fonts } from '@/constants/typography';
 
 /**
@@ -52,7 +53,7 @@ export function FieldPanel({
   style?: StyleProp<ViewStyle>;
 }) {
   return (
-    <View style={[styles.outer, style]}>
+    <View testID="map-election-panel" style={[styles.outer, style]}>
       <View style={styles.inner}>{children}</View>
       <Tack corner="tl" />
       <Tack corner="tr" />
@@ -64,15 +65,15 @@ export function FieldPanel({
 
 const styles = StyleSheet.create({
   outer: {
-    backgroundColor: Colors.parchmentCard,
+    backgroundColor: MapHud.parchment,
     borderWidth: 1.5,
     borderColor: Colors.parchmentBorder,
     padding: 3,
     shadowColor: '#000',
-    shadowOpacity: 0.45,
-    shadowRadius: 10,
+    shadowOpacity: 0.18,
+    shadowRadius: 5,
     shadowOffset: { width: 0, height: 4 },
-    elevation: 6,
+    elevation: 2,
   },
   inner: {
     borderWidth: 1,

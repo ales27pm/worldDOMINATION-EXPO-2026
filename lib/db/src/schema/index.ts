@@ -1,20 +1,43 @@
-// Export your models here. Add one export per file
-// export * from "./posts";
-//
-// Each model/table should ideally be split into different files.
-// Each model/table should define a Drizzle table, insert schema, and types:
-//
-//   import { pgTable, text, serial } from "drizzle-orm/pg-core";
-//   import { createInsertSchema } from "drizzle-zod";
-//   import { z } from "zod/v4";
-//
-//   export const postsTable = pgTable("posts", {
-//     id: serial("id").primaryKey(),
-//     title: text("title").notNull(),
-//   });
-//
-//   export const insertPostSchema = createInsertSchema(postsTable).omit({ id: true });
-//   export type InsertPost = z.infer<typeof insertPostSchema>;
-//   export type Post = typeof postsTable.$inferSelect;
+import { index, integer, jsonb, pgTable, primaryKey, text, timestamp } from "drizzle-orm/pg-core";
 
-export {}
+export const accountProfiles = pgTable("account_profiles", {
+  userId: text("user_id").primaryKey(),
+  displayName: text("display_name"),
+  createdAt: timestamp("created_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
+});
+
+export const accountContacts = pgTable(
+  "account_contacts",
+  {
+    ownerUserId: text("owner_user_id").notNull(),
+    contactUserId: text("contact_user_id").notNull(),
+    displayName: text("display_name"),
+    createdAt: timestamp("created_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.ownerUserId, table.contactUserId] }),
+    index("account_contacts_owner_display_idx").on(table.ownerUserId, table.displayName, table.contactUserId),
+  ],
+);
+
+export const multiplayerMatches = pgTable(
+  "multiplayer_matches",
+  {
+    id: text("id").primaryKey(),
+    version: integer("version").notNull(),
+    createdAt: timestamp("created_at", { mode: "string", withTimezone: true }).notNull(),
+    updatedAt: timestamp("updated_at", { mode: "string", withTimezone: true }).notNull(),
+    state: jsonb("state").notNull(),
+    seats: jsonb("seats").notNull(),
+    invitations: jsonb("invitations").notNull(),
+  },
+  (table) => [index("multiplayer_matches_updated_at_idx").on(table.updatedAt)],
+);
+
+export type MultiplayerMatchRow = typeof multiplayerMatches.$inferSelect;
+export type InsertMultiplayerMatch = typeof multiplayerMatches.$inferInsert;
+export type AccountProfileRow = typeof accountProfiles.$inferSelect;
+export type InsertAccountProfile = typeof accountProfiles.$inferInsert;
+export type AccountContactRow = typeof accountContacts.$inferSelect;
+export type InsertAccountContact = typeof accountContacts.$inferInsert;

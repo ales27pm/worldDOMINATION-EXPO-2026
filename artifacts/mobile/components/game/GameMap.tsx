@@ -1,12 +1,12 @@
 import React, { useCallback, useRef } from 'react';
 import { MapViewport } from '@/components/game/MapViewport';
 import {
-  hitTestTerritory,
   MAP_VIEW_LABELS,
   MAP_VIEW_MODES,
   WorldBoard,
   type MapViewMode,
 } from '@/components/game/WorldBoard';
+import { hitTestTerritory } from '@/game/mapGeometry';
 import type { GameState, TerritoryId } from '@/game/types';
 
 export { MAP_VIEW_LABELS, MAP_VIEW_MODES };

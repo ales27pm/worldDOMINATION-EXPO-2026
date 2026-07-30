@@ -15,6 +15,7 @@ export interface SaveSummary {
 
 export interface CampaignRecord {
   id: number;
+  completionKey: string | null;
   winnerName: string;
   winnerColor: string;
   winnerIsHuman: boolean;
@@ -94,5 +95,50 @@ export function looksLikeGameState(value: unknown): value is GameState {
     Array.isArray(v.activeIds) &&
     typeof v.territories === 'object' &&
     v.territories !== null
+  );
+}
+
+function stableStringify(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
+  if (value && typeof value === 'object') {
+    return `{${Object.entries(value as Record<string, unknown>)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, item]) => `${JSON.stringify(key)}:${stableStringify(item)}`)
+      .join(',')}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function fnv1a(input: string): string {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < input.length; i += 1) {
+    hash ^= input.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash.toString(16).padStart(8, '0');
+}
+
+export function completionKeyForState(state: GameState): string {
+  const territoryState = Object.fromEntries(
+    [...state.activeIds]
+      .sort()
+      .map((id) => [id, state.territories[id]]),
+  );
+  return fnv1a(
+    stableStringify({
+      setup: state.setup,
+      players: state.players.map((player) => ({
+        name: player.name,
+        color: player.color,
+        isHuman: player.isHuman,
+        generalId: player.generalId,
+      })),
+      winner: state.winner,
+      winReason: state.winReason,
+      turn: state.turn,
+      battlesFought: state.battlesFought,
+      activeIds: state.activeIds,
+      territories: territoryState,
+    }),
   );
 }

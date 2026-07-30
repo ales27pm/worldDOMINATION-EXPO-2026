@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Colors } from '@/constants/colors';
+import { MAP_HUD_TEXT_SHADOW, MapHud } from '@/constants/mapHud';
 import { Fonts } from '@/constants/typography';
 import { toggleSfxMuted, useSfxMuted } from '@/lib/sfx';
 import { missionText } from '@/game/missions';
@@ -39,7 +40,7 @@ export function TopBar({ game, onExit }: { game: GameState; onExit: () => void }
       : null;
 
   return (
-    <View style={styles.bar}>
+    <View testID="map-top-bar" style={styles.bar}>
       <View style={styles.row}>
         <Pressable onPress={onExit} style={styles.hallBtn} accessibilityLabel="Exit to hall">
           <Text style={styles.hallText}>⌂ Hall</Text>
@@ -93,7 +94,7 @@ export function TopBar({ game, onExit }: { game: GameState; onExit: () => void }
 
 const styles = StyleSheet.create({
   bar: {
-    backgroundColor: 'rgba(21,13,9,0.82)',
+    backgroundColor: MapHud.surface,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(222,190,115,0.28)',
     paddingHorizontal: 10,
@@ -107,6 +108,7 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
   },
   hallText: {
+    ...MAP_HUD_TEXT_SHADOW,
     color: Colors.gold,
     fontFamily: Fonts.bodySemiBold,
     fontSize: 11,
@@ -131,12 +133,14 @@ const styles = StyleSheet.create({
   },
   nameBlock: { flex: 1, minWidth: 0 },
   name: {
+    ...MAP_HUD_TEXT_SHADOW,
     color: Colors.text,
     fontFamily: Fonts.bodyBold,
     fontSize: 14,
     lineHeight: 17,
   },
   meta: {
+    ...MAP_HUD_TEXT_SHADOW,
     color: Colors.textMuted,
     fontFamily: Fonts.bodyItalic,
     fontSize: 10.5,
@@ -154,6 +158,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(222,190,115,0.14)',
   },
   pipText: {
+    ...MAP_HUD_TEXT_SHADOW,
     color: Colors.textMuted,
     fontFamily: Fonts.bodySemiBold,
     fontSize: 8.5,
@@ -169,8 +174,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  muteText: { color: Colors.gold, fontSize: 14 },
+  muteText: { ...MAP_HUD_TEXT_SHADOW, color: Colors.gold, fontSize: 14 },
   mission: {
+    ...MAP_HUD_TEXT_SHADOW,
     color: Colors.gold,
     fontFamily: Fonts.bodyItalic,
     fontSize: 10.5,

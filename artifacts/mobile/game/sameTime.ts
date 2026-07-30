@@ -29,8 +29,9 @@
  */
 import { largestEmpire } from "./analysis";
 import { shuffle } from "./cards";
-import { rankOf, rollTier, tierForAttacker, tierForDefender } from "./dice";
+import { rollTier, tieredCasualtyCount, tierForAttacker, tierForDefender } from "./dice";
 import { continentTerritories, SAME_TIME_CONTINENT_BONUS, TERRITORY_MAP } from "./mapData";
+import type { RandomSource } from "./dice";
 import type { AttackOrder, BattleReport, ContinentId, DiceTier, GameState, TerritoryId, TerritoryState } from "./types";
 
 /** Reinforcements: floor((owned + largest connected empire) / 3) plus Same Time continent bonuses. */
@@ -79,6 +80,7 @@ export function friendlyReachableSet(state: GameState, playerId: number, start: 
 function combatRound(
   attackerArmies: number,
   defenderArmies: number,
+  random: RandomSource = Math.random,
 ): {
   attackerLosses: number;
   defenderLosses: number;
@@ -91,9 +93,9 @@ function combatRound(
   // 8-battalion attack rolls Orange directly) — no "minus one" adjustment.
   const attackerTier = tierForAttacker(Math.max(1, attackerArmies));
   const defenderTier = tierForDefender(Math.max(1, defenderArmies));
-  const attackerRoll = rollTier(attackerTier);
-  const defenderRoll = rollTier(defenderTier);
-  const loserRank = Math.min(rankOf(attackerTier), rankOf(defenderTier));
+  const attackerRoll = rollTier(attackerTier, random);
+  const defenderRoll = rollTier(defenderTier, random);
+  const loserRank = tieredCasualtyCount(attackerTier, defenderTier);
   if (attackerRoll > defenderRoll) {
     return { attackerLosses: 0, defenderLosses: Math.min(loserRank, defenderArmies), attackerRoll, defenderRoll, attackerTier, defenderTier };
   }
@@ -104,15 +106,16 @@ function combatRound(
 function clashRound(
   armiesA: number,
   armiesB: number,
+  random: RandomSource = Math.random,
 ): { lossesA: number; lossesB: number; rollA: number; rollB: number; tierA: DiceTier; tierB: DiceTier } {
   const tierA = tierForAttacker(Math.max(1, armiesA));
   const tierB = tierForAttacker(Math.max(1, armiesB));
-  const rollA = rollTier(tierA);
-  const rollB = rollTier(tierB);
+  const rollA = rollTier(tierA, random);
+  const rollB = rollTier(tierB, random);
   if (rollA === rollB) {
     return { lossesA: 0, lossesB: 0, rollA, rollB, tierA, tierB };
   }
-  const loserRank = Math.min(rankOf(tierA), rankOf(tierB));
+  const loserRank = tieredCasualtyCount(tierA, tierB);
   if (rollA > rollB) return { lossesA: 0, lossesB: Math.min(loserRank, armiesB), rollA, rollB, tierA, tierB };
   return { lossesA: Math.min(loserRank, armiesA), lossesB: 0, rollA, rollB, tierA, tierB };
 }
@@ -133,6 +136,10 @@ export interface SameTimeRoundResult {
   conquerors: Set<number>;
 }
 
+export interface SameTimeRoundOptions {
+  random?: RandomSource;
+}
+
 const MAX_ROUNDS_PER_BATTLE = 200;
 const MAX_SURGE_DEPTH = 20;
 
@@ -140,10 +147,12 @@ const MAX_SURGE_DEPTH = 20;
 export function resolveSameTimeRound(
   territories: Record<TerritoryId, TerritoryState>,
   orders: AttackOrder[],
+  options: SameTimeRoundOptions = {},
 ): SameTimeRoundResult {
   const t: Record<TerritoryId, TerritoryState> = { ...territories };
   const reports: BattleReport[] = [];
   const conquerors = new Set<number>();
+  const random = options.random ?? Math.random;
 
   // 0. Every attacking column leaves its home territory before anything
   // else resolves — otherwise the committed troops would fight abroad
@@ -168,7 +177,7 @@ export function resolveSameTimeRound(
     if (mirror && !consumed.has(mirror.id)) {
       consumed.add(o.id);
       consumed.add(mirror.id);
-      resolveClash(t, o, mirror, reports);
+      resolveClash(t, o, mirror, reports, random);
     }
   }
 
@@ -183,7 +192,7 @@ export function resolveSameTimeRound(
   }
   let pendingSurges: Column[] = [];
   for (const [target, columns] of groups) {
-    resolveDefendedGroup(t, target, columns, reports, conquerors, pendingSurges);
+    resolveDefendedGroup(t, target, columns, reports, conquerors, pendingSurges, random);
   }
 
   // 3. Surge attacks chain through the same resolver, grouped by their
@@ -201,7 +210,7 @@ export function resolveSameTimeRound(
       bySurgeTarget.set(s.surgeTo, arr);
     }
     for (const [target, columns] of bySurgeTarget) {
-      resolveDefendedGroup(t, target, columns, reports, conquerors, pendingSurges);
+      resolveDefendedGroup(t, target, columns, reports, conquerors, pendingSurges, random);
     }
   }
 
@@ -213,6 +222,7 @@ function resolveClash(
   orderA: AttackOrder,
   orderB: AttackOrder,
   reports: BattleReport[],
+  random: RandomSource,
 ): void {
   let armiesA = orderA.count;
   let armiesB = orderB.count;
@@ -222,7 +232,7 @@ function resolveClash(
   let lastTierB: DiceTier = "white";
   let rounds = 0;
   while (armiesA > 0 && armiesB > 0 && rounds < MAX_ROUNDS_PER_BATTLE) {
-    const r = clashRound(armiesA, armiesB);
+    const r = clashRound(armiesA, armiesB, random);
     armiesA -= r.lossesA;
     armiesB -= r.lossesB;
     rollsA.push(r.rollA);
@@ -266,8 +276,9 @@ function resolveDefendedGroup(
   reports: BattleReport[],
   conquerors: Set<number>,
   pendingSurges: Column[],
+  random: RandomSource,
 ): void {
-  const order = shuffle(columns.filter((c) => c.armies > 0));
+  const order = shuffle(columns.filter((c) => c.armies > 0), random);
   for (const col of order) {
     const holder = t[target];
     if (holder.owner === col.player) {
@@ -285,7 +296,7 @@ function resolveDefendedGroup(
     let defenderTier: DiceTier = "white";
     let rounds = 0;
     while (attackerArmies > 0 && defenderArmies > 0 && rounds < MAX_ROUNDS_PER_BATTLE) {
-      const r = combatRound(attackerArmies, defenderArmies);
+      const r = combatRound(attackerArmies, defenderArmies, random);
       attackerArmies -= r.attackerLosses;
       defenderArmies -= r.defenderLosses;
       attackerRolls.push(r.attackerRoll);

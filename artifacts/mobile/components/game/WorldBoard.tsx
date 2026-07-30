@@ -6,6 +6,7 @@ import Svg, {
   Ellipse,
   G,
   Line,
+  LinearGradient,
   Path,
   RadialGradient,
   Rect,
@@ -16,9 +17,11 @@ import { MapPiece } from '@/components/game/PieceSprite';
 import { BattleArrowLayer } from '@/components/game/BattleArrowLayer';
 import { borderThreat, largestEmpire } from '@/game/analysis';
 import { activeTerritories, CONTINENTS, TERRITORY_MAP } from '@/game/mapData';
-import { TERRITORY_PATHS } from '@/game/mapShapes';
+import { CLASSIC_NORTH_AFRICA_SEAM, getTerritoryPath } from '@/game/mapGeometry';
+import { buildSeaRouteEdges } from '@/game/mapRoutes';
 import { dominantPiece } from '@/game/pieces';
 import { Fonts } from '@/constants/typography';
+import { MAP_HUD_TEXT_SHADOW, MapHud } from '@/constants/mapHud';
 import type { ContinentId, GameState, TerritoryId } from '@/game/types';
 
 /** RISK II view modifiers (manual, Chapter 9). */
@@ -52,172 +55,6 @@ const ARMY_ROUNDEL_OFFSET_Y = PIECE_BASE_OFFSET_Y - scaleBoard(7);
 function heat(t: number): string {
   const clamped = Math.min(1, Math.max(0, t));
   return `hsl(${Math.round(215 - 215 * clamped)}, 78%, 46%)`;
-}
-
-/**
- * Neighbor pairs that cross open water — only these get the classic red dashed
- * sea-route lines. Land adjacencies are implied by the painted borders.
- */
-const SEA_ROUTES = new Set<string>(
-  [
-    ['alaska', 'kamchatka'],
-    ['greenland', 'northwestTerritory'],
-    ['greenland', 'ontario'],
-    ['greenland', 'quebec'],
-    ['greenland', 'iceland'],
-    ['greenland', 'svalbard'],
-    ['iceland', 'svalbard'],
-    ['iceland', 'scandinavia'],
-    ['iceland', 'greatBritain'],
-    ['scandinavia', 'svalbard'],
-    ['scandinavia', 'greatBritain'],
-    ['greatBritain', 'northernEurope'],
-    ['greatBritain', 'westernEurope'],
-    ['brazil', 'northAfrica'],
-    ['westernEurope', 'northAfrica'],
-    ['southernEurope', 'northAfrica'],
-    ['southernEurope', 'egypt'],
-    ['eastAfrica', 'middleEast'],
-    ['eastAfrica', 'madagascar'],
-    ['southAfrica', 'madagascar'],
-    ['madagascar', 'falklandIslands'],
-    ['argentina', 'falklandIslands'],
-    ['argentina', 'newZealand'],
-    ['easternAustralia', 'newZealand'],
-    ['kamchatka', 'japan'],
-    ['mongolia', 'japan'],
-    ['japan', 'philippines'],
-    ['japan', 'hawaii'],
-    ['westernUS', 'hawaii'],
-    ['siam', 'indonesia'],
-    ['siam', 'philippines'],
-    ['philippines', 'indonesia'],
-    ['indonesia', 'newGuinea'],
-    ['indonesia', 'westernAustralia'],
-    ['newGuinea', 'westernAustralia'],
-    ['newGuinea', 'easternAustralia'],
-  ].map((pair) => [...pair].sort().join('~')),
-);
-
-interface Edge {
-  key: string;
-  segments: { x1: number; y1: number; x2: number; y2: number }[];
-}
-
-function buildEdges(includeExtra: boolean): Edge[] {
-  const defs = activeTerritories(includeExtra);
-  const pos = new Map<TerritoryId, { x: number; y: number }>();
-  for (const def of defs) pos.set(def.id, { x: def.x * W, y: def.y * H });
-  const seen = new Set<string>();
-  const edges: Edge[] = [];
-  for (const def of defs) {
-    for (const neighbor of def.neighbors) {
-      const key = [def.id, neighbor].sort().join('~');
-      if (seen.has(key)) continue;
-      seen.add(key);
-      if (!SEA_ROUTES.has(key)) continue;
-      const a = pos.get(def.id);
-      const b = pos.get(neighbor as TerritoryId);
-      if (!a || !b) continue;
-      if (Math.abs(a.x - b.x) > W * 0.5) {
-        // Wrap-around route (e.g. Alaska–Kamchatka): exit both map edges.
-        const left = a.x < b.x ? a : b;
-        const right = a.x < b.x ? b : a;
-        edges.push({
-          key,
-          segments: [
-            { x1: left.x, y1: left.y, x2: 0, y2: (left.y + right.y) / 2 },
-            { x1: W, y1: (left.y + right.y) / 2, x2: right.x, y2: right.y },
-          ],
-        });
-      } else {
-        edges.push({ key, segments: [{ x1: a.x, y1: a.y, x2: b.x, y2: b.y }] });
-      }
-    }
-  }
-  return edges;
-}
-
-// ─── Territory hit testing (point-in-polygon on the traced outlines) ─────────
-
-interface HitShape {
-  polys: number[][];
-  bbox: { x0: number; y0: number; x1: number; y1: number };
-}
-
-const HIT_SHAPES: Partial<Record<TerritoryId, HitShape>> = {};
-for (const id of Object.keys(TERRITORY_PATHS) as TerritoryId[]) {
-  const d = TERRITORY_PATHS[id];
-  if (!d) continue;
-  const polys = d
-    .split('M')
-    .map((seg) => (seg.match(/-?\d+(?:\.\d+)?/g) ?? []).map(Number))
-    .filter((coords) => coords.length >= 6);
-  let x0 = Infinity;
-  let y0 = Infinity;
-  let x1 = -Infinity;
-  let y1 = -Infinity;
-  for (const poly of polys) {
-    for (let i = 0; i < poly.length; i += 2) {
-      if (poly[i] < x0) x0 = poly[i];
-      if (poly[i] > x1) x1 = poly[i];
-      if (poly[i + 1] < y0) y0 = poly[i + 1];
-      if (poly[i + 1] > y1) y1 = poly[i + 1];
-    }
-  }
-  HIT_SHAPES[id] = { polys, bbox: { x0, y0, x1, y1 } };
-}
-
-function pointInPoly(px: number, py: number, poly: number[]): boolean {
-  let inside = false;
-  const n = poly.length / 2;
-  for (let i = 0, j = n - 1; i < n; j = i++) {
-    const xi = poly[i * 2];
-    const yi = poly[i * 2 + 1];
-    const xj = poly[j * 2];
-    const yj = poly[j * 2 + 1];
-    if (yi > py !== yj > py && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) {
-      inside = !inside;
-    }
-  }
-  return inside;
-}
-
-/**
- * Resolve a tap in board pixels to a territory: exact shape containment first
- * (like the web's SVG hit targets), then nearest piece-node center as a
- * fallback for taps on the figure/roundel that overhang small territories.
- */
-export function hitTestTerritory(
-  x: number,
-  y: number,
-  activeIds: readonly TerritoryId[],
-): TerritoryId | null {
-  for (const id of activeIds) {
-    const shape = HIT_SHAPES[id];
-    if (!shape) continue;
-    const { bbox } = shape;
-    if (x < bbox.x0 || x > bbox.x1 || y < bbox.y0 || y > bbox.y1) continue;
-    for (const poly of shape.polys) {
-      if (pointInPoly(x, y, poly)) return id;
-    }
-  }
-  // Fallback: the piece / roundel node around the territory center.
-  const threshold = scaleBoard(30);
-  let closest: TerritoryId | null = null;
-  let minD = threshold * threshold;
-  for (const id of activeIds) {
-    const def = TERRITORY_MAP[id];
-    if (!def) continue;
-    const dx = x - def.x * W;
-    const dy = y - (def.y * H + PIECE_BASE_OFFSET_Y / 2);
-    const d = dx * dx + dy * dy;
-    if (d < minD) {
-      minD = d;
-      closest = id;
-    }
-  }
-  return closest;
 }
 
 // ─── Presentational bits ──────────────────────────────────────────────────────
@@ -261,9 +98,10 @@ export const WorldBoard = React.memo(function WorldBoard({
     [game.setup.useExtraTerritories],
   );
   const edges = useMemo(
-    () => buildEdges(game.setup.useExtraTerritories),
+    () => buildSeaRouteEdges(game.setup.useExtraTerritories, W, H),
     [game.setup.useExtraTerritories],
   );
+  const includeExtra = game.setup.useExtraTerritories;
   const capitals = useMemo(() => {
     // Capital RISK secrecy (manual, Ch. 6): capitals stay hidden from other
     // commanders until the reveal fires — a viewer always knows their own.
@@ -329,8 +167,38 @@ export const WorldBoard = React.memo(function WorldBoard({
             <Stop offset="75%" stopColor="hsl(30, 42%, 28%)" stopOpacity="0.05" />
             <Stop offset="100%" stopColor="hsl(28, 44%, 22%)" stopOpacity="0.28" />
           </RadialGradient>
+          <LinearGradient id="chinaAtlasFill" x1="0%" y1="0%" x2="100%" y2="100%">
+            <Stop offset="0%" stopColor="#b6cf90" />
+            <Stop offset="52%" stopColor="#abc886" />
+            <Stop offset="100%" stopColor="#9fbd7a" />
+          </LinearGradient>
         </Defs>
         <Rect width={W} height={H} fill="url(#seaVignette)" />
+
+        {/* The raster is the painted texture; SVG remains the authoritative
+            border layer. Hide the extended Africa seam in classic games. */}
+        {!includeExtra && (
+          <Line
+            {...CLASSIC_NORTH_AFRICA_SEAM}
+            stroke="#d4a044"
+            strokeOpacity={0.96}
+            strokeWidth={scaleBoard(1.5)}
+            strokeLinecap="round"
+          />
+        )}
+        <Path d={getTerritoryPath('china', includeExtra)} fill="url(#chinaAtlasFill)" />
+        {defs.map((def) => (
+          <Path
+            key={`atlas-${def.id}`}
+            d={getTerritoryPath(def.id, includeExtra)}
+            fill="none"
+            stroke={INK_DARK}
+            strokeOpacity={0.48}
+            strokeWidth={scaleBoard(0.75)}
+            strokeLinejoin="round"
+            strokeLinecap="round"
+          />
+        ))}
 
         {/* Sea routes — classic red dashed lines */}
         {edges.map((edge) =>
@@ -357,7 +225,7 @@ export const WorldBoard = React.memo(function WorldBoard({
             return (
               <Path
                 key={`view-${def.id}`}
-                d={TERRITORY_PATHS[def.id]}
+                d={getTerritoryPath(def.id, includeExtra)}
                 fill={tint}
                 fillOpacity={0.36}
                 stroke={tint}
@@ -374,7 +242,7 @@ export const WorldBoard = React.memo(function WorldBoard({
             return (
               <Path
                 key={`int-${def.id}`}
-                d={TERRITORY_PATHS[def.id]}
+                d={getTerritoryPath(def.id, includeExtra)}
                 fill="hsl(43, 88%, 55%)"
                 fillOpacity={0.1}
                 stroke="hsl(43, 88%, 40%)"
@@ -392,7 +260,7 @@ export const WorldBoard = React.memo(function WorldBoard({
           return (
             <Path
               key={`ring-${def.id}`}
-              d={TERRITORY_PATHS[def.id]}
+              d={getTerritoryPath(def.id, includeExtra)}
               fill={isSelected ? 'hsla(43, 88%, 50%, 0.14)' : 'hsla(0, 70%, 45%, 0.12)'}
               stroke={isSelected ? 'hsl(43, 88%, 40%)' : '#b3262a'}
               strokeWidth={scaleBoard(2.5)}
@@ -405,14 +273,14 @@ export const WorldBoard = React.memo(function WorldBoard({
         {game.pendingOccupy && (
           <>
             <Path
-              d={TERRITORY_PATHS[game.pendingOccupy.from] ?? ''}
+              d={getTerritoryPath(game.pendingOccupy.from, includeExtra)}
               fill="none"
               stroke="hsl(43, 88%, 40%)"
               strokeWidth={scaleBoard(2)}
               strokeDasharray="6 4"
             />
             <Path
-              d={TERRITORY_PATHS[game.pendingOccupy.to] ?? ''}
+              d={getTerritoryPath(game.pendingOccupy.to, includeExtra)}
               fill="none"
               stroke="hsl(43, 88%, 40%)"
               strokeWidth={scaleBoard(2.5)}
@@ -629,7 +497,7 @@ const styles = StyleSheet.create({
  */
 export function ContinentLegend() {
   return (
-    <View style={legendStyles.wrap} pointerEvents="none">
+    <View testID="map-continent-legend" style={legendStyles.wrap} pointerEvents="none">
       {(Object.keys(CONTINENTS) as ContinentId[]).map((id) => (
         <View key={id} style={legendStyles.item}>
           <View style={[legendStyles.dot, { backgroundColor: CONTINENTS[id].color }]} />
@@ -644,7 +512,7 @@ export function ContinentLegend() {
 
 const legendStyles = StyleSheet.create({
   wrap: {
-    backgroundColor: 'rgba(21,13,9,0.62)',
+    backgroundColor: MapHud.surface,
     borderWidth: 1,
     borderColor: 'rgba(222,190,115,0.35)',
     borderRadius: 4,
@@ -661,6 +529,7 @@ const legendStyles = StyleSheet.create({
     borderColor: 'rgba(222,190,115,0.6)',
   },
   text: {
+    ...MAP_HUD_TEXT_SHADOW,
     color: 'rgba(238,220,180,0.92)',
     fontFamily: Fonts.map,
     fontSize: 9.5,

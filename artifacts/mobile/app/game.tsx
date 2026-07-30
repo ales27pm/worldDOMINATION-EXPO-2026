@@ -11,7 +11,8 @@ import { TERRITORY_MAP } from '@/game/mapData';
 import { friendlyReachableSet } from '@/game/sameTime';
 import { tournamentResult } from '@/game/tournament';
 import { Colors } from '@/constants/colors';
-import type { GameAction, GameState, TerritoryId } from '@/game/types';
+import { MAP_HUD_TEXT_SHADOW, MapHud } from '@/constants/mapHud';
+import type { Allocation, BattleReport, GameAction, GameState, GameSetup, Objective, TerritoryId, TurnStyle } from '@/game/types';
 import { playActionSound, useGameSounds } from '@/hooks/useGameSounds';
 import { BATTLE_SCENE_LABELS, cycleBattleSceneMode, useBattleSceneMode } from '@/lib/battleScenes';
 import GameMap, { MAP_VIEW_LABELS, MAP_VIEW_MODES, type MapViewMode } from '@/components/game/GameMap';
@@ -36,36 +37,231 @@ import {
 
 export default function GameScreen() {
   const router = useRouter();
-  const { game, startGame } = useGame();
-  const { autostart } = useLocalSearchParams<{ autostart?: string }>();
+  const { game, startGame, loadingSave } = useGame();
+  const params = useLocalSearchParams<PreviewParams>();
+  const autostart = firstParam(params.autostart);
 
   // Redirect if no game (dev builds can auto-start a demo campaign for previews)
   useEffect(() => {
     if (game) return;
-    if (__DEV__ && autostart) {
-      startGame({
-        players: [
-          { name: 'Napoleon', colorIdx: 0, isHuman: true, generalId: null },
-          { name: 'Wellington', colorIdx: 1, isHuman: false, generalId: null },
-          { name: 'Kutuzov', colorIdx: 2, isHuman: false, generalId: null },
-          { name: 'Blücher', colorIdx: 3, isHuman: false, generalId: null },
-        ],
-        objective: 'domination100',
-        useExtraTerritories: true,
-        cardRule: 'ascending',
-        allocation: 'random',
-      });
+    if (loadingSave) return;
+    if ((__DEV__ || process.env.EXPO_PUBLIC_BROWSER_SMOKE === '1') && autostart) {
+      const setup = previewSetupFromParams(params);
+      startGame(setup, previewPrepareFromParams(params));
       return;
     }
     router.replace('/');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [game, autostart]);
+  }, [game, loadingSave, autostart]);
 
   if (!game) return null;
   return <CampaignScreen game={game} />;
 }
 
-function CampaignScreen({ game }: { game: GameState }) {
+type PreviewParams = {
+  autostart?: string | string[];
+  objective?: string | string[];
+  allocation?: string | string[];
+  turnStyle?: string | string[];
+  extra?: string | string[];
+  extended?: string | string[];
+  restricted?: string | string[];
+  players?: string | string[];
+  playback?: string | string[];
+  battlePlayback?: string | string[];
+  orders?: string | string[];
+  battleOrders?: string | string[];
+};
+
+const PREVIEW_OBJECTIVES: Objective[] = ['domination60', 'domination80', 'domination100', 'capital', 'mission'];
+const PREVIEW_ALLOCATIONS: Allocation[] = ['random', 'grab', 'election'];
+const PREVIEW_TURN_STYLES: TurnStyle[] = ['classic', 'sameTime'];
+const PREVIEW_NAMES = ['Napoleon', 'Wellington', 'Kutuzov', 'Blucher', 'Marmont', 'Campbell'];
+
+function firstParam(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function oneOf<T extends string>(value: string | undefined, allowed: readonly T[], fallback: T): T {
+  return value && allowed.includes(value as T) ? (value as T) : fallback;
+}
+
+function truthyParam(value: string | undefined): boolean {
+  return value === '1' || value === 'true' || value === 'yes';
+}
+
+function previewPlayerCount(value: string | undefined): number {
+  const parsed = Number.parseInt(value ?? '', 10);
+  if (!Number.isFinite(parsed)) return 4;
+  return Math.min(6, Math.max(2, parsed));
+}
+
+function previewSetupFromParams(params: PreviewParams): GameSetup {
+  const smokePlayback = previewWantsBattlePlayback(params);
+  const smokeOrders = previewWantsBattleOrders(params);
+  const turnStyle = smokePlayback || smokeOrders ? 'sameTime' : oneOf(firstParam(params.turnStyle), PREVIEW_TURN_STYLES, 'classic');
+  const count = previewPlayerCount(firstParam(params.players));
+  return {
+    players: Array.from({ length: count }, (_, index) => ({
+      name: PREVIEW_NAMES[index] ?? `Commander ${index + 1}`,
+      colorIdx: index,
+      isHuman: index === 0,
+      generalId: null,
+    })),
+    objective: oneOf(firstParam(params.objective), PREVIEW_OBJECTIVES, 'domination100'),
+    useExtraTerritories: truthyParam(firstParam(params.extra)) || truthyParam(firstParam(params.extended)),
+    cardRule: 'ascending',
+    allocation: oneOf(firstParam(params.allocation), PREVIEW_ALLOCATIONS, 'random'),
+    turnStyle,
+    restrictedReinforcement: turnStyle === 'sameTime' ? truthyParam(firstParam(params.restricted)) : undefined,
+  };
+}
+
+function previewWantsBattlePlayback(params: PreviewParams): boolean {
+  return truthyParam(firstParam(params.playback)) || truthyParam(firstParam(params.battlePlayback));
+}
+
+function previewWantsBattleOrders(params: PreviewParams): boolean {
+  return truthyParam(firstParam(params.orders)) || truthyParam(firstParam(params.battleOrders));
+}
+
+function previewPrepareFromParams(params: PreviewParams): ((state: GameState) => GameState) | undefined {
+  if (previewWantsBattlePlayback(params)) return previewSameTimeBattlePlaybackState;
+  if (previewWantsBattleOrders(params)) return previewSameTimeBattleOrdersState;
+  return undefined;
+}
+
+function previewSameTimeBattleOrdersState(state: GameState): GameState {
+  if (!state.sameTime) return state;
+  return {
+    ...state,
+    phase: 'sameTimeBattle',
+    currentPlayer: 0,
+    awaitingHandoff: false,
+    pendingProposal: null,
+    pendingOccupy: null,
+    lastBattle: null,
+    territories: {
+      ...state.territories,
+      alaska: { owner: 0, armies: 5 },
+      northwestTerritory: { owner: 1, armies: 3 },
+      alberta: { owner: 0, armies: 2 },
+      greenland: { owner: 1, armies: 4 },
+    },
+    sameTime: {
+      ...state.sameTime,
+      reinforcementsRemaining: state.players.map(() => 0),
+      deployLog: state.players.map(() => []),
+      readyReinforce: state.players.map((player) => player.alive),
+      orders: [],
+      readyBattle: state.players.map(() => false),
+      playback: [],
+      moves: [],
+      readyMove: state.players.map(() => false),
+    },
+    log: [
+      ...state.log,
+      {
+        id: state.logCounter + 1,
+        turn: state.turn,
+        text: 'Napoleon studies attack routes from Alaska.',
+        tone: 'info',
+      },
+    ],
+    logCounter: state.logCounter + 1,
+  };
+}
+
+function previewSameTimeBattlePlaybackState(state: GameState): GameState {
+  if (!state.sameTime) return state;
+  const report: BattleReport = {
+    from: 'alaska',
+    to: 'northwestTerritory',
+    attacker: 0,
+    defender: 1,
+    attackerRolls: [6, 5],
+    defenderRolls: [3],
+    attackerLosses: 0,
+    defenderLosses: 1,
+    rounds: 1,
+    conquered: true,
+    attackerTier: 'orange',
+    defenderTier: 'white',
+    attackerArmiesBefore: 6,
+    defenderArmiesBefore: 1,
+    roundResults: [
+      {
+        attackerRolls: [6, 5],
+        defenderRolls: [3],
+        attackerLosses: 0,
+        defenderLosses: 1,
+        attackerTier: 'orange',
+        defenderTier: 'white',
+      },
+    ],
+  };
+
+  return {
+    ...state,
+    phase: 'sameTimeBattle',
+    currentPlayer: 0,
+    awaitingHandoff: false,
+    lastBattle: null,
+    battlesFought: Math.max(state.battlesFought, 1),
+    territories: {
+      ...state.territories,
+      alaska: { owner: 0, armies: 1 },
+      northwestTerritory: { owner: 0, armies: 5 },
+      alberta: { owner: 0, armies: 3 },
+      greenland: { owner: 1, armies: 4 },
+    },
+    sameTime: {
+      ...state.sameTime,
+      reinforcementsRemaining: state.players.map(() => 0),
+      deployLog: state.players.map(() => []),
+      readyReinforce: state.players.map(() => true),
+      orders: [],
+      readyBattle: state.players.map(() => true),
+      playback: [report],
+      moves: [],
+      readyMove: state.players.map(() => false),
+    },
+    log: [
+      ...state.log,
+      {
+        id: state.logCounter + 1,
+        turn: state.turn,
+        text: 'Napoleon storms Northwest Territory from Alaska (1 defenders slain).',
+        tone: 'battle',
+      },
+    ],
+    logCounter: state.logCounter + 1,
+  };
+}
+
+interface CampaignScreenProps {
+  game: GameState;
+  dispatchAction?: (action: GameAction) => void | Promise<void>;
+  localPlayerId?: number | null;
+  actionBusy?: boolean;
+  disableAi?: boolean;
+  statusBanner?: React.ReactNode;
+  onExit?: () => void;
+  onActionError?: (error: unknown) => void;
+  onVictoryExit?: () => void | Promise<void>;
+}
+
+export function CampaignScreen({
+  game,
+  dispatchAction,
+  localPlayerId,
+  actionBusy = false,
+  disableAi = false,
+  statusBanner,
+  onExit,
+  onActionError,
+  onVictoryExit,
+}: CampaignScreenProps) {
   const router = useRouter();
   const { dispatch: rawDispatch, abandonGame } = useGame();
   const { recordResult } = useTournament();
@@ -74,9 +270,16 @@ function CampaignScreen({ game }: { game: GameState }) {
   const dispatch = useCallback(
     (action: GameAction) => {
       playActionSound(action);
-      rawDispatch(action);
+      try {
+        const result = dispatchAction ? dispatchAction(action) : rawDispatch(action);
+        if (result instanceof Promise) {
+          void result.catch((error) => onActionError?.(error));
+        }
+      } catch (error) {
+        onActionError?.(error);
+      }
     },
-    [rawDispatch],
+    [dispatchAction, onActionError, rawDispatch],
   );
 
   // State-transition sound director: battles, proposals, handoffs, victory.
@@ -99,13 +302,27 @@ function CampaignScreen({ game }: { game: GameState }) {
   const player = game.players[game.currentPlayer];
   const isHumanTurn = player?.isHuman ?? false;
   const sameTimePlaybackPending = game.phase === 'sameTimeBattle' && (game.sameTime?.playback.length ?? 0) > 0;
-  const isHumanActive = isHumanTurn && !game.awaitingHandoff && !game.pendingProposal && !sameTimePlaybackPending;
+  const localOwnsCurrentPlayer = localPlayerId === undefined ? true : localPlayerId === game.currentPlayer;
+  const canSubmitCurrentPlayer = localOwnsCurrentPlayer && !actionBusy;
+  const isHumanActive =
+    isHumanTurn &&
+    canSubmitCurrentPlayer &&
+    !game.awaitingHandoff &&
+    !game.pendingProposal &&
+    !sameTimePlaybackPending;
+  const inactiveHint =
+    localPlayerId !== undefined && !localOwnsCurrentPlayer
+      ? `Waiting for ${player?.name ?? 'the active commander'}.`
+      : actionBusy
+        ? 'Submitting orders to the server.'
+        : undefined;
   const isTournamentGame = game.setup.tournamentGame !== undefined;
 
   const hasHuman = useMemo(() => game.players.some((p) => p.isHuman && p.alive), [game.players]);
 
   // ── AI Loop ────────────────────────────────────────────────────────────────
   useEffect(() => {
+    if (disableAi) return;
     if (!game || game.phase === 'gameOver') return;
 
     // Same Time battle playback: a human at the table must tap through the
@@ -138,7 +355,7 @@ function CampaignScreen({ game }: { game: GameState }) {
       if (action) rawDispatch(action);
     }, delay);
     return () => clearTimeout(timer);
-  }, [game, isHumanTurn, hasHuman, rawDispatch]);
+  }, [disableAi, game, isHumanTurn, hasHuman, rawDispatch]);
 
   // ── Deselect when phase changes ────────────────────────────────────────────
   useEffect(() => {
@@ -398,6 +615,10 @@ function CampaignScreen({ game }: { game: GameState }) {
 
   // ── Victory / game-over exit ───────────────────────────────────────────────
   const handleVictoryExit = useCallback(async () => {
+    if (onVictoryExit) {
+      await onVictoryExit();
+      return;
+    }
     if (isTournamentGame && game.phase === 'gameOver') {
       // Score this tournament battle, then return to tournament screen
       const result = tournamentResult(game);
@@ -408,7 +629,7 @@ function CampaignScreen({ game }: { game: GameState }) {
       await abandonGame();
       router.replace('/');
     }
-  }, [isTournamentGame, game, abandonGame, recordResult, router]);
+  }, [isTournamentGame, game, abandonGame, onVictoryExit, recordResult, router]);
 
   // ── View mode cycle ────────────────────────────────────────────────────────
   const cycleViewMode = useCallback(() => {
@@ -476,15 +697,20 @@ function CampaignScreen({ game }: { game: GameState }) {
         <TopBar
           game={game}
           onExit={() => {
+            if (onExit) {
+              onExit();
+              return;
+            }
             Alert.alert('Exit Campaign', 'Return to the hall? Progress is auto-saved.', [
               { text: 'Cancel', style: 'cancel' },
               { text: 'Exit', style: 'destructive', onPress: () => router.replace(isTournamentGame ? '/tournament' : '/') },
             ]);
           }}
         />
+        {statusBanner}
         {/* View-mode rail (web's Layers list) */}
         <View style={styles.viewRail} pointerEvents="box-none">
-          <Pressable onPress={cycleViewMode} style={styles.viewModeBtn}>
+          <Pressable testID="map-view-mode-button" onPress={cycleViewMode} style={styles.viewModeBtn}>
             <Text style={styles.viewModeText}>{MAP_VIEW_LABELS[viewMode].toUpperCase()}</Text>
           </Pressable>
           <Pressable
@@ -523,7 +749,7 @@ function CampaignScreen({ game }: { game: GameState }) {
 
         {/* Bottom action panel */}
         {game.phase !== 'gameOver' && (
-          <View style={[styles.bottomBar, isLandscape && styles.bottomBarLandscape]}>
+          <View testID="map-command-panel" style={[styles.bottomBar, isLandscape && styles.bottomBarLandscape]}>
             <GamePanel
               game={game}
               selected={selected}
@@ -536,6 +762,8 @@ function CampaignScreen({ game }: { game: GameState }) {
               onOpenCards={() => setCardsOpen(true)}
               onOpenRoster={() => setRosterOpen(true)}
               onOpenLog={() => setLogOpen(true)}
+              canAct={canSubmitCurrentPlayer}
+              inactiveHint={inactiveHint}
             />
           </View>
         )}
@@ -543,31 +771,39 @@ function CampaignScreen({ game }: { game: GameState }) {
 
       {/* Roster overlay */}
       {rosterOpen && (
-        <View style={styles.rosterOverlay}>
+        <View testID="map-roster-overlay" style={styles.rosterOverlay}>
           <View style={styles.rosterHeader}>
             <Text style={styles.rosterTitle}>COMMANDERS</Text>
-            <Pressable onPress={() => setRosterOpen(false)}>
+            <Pressable
+              onPress={() => setRosterOpen(false)}
+              accessibilityRole="button"
+              accessibilityLabel="Close commander roster"
+            >
               <Text style={styles.rosterClose}>✕</Text>
             </Pressable>
           </View>
-          <PlayerRoster game={game} dispatch={dispatch} />
+          <PlayerRoster game={game} dispatch={canSubmitCurrentPlayer ? dispatch : undefined} />
         </View>
       )}
 
       {/* Cinematic battle overlay */}
-      <BattleView game={game} dispatch={dispatch} />
+      <BattleView game={game} dispatch={canSubmitCurrentPlayer ? dispatch : () => {}} />
 
       {/* Modals */}
-      <HandoffOverlay game={game} dispatch={dispatch} />
-      <OccupyOverlay game={game} dispatch={dispatch} />
-      <ProposalOverlay game={game} dispatch={dispatch} />
-      {hasHuman && <SameTimeBattlePlayback game={game} dispatch={dispatch} />}
-      <VictoryOverlay game={game} onExit={handleVictoryExit} />
+      {canSubmitCurrentPlayer && <HandoffOverlay game={game} dispatch={dispatch} />}
+      {canSubmitCurrentPlayer && <OccupyOverlay game={game} dispatch={dispatch} />}
+      {canSubmitCurrentPlayer && <ProposalOverlay game={game} dispatch={dispatch} />}
+      {canSubmitCurrentPlayer && <SameTimeBattlePlayback game={game} dispatch={dispatch} />}
+      <VictoryOverlay
+        game={game}
+        onExit={handleVictoryExit}
+        viewerPlayerId={localPlayerId}
+      />
 
       <CardHand
         game={game}
         dispatch={dispatch}
-        open={cardsOpen}
+        open={cardsOpen && canSubmitCurrentPlayer}
         onClose={() => setCardsOpen(false)}
       />
 
@@ -589,9 +825,15 @@ const styles = StyleSheet.create({
   viewModeBtn: {
     borderWidth: 1, borderColor: 'rgba(222,190,115,0.4)',
     paddingHorizontal: 8, paddingVertical: 4,
-    backgroundColor: 'rgba(21,13,9,0.62)',
+    backgroundColor: MapHud.control,
   },
-  viewModeText: { color: Colors.gold, fontFamily: 'Alegreya_600SemiBold', fontSize: 9, letterSpacing: 2 },
+  viewModeText: {
+    ...MAP_HUD_TEXT_SHADOW,
+    color: Colors.gold,
+    fontFamily: 'Alegreya_600SemiBold',
+    fontSize: 9,
+    letterSpacing: 2,
+  },
   bottomChrome: { position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 10 },
   bottomChromeLandscape: {
     position: 'absolute', bottom: 0, right: 0, zIndex: 10,
@@ -600,7 +842,7 @@ const styles = StyleSheet.create({
   tickerWrap: { paddingHorizontal: 12, marginBottom: 2 },
   battleContainer: { paddingHorizontal: 12, paddingVertical: 4 },
   bottomBar: {
-    backgroundColor: 'rgba(21,13,9,0.68)',
+    backgroundColor: MapHud.surface,
     borderTopWidth: 1, borderTopColor: 'rgba(222,190,115,0.28)',
   },
   bottomBarLandscape: {
@@ -622,13 +864,19 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 0, top: 0, bottom: 0,
     width: 240,
-    backgroundColor: 'rgba(21,13,9,0.92)',
+    backgroundColor: MapHud.focused,
     borderLeftWidth: 1, borderLeftColor: Colors.border,
     padding: 12,
     gap: 12,
     zIndex: 100,
   },
   rosterHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  rosterTitle: { color: Colors.gold, fontFamily: 'Alegreya_700Bold', fontSize: 12, letterSpacing: 3 },
-  rosterClose: { color: Colors.textMuted, fontSize: 18, padding: 4 },
+  rosterTitle: {
+    ...MAP_HUD_TEXT_SHADOW,
+    color: Colors.gold,
+    fontFamily: 'Alegreya_700Bold',
+    fontSize: 12,
+    letterSpacing: 3,
+  },
+  rosterClose: { ...MAP_HUD_TEXT_SHADOW, color: Colors.textMuted, fontSize: 18, padding: 4 },
 });

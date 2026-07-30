@@ -7,6 +7,8 @@ node_modules/
 .expo/
 dist/
 web-build/
+deploy.tar.gz
+.browser-build/
 expo-env.d.ts
 
 # Native
@@ -18,6 +20,9 @@ android/
 *.p12
 *.key
 *.mobileprovision
+credentials.json
+*.keystore
+*.storepass
 
 # Metro
 .metro-health-check*
@@ -36,6 +41,7 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
+.test-build/
 .vercel
 
 .env

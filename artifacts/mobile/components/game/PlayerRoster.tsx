@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { Colors } from '@/constants/colors';
+import { MAP_HUD_TEXT_SHADOW, MapHud } from '@/constants/mapHud';
 import type { GameAction, GameState } from '@/game/types';
 import { ALLIANCE_LEVEL_INFO } from '@/game/types';
 import { allianceBetween, wholeContinents } from '@/game/analysis';
@@ -134,16 +135,16 @@ const styles = StyleSheet.create({
   compactContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
   compactRow: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: Colors.bgCard, paddingHorizontal: 8, paddingVertical: 4,
+    backgroundColor: MapHud.control, paddingHorizontal: 8, paddingVertical: 4,
     borderWidth: 1, borderColor: Colors.border,
   },
-  compactName: { flex: 1, color: Colors.textMuted, fontFamily: 'Alegreya_500Medium', fontSize: 11 },
-  compactStat: { color: Colors.textMuted, fontFamily: 'Alegreya_400Regular', fontSize: 10 },
+  compactName: { ...MAP_HUD_TEXT_SHADOW, flex: 1, color: Colors.textMuted, fontFamily: 'Alegreya_500Medium', fontSize: 11 },
+  compactStat: { ...MAP_HUD_TEXT_SHADOW, color: Colors.textMuted, fontFamily: 'Alegreya_400Regular', fontSize: 10 },
   active: { color: Colors.gold },
   eliminated: { opacity: 0.4 },
   colorDot: { width: 8, height: 8, borderRadius: 4 },
   card: {
-    backgroundColor: Colors.bgCard, borderWidth: 1, borderColor: Colors.border,
+    backgroundColor: MapHud.control, borderWidth: 1, borderColor: Colors.border,
     padding: 10, gap: 6,
   },
   cardActive: { borderColor: Colors.gold },
@@ -151,24 +152,24 @@ const styles = StyleSheet.create({
   cardHeader: { flexDirection: 'row', gap: 8 },
   colorBar: { width: 3, borderRadius: 2 },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', flex: 1 },
-  name: { color: Colors.text, fontFamily: 'Alegreya_600SemiBold', fontSize: 14 },
+  name: { ...MAP_HUD_TEXT_SHADOW, color: Colors.text, fontFamily: 'Alegreya_600SemiBold', fontSize: 14 },
   deadName: { color: Colors.textMuted },
-  activeBadge: { color: Colors.gold, fontFamily: 'Alegreya_600SemiBold', fontSize: 9, letterSpacing: 1 },
-  deadBadge: { color: Colors.textMuted, fontFamily: 'Alegreya_500Medium', fontSize: 9, letterSpacing: 1 },
-  humanBadge: { color: Colors.textMuted, fontFamily: 'Alegreya_400Regular', fontSize: 9, letterSpacing: 1 },
-  capitalText: { color: Colors.textMuted, fontFamily: 'Alegreya_400Regular', fontSize: 11, marginTop: 1 },
+  activeBadge: { ...MAP_HUD_TEXT_SHADOW, color: Colors.gold, fontFamily: 'Alegreya_600SemiBold', fontSize: 9, letterSpacing: 1 },
+  deadBadge: { ...MAP_HUD_TEXT_SHADOW, color: Colors.textMuted, fontFamily: 'Alegreya_500Medium', fontSize: 9, letterSpacing: 1 },
+  humanBadge: { ...MAP_HUD_TEXT_SHADOW, color: Colors.textMuted, fontFamily: 'Alegreya_400Regular', fontSize: 9, letterSpacing: 1 },
+  capitalText: { ...MAP_HUD_TEXT_SHADOW, color: Colors.textMuted, fontFamily: 'Alegreya_400Regular', fontSize: 11, marginTop: 1 },
   statsRow: { flexDirection: 'row', gap: 16 },
   stat: { alignItems: 'center' },
-  statValue: { color: Colors.text, fontFamily: 'Alegreya_700Bold', fontSize: 15 },
-  statLabel: { color: Colors.textMuted, fontFamily: 'Alegreya_400Regular', fontSize: 9, letterSpacing: 1 },
+  statValue: { ...MAP_HUD_TEXT_SHADOW, color: Colors.text, fontFamily: 'Alegreya_700Bold', fontSize: 15 },
+  statLabel: { ...MAP_HUD_TEXT_SHADOW, color: Colors.textMuted, fontFamily: 'Alegreya_400Regular', fontSize: 9, letterSpacing: 1 },
   continentsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
   continentBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 2 },
-  continentText: { color: Colors.text, fontFamily: 'Alegreya_500Medium', fontSize: 10 },
-  pactText: { color: Colors.gold, fontFamily: 'Alegreya_500Medium', fontSize: 11 },
+  continentText: { ...MAP_HUD_TEXT_SHADOW, color: Colors.text, fontFamily: 'Alegreya_500Medium', fontSize: 10 },
+  pactText: { ...MAP_HUD_TEXT_SHADOW, color: Colors.gold, fontFamily: 'Alegreya_500Medium', fontSize: 11 },
   iComRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 2 },
   iComBtn: {
     borderWidth: 1, borderColor: Colors.border, paddingHorizontal: 8, paddingVertical: 4,
-    backgroundColor: Colors.bg,
+    backgroundColor: MapHud.control,
   },
-  iComBtnText: { color: Colors.textMuted, fontFamily: 'Alegreya_500Medium', fontSize: 10 },
+  iComBtnText: { ...MAP_HUD_TEXT_SHADOW, color: Colors.textMuted, fontFamily: 'Alegreya_500Medium', fontSize: 10 },
 });

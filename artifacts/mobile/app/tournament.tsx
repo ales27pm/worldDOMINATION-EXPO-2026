@@ -23,18 +23,11 @@ import {
   buildTournamentSetup,
   TOURNAMENT_GAMES,
   TOURNAMENT_LENGTH,
+  tournamentCampaignSummary,
   tournamentMaxPoints,
 } from '@/game/tournament';
 
 const ROMAN = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII','XIII','XIV','XV','XVI'];
-
-const OBJECTIVE_LABEL: Record<string, string> = {
-  domination60: 'Dom 60%',
-  domination80: 'Dom 80%',
-  domination100: 'Dom 100%',
-  mission: 'Mission',
-  capital: 'Capital',
-};
 
 export default function TournamentScreen() {
   const router = useRouter();
@@ -189,7 +182,7 @@ export default function TournamentScreen() {
             const record = session.records.find((r) => r.gameIndex === idx);
             const isCurrent = idx === session.currentGame && !ended;
             const isLocked = idx > session.currentGame || (ended && !record);
-            const maxPts = tournamentMaxPoints(def);
+            const summary = tournamentCampaignSummary(def);
 
             return (
               <Pressable
@@ -216,11 +209,13 @@ export default function TournamentScreen() {
                   >
                     {def.title}
                   </Text>
-                  <Text style={styles.gameMeta}>
-                    {OBJECTIVE_LABEL[def.objective] ?? def.objective}
+                  <Text style={styles.gameMeta} numberOfLines={1}>
+                    {summary.objectiveName} · {summary.allocationName}
+                  </Text>
+                  <Text style={styles.gameSubMeta} numberOfLines={1}>
+                    {summary.opponentCount} generals {summary.difficultyMarks}
                     {' · '}
-                    {def.opponents.length} opponents
-                    {def.useExtraTerritories ? ' · Extended' : ''}
+                    {summary.territoryCount} territories
                   </Text>
                 </View>
 
@@ -248,7 +243,7 @@ export default function TournamentScreen() {
                 ) : isCurrent ? (
                   <Text style={styles.playNow}>► PLAY</Text>
                 ) : (
-                  <Text style={styles.lockedPts}>{maxPts} pts</Text>
+                  <Text style={styles.lockedPts}>max {summary.maxPoints}</Text>
                 )}
               </Pressable>
             );
@@ -387,6 +382,7 @@ const styles = StyleSheet.create({
   gameTitle: { color: Colors.text, fontFamily: 'Alegreya_600SemiBold', fontSize: 14 },
   gameTitleLocked: { color: Colors.textMuted },
   gameMeta: { color: Colors.textMuted, fontFamily: 'Alegreya_400Regular', fontSize: 10 },
+  gameSubMeta: { color: Colors.goldDim, fontFamily: 'Alegreya_400Regular', fontSize: 10 },
 
   badgeWrap: { alignItems: 'flex-end', gap: 2 },
   badge: { fontFamily: 'Alegreya_700Bold', fontSize: 10, letterSpacing: 2 },

@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, Pressable, type StyleProp, type ViewStyle } from "react-native";
 import { Colors } from "@/constants/colors";
+import { MAP_HUD_TEXT_SHADOW, MapHud } from "@/constants/mapHud";
 import type { BattleReport, GameState } from "@/game/types";
 import { TERRITORY_MAP } from "@/game/mapData";
+import { battlePresentationSummary } from "@/game/battlePresentation";
 import { useBattleSceneVisible } from "@/lib/battleScenes";
 import { RiskDie } from "./RiskDie";
 
@@ -81,9 +83,10 @@ export function TransientBattleReport({
 export default function BattleReportCard({ battle, game }: Props) {
   const attacker = game.players[battle.attacker];
   const defender = game.players[battle.defender];
+  const summary = battlePresentationSummary(battle);
 
   return (
-    <View style={styles.card}>
+    <View testID="map-battle-report" style={styles.card}>
       <View style={styles.header}>
         <Text style={styles.label}>LAST BATTLE</Text>
         <Text
@@ -140,13 +143,31 @@ export default function BattleReportCard({ battle, game }: Props) {
           <Text style={styles.losses}>-{battle.defenderLosses}</Text>
         </View>
       </View>
+
+      {summary && (
+        <View style={styles.outlook}>
+          <Text style={styles.outlookLabel}>OUTLOOK</Text>
+          <Text
+            style={[
+              styles.outlookValue,
+              summary.outlook === "attacker" ? styles.conquered : summary.outlook === "defender" ? styles.repelled : styles.even,
+            ]}
+            numberOfLines={1}
+          >
+            {summary.outlookLabel.toUpperCase()} · {summary.attackerPressurePct}%
+          </Text>
+          <Text style={styles.outlookMeta} numberOfLines={1}>
+            force {summary.attackerStart}-{summary.defenderStart} · standing {summary.attackerRemaining}-{summary.defenderRemaining}
+          </Text>
+        </View>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: 'rgba(21,13,9,0.8)',
+    backgroundColor: MapHud.focused,
     borderWidth: 1,
     borderColor: 'rgba(222,190,115,0.35)',
     padding: 10,
@@ -158,23 +179,26 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   label: {
+    ...MAP_HUD_TEXT_SHADOW,
     color: Colors.textMuted,
     fontFamily: "Alegreya_500Medium",
     fontSize: 10,
     letterSpacing: 2,
   },
-  result: { fontFamily: "Alegreya_700Bold", fontSize: 11, letterSpacing: 2 },
+  result: { ...MAP_HUD_TEXT_SHADOW, fontFamily: "Alegreya_700Bold", fontSize: 11, letterSpacing: 2 },
   conquered: { color: Colors.gold },
   repelled: { color: Colors.textMuted },
   battle: { flexDirection: "row", alignItems: "center", gap: 8 },
   side: { flex: 1, alignItems: "center", gap: 4 },
   colorDot: { width: 10, height: 10, borderRadius: 5 },
   playerName: {
+    ...MAP_HUD_TEXT_SHADOW,
     color: Colors.text,
     fontFamily: "Alegreya_600SemiBold",
     fontSize: 12,
   },
   territory: {
+    ...MAP_HUD_TEXT_SHADOW,
     color: Colors.textMuted,
     fontFamily: "Alegreya_400Regular",
     fontSize: 10,
@@ -182,13 +206,43 @@ const styles = StyleSheet.create({
   },
   dice: { flexDirection: "row", gap: 4 },
   losses: {
+    ...MAP_HUD_TEXT_SHADOW,
     color: Colors.textCrimson,
     fontFamily: "Alegreya_700Bold",
     fontSize: 14,
   },
+  outlook: {
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(222,190,115,0.2)',
+    paddingTop: 7,
+    gap: 2,
+  },
+  outlookLabel: {
+    ...MAP_HUD_TEXT_SHADOW,
+    color: Colors.textMuted,
+    fontFamily: "Alegreya_500Medium",
+    fontSize: 9,
+    letterSpacing: 2,
+  },
+  outlookValue: {
+    ...MAP_HUD_TEXT_SHADOW,
+    fontFamily: "Alegreya_700Bold",
+    fontSize: 11,
+    letterSpacing: 1.5,
+  },
+  even: { color: Colors.goldDim },
+  outlookMeta: {
+    ...MAP_HUD_TEXT_SHADOW,
+    color: Colors.textMuted,
+    fontFamily: "Alegreya_400Regular",
+    fontSize: 10,
+    textTransform: "uppercase",
+    letterSpacing: 1,
+  },
   vsCol: { alignItems: "center", gap: 2 },
-  vs: { fontSize: 18, color: Colors.gold },
+  vs: { ...MAP_HUD_TEXT_SHADOW, fontSize: 18, color: Colors.gold },
   rounds: {
+    ...MAP_HUD_TEXT_SHADOW,
     color: Colors.textMuted,
     fontFamily: "Alegreya_400Regular",
     fontSize: 10,

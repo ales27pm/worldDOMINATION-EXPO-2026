@@ -390,6 +390,91 @@ export function computeAttention(game: GameState | null, selected: TerritoryId |
       }
       break;
     }
+    case "sameTimeReinforce": {
+      if (selected && game.territories[selected]?.owner === player.id) {
+        add(selected, 5, true);
+        for (const n of TERRITORY_MAP[selected].neighbors) add(n, 0.5);
+      } else {
+        addOwned(player.id);
+      }
+      break;
+    }
+    case "sameTimeBattle": {
+      const orders = game.sameTime?.orders ?? [];
+      const playback = game.sameTime?.playback ?? [];
+
+      for (const report of playback) {
+        add(report.from, 3, true);
+        add(report.to, 4, true);
+      }
+
+      for (const order of orders.filter((o) => o.player === player.id)) {
+        add(order.from, 3, true);
+        add(order.to, 4, true);
+        if (order.surgeTo) add(order.surgeTo, 2, false);
+      }
+
+      if (humanTurn && selected) {
+        add(selected, 5, true);
+        const committed = orders
+          .filter((o) => o.player === player.id && o.from === selected)
+          .reduce((sum, o) => sum + o.count, 0);
+        const selectedState = game.territories[selected];
+        if (selectedState?.owner === player.id && selectedState.armies - 1 - committed >= 1) {
+          for (const n of TERRITORY_MAP[selected].neighbors) {
+            if (!active.has(n)) continue;
+            const enemy = game.territories[n].owner !== player.id;
+            const nearby = distance(selected, n) < REQUIRED_LINK_RANGE;
+            add(n, enemy ? 3 : 0.5, enemy && nearby);
+          }
+        }
+      } else if (playback.length === 0 && orders.length === 0) {
+        let anyFront = false;
+        for (const id of game.activeIds) {
+          const t = game.territories[id];
+          if (t.owner !== player.id) continue;
+          const committed = orders
+            .filter((o) => o.player === player.id && o.from === id)
+            .reduce((sum, o) => sum + o.count, 0);
+          if (t.armies - 1 - committed < 1) continue;
+          const hostile = TERRITORY_MAP[id].neighbors.filter(
+            (n) => active.has(n) && game.territories[n].owner !== player.id,
+          );
+          if (hostile.length === 0) continue;
+          anyFront = true;
+          add(id, 1 + Math.min(2, Math.log2(t.armies) * 0.5));
+          for (const n of hostile) add(n, 0.8);
+        }
+        if (!anyFront) addOwned(player.id);
+      }
+      break;
+    }
+    case "sameTimeMove": {
+      const moves = game.sameTime?.moves ?? [];
+      for (const move of moves.filter((m) => m.player === player.id)) {
+        add(move.from, 3, true);
+        add(move.to, 4, true);
+      }
+
+      if (humanTurn && selected) {
+        add(selected, 5, true);
+        const committed = moves
+          .filter((m) => m.player === player.id && m.from === selected)
+          .reduce((sum, m) => sum + m.count, 0);
+        const selectedState = game.territories[selected];
+        if (selectedState?.owner === player.id && selectedState.armies - 1 - committed >= 1) {
+          for (const n of TERRITORY_MAP[selected].neighbors) {
+            if (!active.has(n)) continue;
+            const friendly = game.territories[n].owner === player.id;
+            const nearby = distance(selected, n) < REQUIRED_LINK_RANGE;
+            add(n, friendly ? 3 : 0.4, friendly && nearby);
+          }
+        }
+      } else if (moves.length === 0) {
+        addOwned(player.id);
+      }
+      break;
+    }
     default:
       return [];
   }

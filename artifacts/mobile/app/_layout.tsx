@@ -31,6 +31,8 @@ function RootLayoutNav() {
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="setup" options={{ headerShown: false }} />
       <Stack.Screen name="game" options={{ headerShown: false }} />
+      <Stack.Screen name="multiplayer" options={{ headerShown: false }} />
+      <Stack.Screen name="multiplayer-game" options={{ headerShown: false }} />
       <Stack.Screen name="records" options={{ headerShown: false }} />
       <Stack.Screen name="tournament" options={{ headerShown: false }} />
     </Stack>

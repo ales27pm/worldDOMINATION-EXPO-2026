@@ -11,7 +11,7 @@ import type { GameAction, GameSetup, GameState } from '../game/types';
 
 interface GameContextValue {
   game: GameState | null;
-  startGame: (setup: GameSetup) => void;
+  startGame: (setup: GameSetup, prepare?: (state: GameState) => GameState) => void;
   dispatch: (action: GameAction) => void;
   abandonGame: () => Promise<void>;
   loadingSave: boolean;
@@ -60,9 +60,9 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     };
   }, [game]);
 
-  const startGame = useCallback((setup: GameSetup) => {
+  const startGame = useCallback((setup: GameSetup, prepare?: (state: GameState) => GameState) => {
     const newGame = createGame(setup);
-    setGame(newGame);
+    setGame(prepare ? prepare(newGame) : newGame);
   }, []);
 
   const dispatch = useCallback((action: GameAction) => {
