@@ -12,6 +12,10 @@ import { GLTFLoader, type GLTF } from "three/addons/loaders/GLTFLoader.js";
 import { useLoader } from "@/components/game/r3fRuntime";
 import { R3FTerritorySurface } from "@/components/game/R3FTerritorySurface";
 import {
+  createMapAttentionTargetRegistry,
+  type MapAttentionTargetRegistry,
+} from "@/game/mapAttentionDirector";
+import {
   MAP_SCENE_BOARD_PIXELS,
   MAP_SCENE_UNITS_PER_PIXEL,
 } from "@/game/mapSceneGeometry";
@@ -21,6 +25,9 @@ import { MAP_SCENE_GLBS, WORLD_BOARD } from "@/lib/gameArt";
 interface Props {
   model: MapSceneModel;
   onLoaded: () => void;
+  onAttentionTargetsReady: (
+    registry: MapAttentionTargetRegistry,
+  ) => void;
 }
 
 const BOARD_WIDTH = MAP_SCENE_BOARD_PIXELS[0] * MAP_SCENE_UNITS_PER_PIXEL;
@@ -39,7 +46,11 @@ function collectTerritoryGeometries(
   return result;
 }
 
-export default function R3FTerritoryMeshes({ model, onLoaded }: Props) {
+export default function R3FTerritoryMeshes({
+  model,
+  onLoaded,
+  onAttentionTargetsReady,
+}: Props) {
   const gltf = useLoader(
     GLTFLoader,
     Asset.fromModule(MAP_SCENE_GLBS[model.variant]).uri,
@@ -52,6 +63,12 @@ export default function R3FTerritoryMeshes({ model, onLoaded }: Props) {
     () => collectTerritoryGeometries(gltf.scene),
     [gltf.scene],
   );
+  const attentionTargets = useMemo(
+    () => createMapAttentionTargetRegistry(model.territories, geometries),
+    // Territory mesh membership changes only when the map variant changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [geometries, model.variant],
+  );
 
   useEffect(() => {
     boardTexture.colorSpace = SRGBColorSpace;
@@ -60,8 +77,16 @@ export default function R3FTerritoryMeshes({ model, onLoaded }: Props) {
   }, [boardTexture]);
 
   useEffect(() => {
-    if (geometries.size === model.territories.length) onLoaded();
-  }, [geometries, model.territories.length, onLoaded]);
+    if (geometries.size !== model.territories.length) return;
+    onAttentionTargetsReady(attentionTargets);
+    onLoaded();
+  }, [
+    attentionTargets,
+    geometries,
+    model.territories.length,
+    onAttentionTargetsReady,
+    onLoaded,
+  ]);
 
   return (
     <>

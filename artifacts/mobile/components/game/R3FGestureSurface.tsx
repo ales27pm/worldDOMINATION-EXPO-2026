@@ -11,6 +11,7 @@ export interface R3FGestureSurfaceProps {
   onPinchStart: (focalX: number, focalY: number) => void;
   onPinchUpdate: (scale: number) => void;
   onPinchEnd: () => void;
+  onTapStart: (x: number, y: number) => void;
   onSingleTap: (x: number, y: number) => void;
   onDoubleTap: (x: number, y: number) => void;
 }
@@ -24,6 +25,7 @@ export function R3FGestureSurface({
   onPinchStart,
   onPinchUpdate,
   onPinchEnd,
+  onTapStart,
   onSingleTap,
   onDoubleTap,
 }: R3FGestureSurfaceProps) {
@@ -36,16 +38,23 @@ export function R3FGestureSurface({
       .onUpdate((event) =>
         onPanUpdate(event.translationX, event.translationY),
       )
-      .onEnd((event) => onPanEnd(event.velocityX, event.velocityY));
+      .onFinalize((event, success) =>
+        onPanEnd(
+          success ? event.velocityX : 0,
+          success ? event.velocityY : 0,
+        ),
+      );
     const pinch = Gesture.Pinch()
       .runOnJS(true)
       .onStart((event) => onPinchStart(event.focalX, event.focalY))
       .onUpdate((event) => onPinchUpdate(event.scale))
-      .onEnd(onPinchEnd);
+      .onFinalize(onPinchEnd);
     const doubleTap = Gesture.Tap()
       .runOnJS(true)
       .numberOfTaps(2)
       .maxDelay(320)
+      .maxDistance(24)
+      .onBegin((event) => onTapStart(event.x, event.y))
       .onEnd((event) => onDoubleTap(event.x, event.y));
     const singleTap = Gesture.Tap()
       .runOnJS(true)
@@ -68,6 +77,7 @@ export function R3FGestureSurface({
     onPinchStart,
     onPinchUpdate,
     onSingleTap,
+    onTapStart,
   ]);
 
   return (

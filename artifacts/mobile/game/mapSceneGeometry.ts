@@ -5,6 +5,8 @@ export const MAP_SCENE_FORMAT = "worlddomination-map-scene" as const;
 export const MAP_SCENE_BOARD_PIXELS = [1536, 1024] as const;
 export const MAP_SCENE_UNITS_PER_PIXEL = 0.01;
 export const MAP_SCENE_TERRITORY_HEIGHT = 0.08;
+export const MAP_SCENE_TABLETOP_RADIUS = 9.55;
+export const MAP_SCENE_TABLETOP_Y = -0.06;
 
 export const MAP_VARIANTS = ["classic", "expanded"] as const;
 

@@ -1,10 +1,14 @@
 import { Asset } from "expo-asset";
 import { File } from "expo-file-system";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { SRGBColorSpace, TextureLoader } from "three";
 
 import { useLoader } from "@/components/game/r3fRuntime";
 import { R3FTerritorySurface } from "@/components/game/R3FTerritorySurface";
+import {
+  createMapAttentionTargetRegistry,
+  type MapAttentionTargetRegistry,
+} from "@/game/mapAttentionDirector";
 import {
   MAP_SCENE_BOARD_PIXELS,
   MAP_SCENE_UNITS_PER_PIXEL,
@@ -22,6 +26,9 @@ import {
 interface Props {
   model: MapSceneModel;
   onLoaded: () => void;
+  onAttentionTargetsReady: (
+    registry: MapAttentionTargetRegistry,
+  ) => void;
 }
 
 const BOARD_WIDTH = MAP_SCENE_BOARD_PIXELS[0] * MAP_SCENE_UNITS_PER_PIXEL;
@@ -74,7 +81,11 @@ function useNativeMapScene(module: number): ParsedMapSceneGlb | null {
   return scene;
 }
 
-export default function R3FTerritoryMeshes({ model, onLoaded }: Props) {
+export default function R3FTerritoryMeshes({
+  model,
+  onLoaded,
+  onAttentionTargetsReady,
+}: Props) {
   const scene = useNativeMapScene(MAP_SCENE_GLBS[model.variant]);
   const boardTexture = useLoader(
     TextureLoader,
@@ -87,9 +98,35 @@ export default function R3FTerritoryMeshes({ model, onLoaded }: Props) {
     boardTexture.needsUpdate = true;
   }, [boardTexture]);
 
+  const attentionTargets = useMemo(
+    () =>
+      scene
+        ? createMapAttentionTargetRegistry(
+            model.territories,
+            scene.geometries,
+          )
+        : null,
+    // Territory mesh membership changes only when the map variant changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [model.variant, scene],
+  );
+
   useEffect(() => {
-    if (scene?.geometries.size === model.territories.length) onLoaded();
-  }, [model.territories.length, onLoaded, scene]);
+    if (
+      scene?.geometries.size !== model.territories.length ||
+      !attentionTargets
+    ) {
+      return;
+    }
+    onAttentionTargetsReady(attentionTargets);
+    onLoaded();
+  }, [
+    attentionTargets,
+    model.territories.length,
+    onAttentionTargetsReady,
+    onLoaded,
+    scene,
+  ]);
 
   return (
     <>

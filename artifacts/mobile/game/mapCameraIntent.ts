@@ -11,11 +11,15 @@ import {
   type Camera,
 } from "./camera";
 import { cameraZoomedAt, stepCriticalSpring, stepDecay } from "./cameraMotion";
-import { MAP_SCENE_UNITS_PER_PIXEL } from "./mapSceneGeometry";
+import {
+  MAP_SCENE_TABLETOP_RADIUS,
+  MAP_SCENE_UNITS_PER_PIXEL,
+} from "./mapSceneGeometry";
 import type { GameState, TerritoryId } from "./types";
 
 export type CameraIntentReason =
   | "initial"
+  | "attention"
   | "focus"
   | "full"
   | "pan"
@@ -56,7 +60,9 @@ const SPRING_FREQUENCY = 11;
 const PAN_FRICTION = 7.5;
 const PAN_STOP_SPEED = 2;
 const CAMERA_FOV = 35;
-const CAMERA_FIT_MARGIN = 1.08;
+const CAMERA_FIT_MARGIN = 1.12;
+const TABLETOP_FIT_MARGIN = 1.035;
+const TABLETOP_REVEAL_START = 0.75;
 const CAMERA_ELEVATION = 0.94;
 const CAMERA_DEPTH = 0.34;
 
@@ -305,8 +311,22 @@ export function perspectivePoseForCamera(
   const verticalFov = (CAMERA_FOV * Math.PI) / 180;
   const horizontalFov = 2 * Math.atan(Math.tan(verticalFov / 2) * safeAspect);
   const viewWidth = camera.vw * MAP_SCENE_UNITS_PER_PIXEL;
+  const boardFramedWidth = viewWidth * CAMERA_FIT_MARGIN;
+  const tabletopFramedWidth =
+    MAP_SCENE_TABLETOP_RADIUS * 2 * TABLETOP_FIT_MARGIN;
+  const tabletopReveal = Math.min(
+    1,
+    Math.max(
+      0,
+      (camera.vw / MAP_W - TABLETOP_REVEAL_START) /
+        (1 - TABLETOP_REVEAL_START),
+    ),
+  );
+  const framedWidth =
+    boardFramedWidth +
+    Math.max(0, tabletopFramedWidth - boardFramedWidth) * tabletopReveal;
   const distance =
-    (viewWidth / 2 / Math.tan(horizontalFov / 2)) * CAMERA_FIT_MARGIN;
+    framedWidth / 2 / Math.tan(horizontalFov / 2);
   const directionLength = Math.hypot(CAMERA_ELEVATION, CAMERA_DEPTH);
   const elevation = CAMERA_ELEVATION / directionLength;
   const depth = CAMERA_DEPTH / directionLength;

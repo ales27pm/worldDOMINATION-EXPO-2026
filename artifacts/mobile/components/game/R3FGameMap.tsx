@@ -10,7 +10,9 @@ import React, {
   useState,
 } from "react";
 import {
+  AccessibilityInfo,
   ActivityIndicator,
+  AppState,
   Platform,
   Pressable,
   StyleSheet,
@@ -34,6 +36,7 @@ import {
 
 import { R3FArmyLayer } from "@/components/game/R3FArmyLayer";
 import { R3FGestureSurface } from "@/components/game/R3FGestureSurface";
+import R3FTable from "@/components/game/R3FTable";
 import R3FTerritoryLabels from "@/components/game/R3FTerritoryLabels";
 import R3FTerritoryMeshes from "@/components/game/R3FTerritoryMeshes";
 import {
@@ -41,7 +44,19 @@ import {
   useFrame,
   useThree,
 } from "@/components/game/r3fRuntime";
-import { MAP_H, MAP_W, clampCamera, type Camera } from "@/game/camera";
+import {
+  MAP_H,
+  MAP_W,
+  autoMinVw,
+  clampCamera,
+  type Camera,
+} from "@/game/camera";
+import {
+  MapAttentionDirector,
+  type MapAttentionEvent,
+  type MapAttentionRequest,
+  type MapAttentionTargetRegistry,
+} from "@/game/mapAttentionDirector";
 import {
   applyCameraIntent,
   beginCameraInertia,
@@ -64,6 +79,7 @@ import {
   type MapSceneModel,
   type MapScenePresentationState,
 } from "@/game/mapSceneModel";
+import { TERRITORY_MAP } from "@/game/mapData";
 import {
   createMapFrameProfile,
   recordMapFrameSample,
@@ -82,6 +98,10 @@ import {
   type MapPerformanceEvidence,
   type MapPerformancePlatform,
 } from "@/game/mapPerformanceEvidence";
+import {
+  advanceMapCameraIdleSettle,
+  resolveMapCanvasFrameloop,
+} from "@/game/mapRenderLoop";
 import {
   createMapScenePickIndex,
   pickTerritoryFromIntersections,
@@ -179,6 +199,7 @@ const PERFORMANCE_APPLICATION = {
   sessionId: Constants.sessionId,
 };
 const MAX_ACTIVE_FRAME_GAP_MS = 250;
+const NATIVE_CAMERA_PRESENT_DELAY_MS = 80;
 
 function activeFrameTimeMs(): number {
   // iOS can resume GL one callback before performance.now() catches up after
@@ -393,49 +414,65 @@ function BattleEffect({
 function CameraRig({
   runtime,
   aspect,
+  onCameraIdle,
 }: {
   runtime: React.MutableRefObject<MapCameraRuntime>;
   aspect: number;
+  onCameraIdle: () => void;
 }) {
   const camera = useThree((state) => state.camera);
   const invalidate = useThree((state) => state.invalidate);
+  const onCameraIdleRef = useRef(onCameraIdle);
+  onCameraIdleRef.current = onCameraIdle;
   const lastApplied = useRef({
     cx: Number.NaN,
     cy: Number.NaN,
     vw: Number.NaN,
     aspect: Number.NaN,
   });
+  const idleFrameCount = useRef(0);
 
   useFrame((_state, deltaSeconds) => {
     const moved = stepMapCameraRuntime(runtime.current, deltaSeconds, aspect);
     const current = runtime.current.current;
     const previous = lastApplied.current;
-    if (
+    const poseUnchanged =
       !moved &&
       previous.cx === current.cx &&
       previous.cy === current.cy &&
       previous.vw === current.vw &&
-      previous.aspect === aspect
-    ) {
-      return;
+      previous.aspect === aspect;
+
+    if (!poseUnchanged) {
+      const pose = perspectivePoseForCamera(current, aspect);
+      camera.position.set(...pose.position);
+      camera.lookAt(...pose.target);
+      const perspectiveCamera = camera as PerspectiveCamera;
+      if (perspectiveCamera.isPerspectiveCamera) {
+        perspectiveCamera.fov = pose.fov;
+        perspectiveCamera.near = pose.near;
+        perspectiveCamera.far = pose.far;
+        perspectiveCamera.updateProjectionMatrix();
+      }
+      camera.updateMatrixWorld(true);
+      previous.cx = current.cx;
+      previous.cy = current.cy;
+      previous.vw = current.vw;
+      previous.aspect = aspect;
+      updateR3FDebug({ camera: current });
     }
 
-    const pose = perspectivePoseForCamera(current, aspect);
-    camera.position.set(...pose.position);
-    camera.lookAt(...pose.target);
-    const perspectiveCamera = camera as PerspectiveCamera;
-    if (perspectiveCamera.isPerspectiveCamera) {
-      perspectiveCamera.fov = pose.fov;
-      perspectiveCamera.near = pose.near;
-      perspectiveCamera.far = pose.far;
-      perspectiveCamera.updateProjectionMatrix();
-    }
-    previous.cx = current.cx;
-    previous.cy = current.cy;
-    previous.vw = current.vw;
-    previous.aspect = aspect;
-    updateR3FDebug({ camera: current });
+    const idleSettle = advanceMapCameraIdleSettle(
+      PERFORMANCE_PLATFORM,
+      runtime.current.motion === "idle",
+      idleFrameCount.current,
+    );
+    idleFrameCount.current = idleSettle.idleFrameCount;
     if (runtime.current.motion !== "idle" && Platform.OS !== "web") {
+      invalidate();
+    } else if (idleSettle.shouldRelease) {
+      onCameraIdleRef.current();
+    } else if (Platform.OS !== "web") {
       invalidate();
     }
   });
@@ -483,18 +520,28 @@ function SceneBridge({
   const scene = useThree((state) => state.scene);
   const invalidate = useThree((state) => state.invalidate);
   const publishedMeshCount = useRef(-1);
-  const projected = useMemo(
-    () =>
-      ENABLE_SCENE_PROJECTION
-        ? Object.fromEntries(
-            model.territories.map((territory) => [
-              territory.id,
-              { x: 0, y: 0 },
-            ]),
-          )
-        : {},
-    [model.territories],
-  );
+  const projectionKey = model.territories
+    .map((territory) => territory.id)
+    .join("|");
+  const projectionState = useRef<{
+    key: string;
+    points: Record<string, { x: number; y: number }>;
+  }>({ key: "", points: {} });
+  if (
+    ENABLE_SCENE_PROJECTION &&
+    projectionState.current.key !== projectionKey
+  ) {
+    projectionState.current = {
+      key: projectionKey,
+      points: Object.fromEntries(
+        model.territories.map((territory) => [
+          territory.id,
+          { x: 0, y: 0 },
+        ]),
+      ),
+    };
+  }
+  const projected = projectionState.current.points;
 
   const publishBridge = useCallback(() => {
     const meshes: Mesh[] = [];
@@ -753,9 +800,11 @@ function TabletopScene({
   layout,
   onBridge,
   onLoaded,
+  onAttentionTargetsReady,
   onBattleComplete,
   completedProfiles,
   onPerformanceQualification,
+  onCameraIdle,
 }: {
   model: MapSceneModel;
   battle: MapSceneBattleEffect | null;
@@ -765,15 +814,19 @@ function TabletopScene({
   layout: LayoutSize;
   onBridge: (bridge: SceneBridgeState) => void;
   onLoaded: () => void;
+  onAttentionTargetsReady: (
+    registry: MapAttentionTargetRegistry,
+  ) => void;
   onBattleComplete: (battleId: string) => void;
   completedProfiles: React.MutableRefObject<CompletedMapFrameProfiles>;
   onPerformanceQualification?: (
     qualification: MapRendererPerformanceQualification,
   ) => void;
+  onCameraIdle: () => void;
 }) {
   return (
     <>
-      <color attach="background" args={["#d3b75d"]} />
+      <color attach="background" args={["#777169"]} />
       <ambientLight intensity={0.78} />
       <hemisphereLight args={["#fff0c4", "#72542c", 1.1]} />
       <directionalLight
@@ -790,8 +843,13 @@ function TabletopScene({
         shadow-camera-top={7}
         shadow-camera-bottom={-7}
       />
+      <R3FTable />
       <Suspense fallback={null}>
-        <R3FTerritoryMeshes model={model} onLoaded={onLoaded} />
+        <R3FTerritoryMeshes
+          model={model}
+          onLoaded={onLoaded}
+          onAttentionTargetsReady={onAttentionTargetsReady}
+        />
         <R3FTerritoryLabels model={model} />
         <R3FArmyLayer model={model} />
         {battle ? (
@@ -803,7 +861,11 @@ function TabletopScene({
         ) : null}
         <SceneBridge model={model} layout={layout} onBridge={onBridge} />
       </Suspense>
-      <CameraRig runtime={runtime} aspect={aspect} />
+      <CameraRig
+        runtime={runtime}
+        aspect={aspect}
+        onCameraIdle={onCameraIdle}
+      />
       {R3F_QUALIFICATION_ENABLED ? (
         <PerformanceProbe
           runtime={runtime}
@@ -858,8 +920,31 @@ export default function R3FGameMap({
   });
   const [loaded, setLoaded] = useState(false);
   const [focusActive, setFocusActive] = useState(false);
+  const [activeAttentionLabel, setActiveAttentionLabel] = useState<
+    string | null
+  >(null);
+  const [nativeCameraRendering, setNativeCameraRendering] = useState(
+    Platform.OS !== "web",
+  );
+  const nativeCameraRenderingRef = useRef(Platform.OS !== "web");
+  const nativeCameraPresentTimer = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   const [nativeCanvasGeneration, setNativeCanvasGeneration] =
     useState(0);
+  const cameraGestureDepth = useRef(0);
+  const screenReaderEnabled = useRef(false);
+  const reduceMotionEnabled = useRef(false);
+  const attentionTargetsRef =
+    useRef<MapAttentionTargetRegistry | null>(null);
+  const attentionDirectorRef = useRef<MapAttentionDirector | null>(null);
+  if (!attentionDirectorRef.current) {
+    attentionDirectorRef.current = new MapAttentionDirector({
+      defaultPadding: 1.25,
+      defaultRequestTtlMs: 1200,
+    });
+  }
+  const attentionDirector = attentionDirectorRef.current;
   const battleSceneVisible = useBattleSceneVisible();
   const previousBattleSceneVisible = useRef(battleSceneVisible);
   const pickerRef = useRef<PickerState | null>(null);
@@ -875,12 +960,21 @@ export default function R3FGameMap({
     camera: Camera;
     point: { x: number; y: number };
   } | null>(null);
+  const pendingTapTargetRef = useRef<{
+    x: number;
+    y: number;
+    id: TerritoryId | null;
+  } | null>(null);
   const onTapRef = useRef(onTerritoryTap);
   onTapRef.current = onTerritoryTap;
   const aspect =
     layout.width > 0 && layout.height > 0
       ? layout.width / layout.height
       : MAP_W / MAP_H;
+  const aspectRef = useRef(aspect);
+  aspectRef.current = aspect;
+  const layoutWidthRef = useRef(layout.width);
+  layoutWidthRef.current = layout.width;
   const presentationRef = useRef<MapScenePresentationState | null>(null);
   if (!presentationRef.current) {
     presentationRef.current = createMapScenePresentationState(model);
@@ -897,17 +991,166 @@ export default function R3FGameMap({
   const requestRender = useCallback(() => {
     pickerRef.current?.invalidate();
   }, []);
+  const activateNativeCameraRendering = useCallback(() => {
+    if (Platform.OS === "web") return;
+    if (nativeCameraPresentTimer.current) {
+      clearTimeout(nativeCameraPresentTimer.current);
+      nativeCameraPresentTimer.current = null;
+    }
+    nativeCameraRenderingRef.current = true;
+    setNativeCameraRendering(true);
+  }, []);
+  const handleCameraIdle = useCallback(() => {
+    if (
+      Platform.OS === "web" ||
+      cameraGestureDepth.current > 0 ||
+      !nativeCameraRenderingRef.current
+    ) {
+      return;
+    }
+    if (nativeCameraPresentTimer.current) return;
+    nativeCameraPresentTimer.current = setTimeout(() => {
+      nativeCameraPresentTimer.current = null;
+      nativeCameraRenderingRef.current = false;
+      setNativeCameraRendering(false);
+      requestRender();
+    }, NATIVE_CAMERA_PRESENT_DELAY_MS);
+  }, [requestRender]);
+
+  const handleAttentionEvent = useCallback(
+    (event: MapAttentionEvent) => {
+      if (event.type === "cancel") {
+        stopCameraMotion(runtime.current);
+        setFocusActive(false);
+        requestRender();
+        return;
+      }
+      const request = event.request;
+      const target =
+        request.camera ??
+        attentionTargetsRef.current?.cameraForTargets(
+          request.targetIds,
+          aspectRef.current,
+          request.minViewWidth,
+          request.padding,
+        );
+      if (!target) return;
+      applyCameraIntent(runtime.current, {
+        reason: "attention",
+        target,
+        transition: reduceMotionEnabled.current ? "snap" : "spring",
+      });
+      if (request.label) setActiveAttentionLabel(request.label);
+      activateNativeCameraRendering();
+      setFocusActive(true);
+      requestRender();
+    },
+    [activateNativeCameraRendering, requestRender],
+  );
+
+  useEffect(
+    () => attentionDirector.subscribe(handleAttentionEvent),
+    [attentionDirector, handleAttentionEvent],
+  );
+
+  useEffect(() => {
+    let mounted = true;
+    void AccessibilityInfo.isScreenReaderEnabled().then((enabled) => {
+      if (mounted) screenReaderEnabled.current = enabled;
+    });
+    void AccessibilityInfo.isReduceMotionEnabled().then((enabled) => {
+      if (mounted) reduceMotionEnabled.current = enabled;
+    });
+    const screenReaderSubscription = AccessibilityInfo.addEventListener(
+      "screenReaderChanged",
+      (enabled) => {
+        screenReaderEnabled.current = enabled;
+      },
+    );
+    const reduceMotionSubscription = AccessibilityInfo.addEventListener(
+      "reduceMotionChanged",
+      (enabled) => {
+        reduceMotionEnabled.current = enabled;
+      },
+    );
+    return () => {
+      mounted = false;
+      screenReaderSubscription.remove();
+      reduceMotionSubscription.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state !== "active") attentionDirector.cancel("background");
+    });
+    return () => subscription.remove();
+  }, [attentionDirector]);
+
+  useEffect(() => {
+    if (activeAttentionLabel && screenReaderEnabled.current) {
+      AccessibilityInfo.announceForAccessibility(activeAttentionLabel);
+    }
+  }, [activeAttentionLabel]);
+
+  const requestAttention = useCallback(
+    (request: MapAttentionRequest): boolean => {
+      const source = request.source ?? "game";
+      if (
+        source !== "user" &&
+        !request.force &&
+        (screenReaderEnabled.current || reduceMotionEnabled.current)
+      ) {
+        if (request.label) setActiveAttentionLabel(request.label);
+        return false;
+      }
+      return attentionDirector.request({
+        ...request,
+        minViewWidth:
+          request.minViewWidth ?? autoMinVw(layoutWidthRef.current),
+      });
+    },
+    [attentionDirector],
+  );
+
+  const handleAttentionTargetsReady = useCallback(
+    (registry: MapAttentionTargetRegistry) => {
+      attentionTargetsRef.current = registry;
+    },
+    [],
+  );
+  const claimManualCamera = useCallback(() => {
+    attentionDirector.beginManual();
+    attentionDirector.endManual();
+  }, [attentionDirector]);
+
+  useEffect(
+    () => () => {
+      if (nativeCameraPresentTimer.current) {
+        clearTimeout(nativeCameraPresentTimer.current);
+        nativeCameraPresentTimer.current = null;
+      }
+      attentionDirector.dispose();
+    },
+    [attentionDirector],
+  );
 
   useEffect(() => {
     const resumed =
       previousBattleSceneVisible.current && !battleSceneVisible;
     previousBattleSceneVisible.current = battleSceneVisible;
+    if (battleSceneVisible) attentionDirector.cancel("modal");
     if (resumed && Platform.OS === "ios") {
       pickerRef.current = null;
       setLoaded(false);
+      activateNativeCameraRendering();
       setNativeCanvasGeneration((generation) => generation + 1);
     }
-  }, [battleSceneVisible]);
+  }, [
+    activateNativeCameraRendering,
+    attentionDirector,
+    battleSceneVisible,
+  ]);
 
   useEffect(() => {
     const update = advanceMapScenePresentation(
@@ -915,8 +1158,26 @@ export default function R3FGameMap({
       model,
     );
     presentationRef.current = update.state;
-    if (update.battle) setPresentedBattle(update.battle);
+    if (!update.battle) return;
+    const battle = update.battle;
+    setPresentedBattle(battle);
+    setActiveAttentionLabel(
+      `${TERRITORY_MAP[battle.from].name} attacks ${TERRITORY_MAP[battle.to].name}.`,
+    );
   }, [model]);
+
+  useEffect(() => {
+    if (!presentedBattle || battleSceneVisible) return;
+    requestAttention({
+      key: `combat:${presentedBattle.from}:${presentedBattle.to}`,
+      targetIds: [presentedBattle.from, presentedBattle.to],
+      priority: 75,
+      source: "game",
+      label: `${TERRITORY_MAP[presentedBattle.from].name} attacks ${TERRITORY_MAP[presentedBattle.to].name}.`,
+      padding: 1.4,
+      ttlMs: 1500,
+    });
+  }, [battleSceneVisible, presentedBattle, requestAttention]);
 
   useEffect(() => {
     if (layout.width <= 0 || layout.height <= 0) return;
@@ -930,6 +1191,7 @@ export default function R3FGameMap({
         ),
       );
       initializedLayout.current = true;
+      activateNativeCameraRendering();
       requestRender();
       return;
     }
@@ -938,13 +1200,21 @@ export default function R3FGameMap({
       target: clampCamera(runtime.current.current, aspect),
       transition: "snap",
     });
+    activateNativeCameraRendering();
     requestRender();
     // State and selection changes must not steal camera ownership.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aspect, layout.height, layout.width, requestRender]);
+  }, [
+    activateNativeCameraRendering,
+    aspect,
+    layout.height,
+    layout.width,
+    requestRender,
+  ]);
 
   useEffect(() => {
     setLoaded(false);
+    attentionTargetsRef.current = null;
   }, [model.variant]);
 
   const handleLayout = useCallback(
@@ -975,11 +1245,19 @@ export default function R3FGameMap({
   const handleLoaded = useCallback(() => setLoaded(true), []);
 
   const beginPan = useCallback(() => {
+    pendingTapTargetRef.current = null;
+    attentionDirector.beginManual();
+    cameraGestureDepth.current += 1;
     stopCameraMotion(runtime.current);
     panStartRef.current = { ...runtime.current.current };
+    activateNativeCameraRendering();
     setFocusActive(false);
     requestRender();
-  }, [requestRender]);
+  }, [
+    activateNativeCameraRendering,
+    attentionDirector,
+    requestRender,
+  ]);
 
   const updatePan = useCallback(
     (translationX: number, translationY: number) => {
@@ -1002,6 +1280,7 @@ export default function R3FGameMap({
 
   const endPan = useCallback(
     (velocityX: number, velocityY: number) => {
+      if (!panStartRef.current) return;
       const boardUnitsPerPixel =
         runtime.current.current.vw / Math.max(1, layout.width);
       beginCameraInertia(
@@ -1010,13 +1289,21 @@ export default function R3FGameMap({
         -velocityY * boardUnitsPerPixel,
       );
       panStartRef.current = null;
+      cameraGestureDepth.current = Math.max(
+        0,
+        cameraGestureDepth.current - 1,
+      );
+      attentionDirector.endManual();
       requestRender();
     },
-    [layout.width, requestRender],
+    [attentionDirector, layout.width, requestRender],
   );
 
   const beginPinch = useCallback(
     (focalX: number, focalY: number) => {
+      pendingTapTargetRef.current = null;
+      attentionDirector.beginManual();
+      cameraGestureDepth.current += 1;
       stopCameraMotion(runtime.current);
       const camera = { ...runtime.current.current };
       pinchStartRef.current = {
@@ -1029,10 +1316,17 @@ export default function R3FGameMap({
           focalY,
         ),
       };
+      activateNativeCameraRendering();
       setFocusActive(false);
       requestRender();
     },
-    [layout.height, layout.width, requestRender],
+    [
+      activateNativeCameraRendering,
+      attentionDirector,
+      layout.height,
+      layout.width,
+      requestRender,
+    ],
   );
 
   const updatePinch = useCallback(
@@ -1056,13 +1350,20 @@ export default function R3FGameMap({
   );
 
   const endPinch = useCallback(() => {
+    if (!pinchStartRef.current) return;
     pinchStartRef.current = null;
-  }, []);
+    cameraGestureDepth.current = Math.max(
+      0,
+      cameraGestureDepth.current - 1,
+    );
+    attentionDirector.endManual();
+    requestRender();
+  }, [attentionDirector, requestRender]);
 
-  const pickTerritory = useCallback(
+  const resolveTerritoryAt = useCallback(
     (screenX: number, screenY: number) => {
       const picker = pickerRef.current;
-      if (!picker || layout.width <= 0 || layout.height <= 0) return;
+      if (!picker || layout.width <= 0 || layout.height <= 0) return null;
       const raycaster = new Raycaster();
       raycaster.setFromCamera(
         new Vector2(
@@ -1071,17 +1372,57 @@ export default function R3FGameMap({
         ),
         picker.camera,
       );
-      const id = pickTerritoryFromIntersections(
+      return pickTerritoryFromIntersections(
         pickIndex,
         raycaster.intersectObjects(picker.meshes, false),
       );
-      if (id) onTapRef.current(id);
     },
     [layout.height, layout.width, pickIndex],
   );
 
+  const captureTapTarget = useCallback(
+    (screenX: number, screenY: number) => {
+      pendingTapTargetRef.current = {
+        x: screenX,
+        y: screenY,
+        id: resolveTerritoryAt(screenX, screenY),
+      };
+    },
+    [resolveTerritoryAt],
+  );
+
+  const pickTerritory = useCallback(
+    (screenX: number, screenY: number) => {
+      const pending = pendingTapTargetRef.current;
+      pendingTapTargetRef.current = null;
+      const id =
+        pending &&
+        Math.hypot(pending.x - screenX, pending.y - screenY) <= 24
+          ? pending.id
+          : resolveTerritoryAt(screenX, screenY);
+      if (!id) return;
+      const territory = model.territories.find((entry) => entry.id === id);
+      requestAttention({
+        key: `territory:${id}`,
+        targetIds: [id],
+        priority: 80,
+        source: "user",
+        label: territory?.displayName ?? id,
+        padding: 1.35,
+      });
+      onTapRef.current(id);
+    },
+    [
+      model.territories,
+      requestAttention,
+      resolveTerritoryAt,
+    ],
+  );
+
   const handleDoubleTap = useCallback(
     (screenX: number, screenY: number) => {
+      pendingTapTargetRef.current = null;
+      claimManualCamera();
       const current = runtime.current.current;
       const point = screenPointToBoard(
         current,
@@ -1101,28 +1442,64 @@ export default function R3FGameMap({
           "spring",
         ),
       );
+      activateNativeCameraRendering();
       requestRender();
     },
-    [aspect, layout.height, layout.width, requestRender],
+    [
+      activateNativeCameraRendering,
+      aspect,
+      claimManualCamera,
+      layout.height,
+      layout.width,
+      requestRender,
+    ],
   );
 
   const focusAction = useCallback(() => {
-    applyCameraIntent(
-      runtime.current,
-      focusCameraIntent(game, model.selectedId, aspect, layout.width),
+    const intent = focusCameraIntent(
+      game,
+      model.selectedId,
+      aspect,
+      layout.width,
     );
-    setFocusActive(true);
-    requestRender();
-  }, [aspect, game, layout.width, model.selectedId, requestRender]);
+    requestAttention({
+      key: model.selectedId
+        ? `focus:${model.selectedId}`
+        : `focus:${game.phase}:${game.currentPlayer}`,
+      camera: intent.target,
+      priority: 80,
+      source: "user",
+      label: model.selectedId
+        ? (model.territories.find(
+            (territory) => territory.id === model.selectedId,
+          )?.displayName ?? model.selectedId)
+        : "Current action",
+    });
+  }, [
+    aspect,
+    game,
+    layout.width,
+    model.selectedId,
+    model.territories,
+    requestAttention,
+  ]);
 
   const fullAction = useCallback(() => {
+    claimManualCamera();
     applyCameraIntent(runtime.current, fullCameraIntent(aspect));
+    activateNativeCameraRendering();
     setFocusActive(false);
     requestRender();
-  }, [aspect, requestRender]);
+  }, [
+    activateNativeCameraRendering,
+    aspect,
+    claimManualCamera,
+    requestRender,
+  ]);
 
   const zoomBy = useCallback(
     (factor: number) => {
+      claimManualCamera();
       const current = runtime.current.target;
       applyCameraIntent(
         runtime.current,
@@ -1135,14 +1512,21 @@ export default function R3FGameMap({
           "spring",
         ),
       );
+      activateNativeCameraRendering();
       setFocusActive(false);
       requestRender();
     },
-    [aspect, requestRender],
+    [
+      activateNativeCameraRendering,
+      aspect,
+      claimManualCamera,
+      requestRender,
+    ],
   );
 
   const handleWheel = useCallback(
     (event: WebWheelEvent) => {
+      claimManualCamera();
       event.preventDefault?.();
       const nativeEvent = event.nativeEvent;
       const rawDelta = nativeEvent.deltaY ?? 0;
@@ -1176,10 +1560,18 @@ export default function R3FGameMap({
           "snap",
         ),
       );
+      activateNativeCameraRendering();
       setFocusActive(false);
       requestRender();
     },
-    [aspect, layout.height, layout.width, requestRender],
+    [
+      activateNativeCameraRendering,
+      aspect,
+      claimManualCamera,
+      layout.height,
+      layout.width,
+      requestRender,
+    ],
   );
 
   const webWheelProps =
@@ -1255,6 +1647,7 @@ export default function R3FGameMap({
         onPinchStart={beginPinch}
         onPinchUpdate={updatePinch}
         onPinchEnd={endPinch}
+        onTapStart={captureTapTarget}
         onSingleTap={pickTerritory}
         onDoubleTap={handleDoubleTap}
       >
@@ -1263,13 +1656,11 @@ export default function R3FGameMap({
           style={StyleSheet.absoluteFillObject}
           shadows={DYNAMIC_SHADOWS}
           dpr={Platform.OS === "web" ? [1, 2] : 1.25}
-          frameloop={
-            battleSceneVisible
-              ? "never"
-              : Platform.OS === "web"
-                ? "always"
-                : "demand"
-          }
+          frameloop={resolveMapCanvasFrameloop(
+            PERFORMANCE_PLATFORM,
+            battleSceneVisible,
+            nativeCameraRendering,
+          )}
           camera={{
             fov: 35,
             near: 0.05,
@@ -1286,12 +1677,26 @@ export default function R3FGameMap({
             layout={layout}
             onBridge={handleBridge}
             onLoaded={handleLoaded}
+            onAttentionTargetsReady={handleAttentionTargetsReady}
             onBattleComplete={handleBattleComplete}
             completedProfiles={completedProfiles}
             onPerformanceQualification={handlePerformanceQualification}
+            onCameraIdle={handleCameraIdle}
           />
         </Canvas>
       </R3FGestureSurface>
+
+      {activeAttentionLabel ? (
+        <View
+          accessible
+          accessibilityRole="summary"
+          accessibilityLiveRegion="polite"
+          accessibilityLabel={activeAttentionLabel}
+          importantForAccessibility="yes"
+          pointerEvents="none"
+          style={styles.accessibilitySummary}
+        />
+      ) : null}
 
       {!loaded ? (
         <View style={styles.loading} pointerEvents="none">
@@ -1344,6 +1749,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "rgba(28, 20, 10, 0.18)",
+  },
+  accessibilitySummary: {
+    position: "absolute",
+    width: 1,
+    height: 1,
+    opacity: 0.01,
   },
   cameraControls: {
     position: "absolute",

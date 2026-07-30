@@ -1,7 +1,13 @@
 import { deepEqual, equal, ok } from "node:assert/strict";
 import { test } from "node:test";
+import { PerspectiveCamera, Vector3 } from "three";
 
-import { MAP_H, MAP_W, type Camera } from "../../game/camera";
+import {
+  MAP_H,
+  MAP_W,
+  fullCamera,
+  type Camera,
+} from "../../game/camera";
 import {
   applyCameraIntent,
   beginCameraInertia,
@@ -13,6 +19,16 @@ import {
   zoomCameraIntent,
   type CameraIntent,
 } from "../../game/mapCameraIntent";
+import {
+  MAP_SCENE_BOARD_PIXELS,
+  MAP_SCENE_TABLETOP_RADIUS,
+  MAP_SCENE_TABLETOP_Y,
+  MAP_SCENE_UNITS_PER_PIXEL,
+} from "../../game/mapSceneGeometry";
+import {
+  advanceMapCameraIdleSettle,
+  resolveMapCanvasFrameloop,
+} from "../../game/mapRenderLoop";
 
 const ASPECT = 3 / 2;
 
@@ -110,4 +126,88 @@ test("perspective pose maps board center to the 3D scene origin", () => {
   equal(pose.fov, 35);
   ok(pose.near > 0);
   ok(pose.far > pose.position[1]);
+});
+
+test("full-board perspective contains every board corner across device aspects", () => {
+  const halfWidth =
+    (MAP_SCENE_BOARD_PIXELS[0] * MAP_SCENE_UNITS_PER_PIXEL) / 2;
+  const halfDepth =
+    (MAP_SCENE_BOARD_PIXELS[1] * MAP_SCENE_UNITS_PER_PIXEL) / 2;
+
+  for (const aspect of [390 / 844, 3 / 2, 844 / 390]) {
+    const pose = perspectivePoseForCamera(fullCamera(aspect), aspect);
+    const camera = new PerspectiveCamera(
+      pose.fov,
+      aspect,
+      pose.near,
+      pose.far,
+    );
+    camera.position.set(...pose.position);
+    camera.lookAt(...pose.target);
+    camera.updateMatrixWorld();
+    camera.updateProjectionMatrix();
+
+    for (const [x, z] of [
+      [-halfWidth, -halfDepth],
+      [halfWidth, -halfDepth],
+      [-halfWidth, halfDepth],
+      [halfWidth, halfDepth],
+    ]) {
+      const projected = new Vector3(x, 0, z).project(camera);
+      ok(Math.abs(projected.x) <= 1);
+      ok(Math.abs(projected.y) <= 1);
+    }
+  }
+});
+
+test("full-board perspective reveals the tabletop across device aspects", () => {
+  for (const aspect of [390 / 844, 3 / 2, 844 / 390]) {
+    const pose = perspectivePoseForCamera(fullCamera(aspect), aspect);
+    const camera = new PerspectiveCamera(
+      pose.fov,
+      aspect,
+      pose.near,
+      pose.far,
+    );
+    camera.position.set(...pose.position);
+    camera.lookAt(...pose.target);
+    camera.updateMatrixWorld();
+    camera.updateProjectionMatrix();
+
+    for (const x of [-MAP_SCENE_TABLETOP_RADIUS, MAP_SCENE_TABLETOP_RADIUS]) {
+      const projected = new Vector3(x, MAP_SCENE_TABLETOP_Y, 0).project(camera);
+      ok(Math.abs(projected.x) <= 1);
+      ok(Math.abs(projected.y) <= 1);
+    }
+  }
+});
+
+test("native camera activity owns continuous rendering without defeating modal suspension", () => {
+  equal(resolveMapCanvasFrameloop("web", false, false), "always");
+  equal(resolveMapCanvasFrameloop("ios", false, false), "demand");
+  equal(resolveMapCanvasFrameloop("android", false, true), "always");
+  equal(resolveMapCanvasFrameloop("ios", true, true), "never");
+});
+
+test("native camera rendering settles two idle frames before returning to demand", () => {
+  deepEqual(advanceMapCameraIdleSettle("ios", false, 7), {
+    idleFrameCount: 0,
+    shouldRelease: false,
+  });
+  deepEqual(advanceMapCameraIdleSettle("ios", true, 0), {
+    idleFrameCount: 1,
+    shouldRelease: false,
+  });
+  deepEqual(advanceMapCameraIdleSettle("ios", true, 1), {
+    idleFrameCount: 2,
+    shouldRelease: false,
+  });
+  deepEqual(advanceMapCameraIdleSettle("ios", true, 2), {
+    idleFrameCount: 3,
+    shouldRelease: true,
+  });
+  deepEqual(advanceMapCameraIdleSettle("web", true, 0), {
+    idleFrameCount: 0,
+    shouldRelease: true,
+  });
 });
