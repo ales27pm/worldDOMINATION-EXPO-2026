@@ -14,6 +14,7 @@ database packages.
 - Server-authoritative REST, SSE, and WebSocket multiplayer
 - Postgres-backed matches, accounts, contacts, and invitations
 - Transparent map HUD and renderer-neutral camera interaction
+- Deterministic classic/expanded GLB territory meshes for the 3D renderer
 - Playwright browser coverage plus deterministic game and persistence tests
 
 The current web build is deployed at
@@ -54,6 +55,8 @@ pnpm --filter @workspace/api-server run start
 pnpm run typecheck
 pnpm --filter @workspace/mobile run test:unit
 pnpm --filter @workspace/mobile run test:vitest
+pnpm --filter @workspace/mobile run map:glb:check
+pnpm --filter @workspace/mobile run map:glb:smoke
 pnpm --filter @workspace/mobile run test:browser:run
 pnpm --filter @workspace/api-server run test:authority
 pnpm run release:readiness:static
