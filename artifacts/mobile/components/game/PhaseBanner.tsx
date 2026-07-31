@@ -3,7 +3,8 @@ import { Animated, StyleSheet, Text, View } from 'react-native';
 import { Colors } from '@/constants/colors';
 import { MAP_HUD_TEXT_SHADOW, MapHud } from '@/constants/mapHud';
 import { Fonts } from '@/constants/typography';
-import type { GamePhase, GameState } from '@/game/types';
+import { phaseBannerContent, type PhaseBannerContent } from '@/game/phaseBannerContent';
+import type { GameState } from '@/game/types';
 
 /**
  * Non-blocking chapter card announcing each phase of the player's turn —
@@ -11,39 +12,23 @@ import type { GamePhase, GameState } from '@/game/types';
  * shrunk to a toast that never eats a tap.
  */
 
-const BANNERS: Partial<Record<GamePhase, { title: string; sub: (game: GameState) => string }>> = {
-  reinforcement: {
-    title: 'I. DEPLOYMENT',
-    sub: (g) =>
-      `Muster ${g.reinforcementsRemaining} ${g.reinforcementsRemaining === 1 ? 'battalion' : 'battalions'} — tap your territories`,
-  },
-  attack: {
-    title: 'II. ENGAGEMENT',
-    sub: () => 'Select a stronghold, then strike a neighbour',
-  },
-  fortify: {
-    title: 'III. MANEUVER',
-    sub: () => 'One tactical march, then end the turn',
-  },
-};
-
 const SHOW_MS = 1700;
 
 export function PhaseBanner({ game }: { game: GameState }) {
-  const [content, setContent] = useState<{ title: string; sub: string } | null>(null);
+  const [content, setContent] = useState<PhaseBannerContent | null>(null);
   const anim = useRef(new Animated.Value(0)).current;
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const shownKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
     const player = game.players[game.currentPlayer];
-    const def = BANNERS[game.phase];
-    if (!player?.isHuman || game.awaitingHandoff || !def) return;
-    const key = `${game.turn}:${game.currentPlayer}:${game.phase}`;
+    const nextContent = phaseBannerContent(game);
+    if (!player?.isHuman || game.awaitingHandoff || !nextContent) return;
+    const key = `${game.turn}:${game.currentPlayer}:${game.phase}:${nextContent.key}`;
     if (shownKeyRef.current === key) return;
     shownKeyRef.current = key;
 
-    setContent({ title: def.title, sub: def.sub(game) });
+    setContent(nextContent);
     anim.setValue(0);
     Animated.timing(anim, { toValue: 1, duration: 240, useNativeDriver: true }).start();
     if (hideTimer.current) clearTimeout(hideTimer.current);

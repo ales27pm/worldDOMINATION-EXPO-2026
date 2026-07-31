@@ -6,6 +6,7 @@ import {
   resolveCardHandLayout,
   resolveDecisionSheetLayout,
   resolveDispatchLogLayout,
+  resolveOccupyToastLayout,
   resolveRosterDrawerLayout,
   resolveStatsSheetLayout,
 } from "../../game/overlayLayout";
@@ -59,6 +60,45 @@ test("campaign HUD widens the command rail on tablet landscape without taking th
   equal(layout.cameraControlsRightInset, 376);
   equal(layout.legendBottom, 30);
   equal(layout.tickerLines, 3);
+});
+
+test("occupy toast stays above the portrait command area", () => {
+  const layout = resolveOccupyToastLayout({
+    width: 390,
+    height: 844,
+    insets: { top: 47, right: 0, bottom: 34, left: 0 },
+  });
+
+  equal(layout.left, 12);
+  equal(layout.right, 12);
+  equal(layout.bottom, 171);
+  equal(layout.maxWidth, 366);
+});
+
+test("occupy toast uses the shallow command dock offset on short landscape phones", () => {
+  const layout = resolveOccupyToastLayout({
+    width: 844,
+    height: 390,
+    insets: { top: 0, right: 21, bottom: 0, left: 21 },
+  });
+
+  equal(layout.left, 33);
+  equal(layout.right, 33);
+  equal(layout.bottom, 125);
+  equal(layout.maxWidth, 520);
+});
+
+test("occupy toast reserves the tablet command rail", () => {
+  const layout = resolveOccupyToastLayout({
+    width: 1180,
+    height: 820,
+    insets: { top: 24, right: 0, bottom: 20, left: 0 },
+  });
+
+  equal(layout.left, 12);
+  equal(layout.right, 384);
+  equal(layout.bottom, 48);
+  equal(layout.maxWidth, 520);
 });
 
 test("roster drawer uses a capped bottom sheet on narrow portrait screens", () => {

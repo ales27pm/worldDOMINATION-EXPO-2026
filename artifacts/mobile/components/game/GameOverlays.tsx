@@ -15,9 +15,14 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/colors';
 import { MAP_HUD_TEXT_SHADOW, MapHud } from '@/constants/mapHud';
-import { resolveDecisionSheetLayout, resolveDispatchLogLayout, type DecisionSheetKind } from '@/game/overlayLayout';
+import {
+  resolveDecisionSheetLayout,
+  resolveDispatchLogLayout,
+  resolveOccupyToastLayout,
+  type DecisionSheetKind,
+} from '@/game/overlayLayout';
+import { occupyAdvanceBrief } from '@/game/occupyAdvanceBrief';
 import { useBattleSceneVisible } from '@/lib/battleScenes';
-import { TERRITORY_MAP } from '@/game/mapData';
 import { campaignEventFeedSnapshot } from '@/game/eventFeed';
 import { ALLIANCE_LEVEL_INFO } from '@/game/types';
 import type { AllianceLevel, GameAction, GameState } from '@/game/types';
@@ -92,6 +97,13 @@ function OccupyFlow({
   const [adjusting, setAdjusting] = useState(false);
   const sceneVisible = useBattleSceneVisible();
   const firedRef = useRef(false);
+  const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const toastLayout = useMemo(
+    () => resolveOccupyToastLayout({ width, height, insets }),
+    [height, insets, width],
+  );
+  const brief = useMemo(() => occupyAdvanceBrief(game, pending), [game, pending]);
 
   const commit = useCallback(
     (count: number) => {
@@ -125,15 +137,25 @@ function OccupyFlow({
 
   if (sceneVisible) return null; // the toast waits behind the battle scene
 
-  const toName = TERRITORY_MAP[pending.to]?.name ?? pending.to;
   return (
-    <View style={styles.toastWrap} pointerEvents="box-none">
-      <View style={styles.toast}>
+    <View
+      style={[
+        styles.toastWrap,
+        {
+          bottom: toastLayout.bottom,
+          left: toastLayout.left,
+          right: toastLayout.right,
+        },
+      ]}
+      pointerEvents="box-none"
+    >
+      <View style={[styles.toast, { maxWidth: toastLayout.maxWidth }]}>
         <View style={styles.toastTextBlock}>
           <Text style={styles.toastTitle}>
-            Advancing <Text style={styles.bold}>{pending.max}</Text> into{' '}
-            <Text style={styles.bold}>{toName}</Text>
+            Advancing <Text style={styles.bold}>{brief.max}</Text> into{' '}
+            <Text style={styles.bold}>{brief.toName}</Text>
           </Text>
+          <Text style={styles.toastRule} numberOfLines={1}>{brief.ruleText}</Text>
           <CountdownBar />
         </View>
         <Pressable
@@ -176,9 +198,7 @@ function OccupySheet({
 }) {
   // Default to advancing in force.
   const [count, setCount] = useState(pending.max);
-  const fromName = TERRITORY_MAP[pending.from]?.name ?? pending.from;
-  const toName = TERRITORY_MAP[pending.to]?.name ?? pending.to;
-  const fromArmies = game.territories[pending.from]?.armies ?? 0;
+  const brief = useMemo(() => occupyAdvanceBrief(game, pending, count), [count, game, pending]);
   const decrement = () => setCount((c) => Math.max(pending.min, c - 1));
   const increment = () => setCount((c) => Math.min(pending.max, c + 1));
   const decrementDisabled = count <= pending.min;
@@ -187,8 +207,8 @@ function OccupySheet({
     <DecisionModal>
       <Text style={styles.occupyTitle}>OCCUPY TERRITORY</Text>
       <Text style={styles.occupyDesc}>
-        March armies from <Text style={styles.bold}>{fromName}</Text> into{' '}
-        <Text style={styles.bold}>{toName}</Text>
+        March armies from <Text style={styles.bold}>{brief.fromName}</Text> into{' '}
+        <Text style={styles.bold}>{brief.toName}</Text>
       </Text>
       <View style={styles.stepperRow}>
         <Pressable
@@ -220,11 +240,9 @@ function OccupySheet({
         >
           <Ionicons name="add" size={22} color={incrementDisabled ? Colors.disabledText : Colors.text} />
         </Pressable>
-        <Text style={styles.stepRange}>of {pending.min}–{pending.max}</Text>
+        <Text style={styles.stepRange}>of {brief.rangeLabel}</Text>
       </View>
-      <Text style={styles.sliderHint}>
-        Leave {fromArmies - count} armies in {fromName}
-      </Text>
+      <Text style={styles.sliderHint}>{brief.leaveBehindText}</Text>
       <Pressable
         onPress={() => onAdvance(count)}
         style={({ pressed }) => [styles.primaryBtn, pressed && styles.controlPressed]}
@@ -589,17 +607,18 @@ const styles = StyleSheet.create({
   stepRange: { ...MAP_HUD_TEXT_SHADOW, color: Colors.textMuted, fontFamily: 'Alegreya_400Regular', fontSize: 12 },
 
   // Occupy toast (non-blocking)
-  toastWrap: { position: 'absolute', left: 0, right: 0, bottom: 178, alignItems: 'center', zIndex: 30 },
+  toastWrap: { position: 'absolute', alignItems: 'center', zIndex: 30 },
   toast: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: MapHud.control, borderWidth: 1, borderColor: 'rgba(222,190,115,0.5)',
-    paddingVertical: 10, paddingLeft: 14, paddingRight: 10, maxWidth: '92%',
+    paddingVertical: 9, paddingLeft: 14, paddingRight: 10, width: '100%',
   },
   toastTextBlock: { gap: 6, flexShrink: 1 },
   toastTitle: { ...MAP_HUD_TEXT_SHADOW, color: Colors.text, fontFamily: 'Alegreya_500Medium', fontSize: 13 },
+  toastRule: { ...MAP_HUD_TEXT_SHADOW, color: Colors.textMuted, fontFamily: 'Alegreya_400Regular', fontSize: 11 },
   countdownTrack: { height: 3, backgroundColor: 'rgba(222,190,115,0.18)', overflow: 'hidden', borderRadius: 2 },
   countdownFill: { height: 3, backgroundColor: Colors.gold, borderRadius: 2 },
-  toastBtn: { minHeight: 44, borderWidth: 1, borderColor: Colors.gold, paddingVertical: 8, paddingHorizontal: 12, justifyContent: 'center' },
+  toastBtn: { minHeight: 44, borderWidth: 1, borderColor: Colors.gold, paddingVertical: 8, paddingHorizontal: 12, justifyContent: 'center', flexShrink: 0 },
   toastBtnText: { ...MAP_HUD_TEXT_SHADOW, color: Colors.gold, fontFamily: 'Alegreya_700Bold', fontSize: 12, letterSpacing: 2 },
 
   // Proposal

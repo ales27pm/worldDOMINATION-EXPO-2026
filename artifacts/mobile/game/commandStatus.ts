@@ -1,4 +1,6 @@
-import type { GamePhase, GameState, TerritoryId } from "./types";
+import { TERRITORY_MAP } from "./mapData";
+import { friendlyReachableSet, restrictedReinforcementCap } from "./sameTime";
+import type { AttackOrder, GamePhase, GameState, TacticalOrder, TerritoryId } from "./types";
 
 export type CommandTone =
   | "active"
@@ -90,21 +92,29 @@ export function buildCommandStatus({
             value: String(game.reinforcementsRemaining),
             tone: game.reinforcementsRemaining > 0 ? "active" : "complete",
           },
-          { label: "Selected", value: selected ? "Yes" : "No", tone: selected ? "active" : "waiting" },
+          buildSelectedChip(game, playerId, selected),
         ],
       };
     case "attack":
-      return {
-        headline:
-          selected && targetsCount > 0
+      {
+        const sources = countAttackSources(game, playerId, []);
+        const hasTargets = selected !== null && targetsCount > 0;
+        const hasSources = sources > 0;
+        return {
+          headline: hasTargets
             ? "Enemy borders exposed"
-            : "Select a stronghold with two or more armies",
-        tone: selected && targetsCount > 0 ? "danger" : "active",
-        chips: [
-          { label: "Targets", value: String(targetsCount), tone: targetsCount > 0 ? "danger" : "waiting" },
-          { label: "Dice", value: String(diceCount), tone: "active" },
-        ],
-      };
+            : hasSources
+              ? "Select a stronghold with two or more armies"
+              : "No attack source available",
+          tone: hasTargets ? "danger" : hasSources ? "active" : "waiting",
+          chips: [
+            { label: "Sources", value: String(sources), tone: hasSources ? "active" : "waiting" },
+            { label: "Targets", value: String(targetsCount), tone: targetsCount > 0 ? "danger" : "waiting" },
+            buildAttackSelectionChip(game, playerId, selected, []),
+            { label: "Dice", value: String(diceCount), tone: "active" },
+          ],
+        };
+      }
     case "fortify":
       if (game.fortifyUsed) {
         return {
@@ -113,24 +123,44 @@ export function buildCommandStatus({
           chips: [{ label: "March", value: "Complete", tone: "complete" }],
         };
       }
-      return {
-        headline: stagedMove ? "Tactical march staged" : "Select one mobile force",
-        tone: stagedMove ? "active" : "waiting",
-        chips: [
-          { label: "Targets", value: String(targetsCount), tone: targetsCount > 0 ? "active" : "waiting" },
-          { label: "Staged", value: stagedMove ? String(stagedMove.count) : "None", tone: stagedMove ? "active" : "waiting" },
-        ],
-      };
+      {
+        const sources = countMoveSources(game, playerId, []);
+        const hasSources = sources > 0;
+        const hasTargets = targetsCount > 0;
+        return {
+          headline: stagedMove
+            ? "Tactical march staged"
+            : hasSources
+              ? "Select one mobile force"
+              : "No tactical march available",
+          tone: stagedMove ? "active" : hasSources ? "waiting" : "complete",
+          chips: [
+            { label: "Sources", value: String(sources), tone: hasSources ? "active" : "waiting" },
+            { label: "Targets", value: String(targetsCount), tone: hasTargets ? "active" : "waiting" },
+            {
+              label: "Staged",
+              value: stagedMove ? String(stagedMove.count) : "None",
+              tone: stagedMove ? "active" : "waiting",
+            },
+          ],
+        };
+      }
     case "sameTimeReinforce":
     case "sameTimeBattle":
     case "sameTimeMove":
-      return buildSameTimeStatus(game, playerId);
+      return buildSameTimeStatus(game, playerId, selected, targetsCount, stagedMove);
     case "gameOver":
       return null;
   }
 }
 
-function buildSameTimeStatus(game: GameState, playerId: number): CommandStatus | null {
+function buildSameTimeStatus(
+  game: GameState,
+  playerId: number,
+  selected: TerritoryId | null,
+  targetsCount: number,
+  stagedMove: { from: TerritoryId; to: TerritoryId; count: number } | null,
+): CommandStatus | null {
   const st = game.sameTime;
   const player = game.players[playerId];
   if (!st || !player) return null;
@@ -142,6 +172,11 @@ function buildSameTimeStatus(game: GameState, playerId: number): CommandStatus |
   const readyChip: CommandChip = {
     label: "Ready",
     value: `${readyCount}/${aliveCount}`,
+    tone: waitingCount > 0 ? "waiting" : "complete",
+  };
+  const waitingChip: CommandChip = {
+    label: "Waiting",
+    value: String(waitingCount),
     tone: waitingCount > 0 ? "waiting" : "complete",
   };
 
@@ -156,6 +191,7 @@ function buildSameTimeStatus(game: GameState, playerId: number): CommandStatus |
           { label: "Cards", value: String(player.cards.length), tone: "blocked" },
           { label: "Secret pool", value: String(remaining), tone: "blocked" },
           readyChip,
+          waitingChip,
         ],
       };
     }
@@ -170,7 +206,9 @@ function buildSameTimeStatus(game: GameState, playerId: number): CommandStatus |
       chips: [
         { label: "Pending", value: String(remaining), tone: remaining > 0 ? "active" : "complete" },
         { label: "Placed", value: String(deployed), tone: deployed > 0 ? "active" : "waiting" },
+        buildSameTimeReinforceSelectionChip(game, playerId, selected),
         readyChip,
+        waitingChip,
       ],
     };
   }
@@ -182,13 +220,16 @@ function buildSameTimeStatus(game: GameState, playerId: number): CommandStatus |
         tone: "danger",
         chips: [
           { label: "Reports", value: String(st.playback.length), tone: "danger" },
+          { label: "Review", value: "Pending", tone: "danger" },
           readyChip,
+          waitingChip,
         ],
       };
     }
     const playerOrders = st.orders.filter((order) => order.player === playerId);
     const committed = playerOrders.reduce((sum, order) => sum + order.count, 0);
     const sealed = st.readyBattle[playerId] === true;
+    const sources = countAttackSources(game, playerId, st.orders);
     return {
       headline: sealed
         ? `Attack orders sealed; waiting for ${waitingCount} commander${waitingCount === 1 ? "" : "s"}`
@@ -199,7 +240,12 @@ function buildSameTimeStatus(game: GameState, playerId: number): CommandStatus |
       chips: [
         { label: "Queued", value: String(playerOrders.length), tone: playerOrders.length > 0 ? "danger" : "waiting" },
         { label: "Committed", value: String(committed), tone: committed > 0 ? "danger" : "waiting" },
+        stagedMove
+          ? { label: "Staged", value: String(stagedMove.count), tone: "danger" }
+          : { label: "Sources", value: String(sources), tone: sources > 0 ? "active" : "waiting" },
+        { label: "Targets", value: String(targetsCount), tone: targetsCount > 0 ? "danger" : "waiting" },
         readyChip,
+        waitingChip,
       ],
     };
   }
@@ -208,6 +254,7 @@ function buildSameTimeStatus(game: GameState, playerId: number): CommandStatus |
     const playerMoves = st.moves.filter((move) => move.player === playerId);
     const committed = playerMoves.reduce((sum, move) => sum + move.count, 0);
     const sealed = st.readyMove[playerId] === true;
+    const sources = countMoveSources(game, playerId, st.moves);
     return {
       headline: sealed
         ? `Tactical movement sealed; waiting for ${waitingCount} commander${waitingCount === 1 ? "" : "s"}`
@@ -218,7 +265,12 @@ function buildSameTimeStatus(game: GameState, playerId: number): CommandStatus |
       chips: [
         { label: "Queued", value: String(playerMoves.length), tone: playerMoves.length > 0 ? "active" : "waiting" },
         { label: "Committed", value: String(committed), tone: committed > 0 ? "active" : "waiting" },
+        stagedMove
+          ? { label: "Staged", value: String(stagedMove.count), tone: "active" }
+          : { label: "Sources", value: String(sources), tone: sources > 0 ? "active" : "waiting" },
+        { label: "Targets", value: String(targetsCount), tone: targetsCount > 0 ? "active" : "waiting" },
         readyChip,
+        waitingChip,
       ],
     };
   }
@@ -234,4 +286,103 @@ function readyArrayForPhase(
   if (phase === "sameTimeBattle") return st.readyBattle;
   if (phase === "sameTimeMove") return st.readyMove;
   return [];
+}
+
+function buildSelectedChip(
+  game: GameState,
+  playerId: number,
+  selected: TerritoryId | null,
+): CommandChip {
+  if (!selected) return { label: "Selected", value: "None", tone: "waiting" };
+  const territory = game.territories[selected];
+  if (!territory) return { label: "Selected", value: "Invalid", tone: "blocked" };
+  if (territory.owner === playerId) return { label: "Selected", value: "Own", tone: "active" };
+  if (territory.owner < 0) return { label: "Selected", value: "Open", tone: "blocked" };
+  return { label: "Selected", value: "Rival", tone: "blocked" };
+}
+
+function buildAttackSelectionChip(
+  game: GameState,
+  playerId: number,
+  selected: TerritoryId | null,
+  orders: AttackOrder[],
+): CommandChip {
+  if (!selected) return { label: "Selected", value: "None", tone: "waiting" };
+  const territory = game.territories[selected];
+  if (!territory) return { label: "Selected", value: "Invalid", tone: "blocked" };
+  if (territory.owner !== playerId) return { label: "Selected", value: territory.owner < 0 ? "Open" : "Rival", tone: "blocked" };
+  const committed = countCommittedFrom(orders, selected, playerId);
+  const available = territory.armies - 1 - committed;
+  if (available < 1) return { label: "Selected", value: "Pinned", tone: "blocked" };
+  const targets = attackTargetsFrom(game, playerId, selected).length;
+  return {
+    label: "Selected",
+    value: targets > 0 ? "Source" : "No border",
+    tone: targets > 0 ? "active" : "waiting",
+  };
+}
+
+function buildSameTimeReinforceSelectionChip(
+  game: GameState,
+  playerId: number,
+  selected: TerritoryId | null,
+): CommandChip {
+  if (!selected || !game.setup.restrictedReinforcement || !game.sameTime) {
+    return buildSelectedChip(game, playerId, selected);
+  }
+  const territory = game.territories[selected];
+  if (!territory || territory.owner !== playerId) return buildSelectedChip(game, playerId, selected);
+  const cap = restrictedReinforcementCap(game, playerId, selected);
+  const placed = (game.sameTime.deployLog[playerId] ?? []).reduce(
+    (sum, entry) => (entry.territory === selected ? sum + entry.count : sum),
+    0,
+  );
+  const open = Math.max(0, cap - placed);
+  return {
+    label: "Cap",
+    value: open > 0 ? String(open) : "Full",
+    tone: open > 0 ? "active" : "blocked",
+  };
+}
+
+function countAttackSources(game: GameState, playerId: number, orders: AttackOrder[]): number {
+  return game.activeIds.filter((id) => {
+    const territory = game.territories[id];
+    if (!territory || territory.owner !== playerId) return false;
+    const available = territory.armies - 1 - countCommittedFrom(orders, id, playerId);
+    if (available < 1) return false;
+    return attackTargetsFrom(game, playerId, id).length > 0;
+  }).length;
+}
+
+function countMoveSources(game: GameState, playerId: number, moves: TacticalOrder[]): number {
+  return game.activeIds.filter((id) => {
+    const territory = game.territories[id];
+    if (!territory || territory.owner !== playerId) return false;
+    const available = territory.armies - 1 - countCommittedFrom(moves, id, playerId);
+    if (available < 1) return false;
+    return friendlyReachableSet(game, playerId, id).size > 0;
+  }).length;
+}
+
+function attackTargetsFrom(
+  game: GameState,
+  playerId: number,
+  from: TerritoryId,
+): TerritoryId[] {
+  return (TERRITORY_MAP[from]?.neighbors ?? []).filter((id) => {
+    if (!game.activeIds.includes(id)) return false;
+    const territory = game.territories[id];
+    return territory !== undefined && territory.owner >= 0 && territory.owner !== playerId;
+  });
+}
+
+function countCommittedFrom(
+  orders: Array<{ player: number; from: TerritoryId; count: number }>,
+  from: TerritoryId,
+  playerId: number,
+): number {
+  return orders
+    .filter((order) => order.player === playerId && order.from === from)
+    .reduce((sum, order) => sum + order.count, 0);
 }

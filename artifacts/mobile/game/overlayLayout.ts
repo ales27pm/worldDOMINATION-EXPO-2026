@@ -79,6 +79,13 @@ export interface CampaignHudLayout {
   tickerLines: number;
 }
 
+export interface OccupyToastLayout {
+  bottom: number;
+  left: number;
+  right: number;
+  maxWidth: number;
+}
+
 export function resolveCampaignHudLayout({
   width,
   height,
@@ -141,6 +148,45 @@ export function resolveCampaignHudLayout({
       insets.bottom + clamp(Math.round(safeHeight * 0.16), 118, 168),
     legendLeft: insets.left + 10,
     tickerLines: safeWidth < 360 ? 2 : 3,
+  };
+}
+
+export function resolveOccupyToastLayout({
+  width,
+  height,
+  insets,
+}: {
+  width: number;
+  height: number;
+  insets: EdgeInsets;
+}): OccupyToastLayout {
+  const hud = resolveCampaignHudLayout({ width, height, insets });
+  const safeWidth = Math.max(320, width - insets.left - insets.right);
+  const safeHeight = Math.max(320, height - insets.top - insets.bottom);
+  const edgeGap = safeWidth < 380 ? 8 : 12;
+
+  if (hud.commandPlacement === "right" && typeof hud.commandWidth === "number") {
+    const rightRail = hud.commandWidth + hud.commandPaddingRight + edgeGap;
+    const availableWidth = Math.max(280, width - insets.left - rightRail - edgeGap);
+
+    return {
+      left: insets.left + edgeGap,
+      right: rightRail,
+      bottom: insets.bottom + clamp(Math.round(safeHeight * 0.04), 12, 28),
+      maxWidth: clamp(Math.round(availableWidth * 0.72), 300, 520),
+    };
+  }
+
+  const bottomOffset =
+    width > height && safeHeight < 520
+      ? hud.commandMaxHeight + 8
+      : clamp(Math.round(safeHeight * 0.18), 124, 178);
+
+  return {
+    left: insets.left + edgeGap,
+    right: insets.right + edgeGap,
+    bottom: insets.bottom + bottomOffset,
+    maxWidth: clamp(safeWidth - edgeGap * 2, 300, 520),
   };
 }
 
