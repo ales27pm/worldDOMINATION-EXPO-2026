@@ -57,6 +57,7 @@ import {
   type MapAttentionRequest,
   type MapAttentionTargetRegistry,
 } from "@/game/mapAttentionDirector";
+import { BUILD_SOURCE_REVISION } from "@/game/buildSourceRevision";
 import {
   applyCameraIntent,
   beginCameraInertia,
@@ -195,7 +196,9 @@ const PERFORMANCE_APPLICATION = {
   version: Constants.expoConfig?.version ?? null,
   nativeBuildVersion,
   sourceRevision:
-    process.env.EXPO_PUBLIC_SOURCE_REVISION?.trim() || null,
+    BUILD_SOURCE_REVISION ??
+    (process.env.EXPO_PUBLIC_SOURCE_REVISION?.trim().toLowerCase() ||
+      null),
   sessionId: Constants.sessionId,
 };
 const MAX_ACTIVE_FRAME_GAP_MS = 250;

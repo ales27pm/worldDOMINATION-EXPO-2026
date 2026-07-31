@@ -19,6 +19,8 @@
     "map:glb:validate": "node scripts/validate-map-glb.cjs",
     "map:labels": "tsx scripts/export-map-label-atlas.ts",
     "map:labels:check": "tsx scripts/export-map-label-atlas.ts --check",
+    "map:physical:check": "tsx scripts/verify-map-physical-qualification.ts",
+    "eas-build-post-install": "node scripts/write-build-source-revision.cjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "android": "expo run:android",
     "ios": "expo run:ios"
