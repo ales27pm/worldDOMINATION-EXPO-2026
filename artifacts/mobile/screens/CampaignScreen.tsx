@@ -27,6 +27,7 @@ import { aiNextAction } from "@/game/ai";
 import { allianceBetween } from "@/game/analysis";
 import { electionBudget } from "@/game/engine";
 import { TERRITORY_MAP } from "@/game/mapData";
+import { shouldAutostartMapFixture } from "@/game/mapQualificationLaunch";
 import { friendlyReachableSet } from "@/game/sameTime";
 import { tournamentResult } from "@/game/tournament";
 import {
@@ -90,22 +91,26 @@ export default function GameScreen() {
   const { game, startGame, loadingSave } = useGame();
   const params = useLocalSearchParams<PreviewParams>();
   const autostart = firstParam(params.autostart);
+  const qualificationLaunch = shouldAutostartMapFixture({
+    autostart,
+    qualificationRun: firstParam(params.qualificationRun),
+    development: __DEV__,
+    browserSmokeEnabled: process.env.EXPO_PUBLIC_BROWSER_SMOKE === "1",
+    qualificationEnabled: MAP_PERFORMANCE_QUALIFICATION_ENABLED,
+  });
 
-  // Redirect if no game (dev builds can auto-start a demo campaign for previews)
+  // Preview and qualification builds can open deterministic deep-link fixtures.
   useEffect(() => {
     if (game) return;
     if (loadingSave) return;
-    if (
-      (__DEV__ || process.env.EXPO_PUBLIC_BROWSER_SMOKE === "1") &&
-      autostart
-    ) {
+    if (qualificationLaunch) {
       const setup = previewSetupFromParams(params);
       startGame(setup, previewPrepareFromParams(params));
       return;
     }
     router.replace("/");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [game, loadingSave, autostart]);
+  }, [game, loadingSave, autostart, qualificationLaunch]);
 
   if (!game) return null;
   return (
@@ -131,6 +136,7 @@ type PreviewParams = {
   battleOrders?: string | string[];
   renderer?: string | string[];
   attackDemo?: string | string[];
+  qualificationRun?: string | string[];
 };
 
 const PREVIEW_OBJECTIVES: Objective[] = [
