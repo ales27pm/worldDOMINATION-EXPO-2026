@@ -65,6 +65,7 @@ credentials.json
 # Generated test, browser, and native build output
 .test-build/
 .browser-build/
+artifacts/mobile/static-build/
 artifacts/mobile/.r3f-build*/
 artifacts/mobile/android/
 artifacts/mobile/ios/

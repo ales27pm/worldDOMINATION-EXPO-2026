@@ -219,6 +219,9 @@ async function downloadBundle(platform, timestamp) {
   url.searchParams.set('hot', 'false');
   url.searchParams.set('lazy', 'false');
   url.searchParams.set('minify', 'true');
+  // Match Expo's native export transform while retaining JavaScript for asset rewriting.
+  url.searchParams.set('transform.engine', 'hermes');
+  url.searchParams.set('unstable_transformProfile', 'hermes-stable');
 
   const output = path.join(
     'static-build',
