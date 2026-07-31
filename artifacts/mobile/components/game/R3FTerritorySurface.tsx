@@ -2,6 +2,10 @@ import React from "react";
 import type { BufferGeometry, Texture } from "three";
 
 import type { MapSceneModel } from "@/game/mapSceneModel";
+import {
+  CORRECTED_CHINA_OUTLINE,
+  resolveTerritorySurfaceAppearance,
+} from "@/game/mapSurfaceAppearance";
 
 function interactionColor(interaction: string): string {
   if (interaction === "selected") return "#f8cf45";
@@ -24,6 +28,10 @@ export function R3FTerritorySurface({
   return model.territories.map((territory) => {
     const geometry = geometries.get(territory.meshName);
     if (!geometry) return null;
+    const surface = resolveTerritorySurfaceAppearance(
+      territory.id,
+      territory.surfaceTint,
+    );
     const highlight = interactionColor(territory.interaction);
     const highlighted = territory.interaction !== "idle";
     return (
@@ -35,14 +43,29 @@ export function R3FTerritorySurface({
           castShadow={shadows}
         >
           <meshStandardMaterial
-            map={boardTexture}
-            color={territory.surfaceTint ?? "#ffffff"}
+            map={surface.useBoardTexture ? boardTexture : null}
+            color={surface.color}
             emissive={highlighted ? highlight : "#000000"}
             emissiveIntensity={highlighted ? 0.28 : 0}
             roughness={0.76}
             metalness={0.02}
           />
         </mesh>
+        {surface.drawAuthoritativeOutline ? (
+          <lineSegments
+            name="outline__china"
+            position={[0, 0.008, 0]}
+            renderOrder={2}
+          >
+            <edgesGeometry args={[geometry, 30]} />
+            <lineBasicMaterial
+              color={CORRECTED_CHINA_OUTLINE}
+              transparent
+              opacity={0.68}
+              depthWrite={false}
+            />
+          </lineSegments>
+        ) : null}
         <mesh
           geometry={geometry}
           name={territory.pickMeshName}
