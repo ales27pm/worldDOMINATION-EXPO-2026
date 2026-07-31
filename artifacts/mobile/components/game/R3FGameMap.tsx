@@ -1756,7 +1756,9 @@ export default function R3FGameMap({
         pointerEvents="box-none"
         style={[
           styles.cameraControls,
-          layout.width > layout.height && styles.cameraControlsLandscape,
+          layout.width > layout.height &&
+            cameraControlsRightInset !== undefined &&
+            styles.cameraControlsLandscape,
           layout.width > layout.height &&
             cameraControlsRightInset !== undefined && {
               right: cameraControlsRightInset,

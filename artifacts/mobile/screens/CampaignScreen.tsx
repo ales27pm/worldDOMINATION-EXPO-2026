@@ -686,8 +686,8 @@ export function CampaignScreen({
     });
   }, [shareablePerformanceEvidence]);
 
-  // Landscape: the map spans the full width, chrome docks right (RISK II
-  // keeps the board full-bleed — the panel must never eat the map).
+  // The map stays full-bleed; HUD placement comes from the shared layout
+  // resolver so short landscape phones keep the command panel off the board.
   const { width: winW, height: winH } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const isLandscape = winW > winH;
@@ -700,6 +700,9 @@ export function CampaignScreen({
       }),
     [insets, winH, winW],
   );
+  const commandDockOnRight = campaignHudLayout.commandPlacement === "right";
+  const compactLandscapeCommandDock =
+    isLandscape && campaignHudLayout.commandPlacement === "bottom";
   const rosterDrawerLayout = useMemo(
     () =>
       resolveRosterDrawerLayout({
@@ -1138,6 +1141,24 @@ export function CampaignScreen({
     );
   };
 
+  const commandPanel = (
+    <GamePanel
+      game={game}
+      selected={selected}
+      targets={targets}
+      stagedMove={stagedMove}
+      setStagedMove={setStagedMove}
+      diceCount={diceCount}
+      setDiceCount={setDiceCount}
+      dispatch={dispatch}
+      onOpenCards={() => setCardsOpen(true)}
+      onOpenRoster={() => setRosterOpen(true)}
+      onOpenLog={() => setLogOpen(true)}
+      canAct={canSubmitCurrentPlayer}
+      inactiveHint={inactiveHint}
+    />
+  );
+
   return (
     <View style={styles.container}>
       {/* MAP — full bleed behind the floating chrome */}
@@ -1291,14 +1312,25 @@ export function CampaignScreen({
 
       {/* Floating bottom chrome */}
       <SafeAreaView
-        edges={isLandscape ? ["bottom", "right"] : ["bottom"]}
+        edges={
+          commandDockOnRight
+            ? ["bottom", "right"]
+            : isLandscape
+              ? ["bottom", "left", "right"]
+              : ["bottom"]
+        }
         style={[
-          isLandscape ? styles.bottomChromeLandscape : styles.bottomChrome,
-          isLandscape && {
+          commandDockOnRight
+            ? styles.bottomChromeLandscape
+            : styles.bottomChrome,
+          commandDockOnRight && {
             width: campaignHudLayout.commandWidth,
             maxHeight: campaignHudLayout.commandMaxHeight,
             paddingRight: campaignHudLayout.commandPaddingRight,
             paddingBottom: campaignHudLayout.commandPaddingBottom,
+          },
+          compactLandscapeCommandDock && {
+            maxHeight: campaignHudLayout.commandMaxHeight,
           },
         ]}
         pointerEvents="box-none"
@@ -1322,23 +1354,29 @@ export function CampaignScreen({
         {game.phase !== "gameOver" && (
           <View
             testID="map-command-panel"
-            style={[styles.bottomBar, isLandscape && styles.bottomBarLandscape]}
+            style={[
+              styles.bottomBar,
+              commandDockOnRight && styles.bottomBarLandscape,
+              compactLandscapeCommandDock && {
+                maxHeight: campaignHudLayout.commandMaxHeight,
+                overflow: "hidden",
+              },
+            ]}
           >
-            <GamePanel
-              game={game}
-              selected={selected}
-              targets={targets}
-              stagedMove={stagedMove}
-              setStagedMove={setStagedMove}
-              diceCount={diceCount}
-              setDiceCount={setDiceCount}
-              dispatch={dispatch}
-              onOpenCards={() => setCardsOpen(true)}
-              onOpenRoster={() => setRosterOpen(true)}
-              onOpenLog={() => setLogOpen(true)}
-              canAct={canSubmitCurrentPlayer}
-              inactiveHint={inactiveHint}
-            />
+            {compactLandscapeCommandDock ? (
+              <ScrollView
+                style={[
+                  styles.compactCommandScroll,
+                  { maxHeight: campaignHudLayout.commandMaxHeight },
+                ]}
+                contentContainerStyle={styles.compactCommandScrollContent}
+                showsVerticalScrollIndicator={false}
+              >
+                {commandPanel}
+              </ScrollView>
+            ) : (
+              commandPanel
+            )}
           </View>
         )}
       </SafeAreaView>
@@ -1499,6 +1537,12 @@ const styles = StyleSheet.create({
   bottomBarLandscape: {
     borderWidth: 1,
     borderColor: "rgba(222,190,115,0.3)",
+  },
+  compactCommandScroll: {
+    flexGrow: 0,
+  },
+  compactCommandScrollContent: {
+    paddingBottom: 4,
   },
 
   // Election (parchment field panel)

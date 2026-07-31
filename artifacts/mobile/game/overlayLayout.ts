@@ -92,6 +92,22 @@ export function resolveCampaignHudLayout({
   const safeWidth = Math.max(320, width - insets.left - insets.right);
   const safeHeight = Math.max(320, height - insets.top - insets.bottom);
 
+  if (isLandscape && safeHeight < 520) {
+    const commandAllowance = clamp(Math.round(safeHeight * 0.3), 112, 132);
+
+    return {
+      commandPlacement: "bottom",
+      commandWidth: "100%",
+      commandMaxHeight: commandAllowance,
+      commandPaddingRight: insets.right,
+      commandPaddingBottom: insets.bottom,
+      cameraControlsRightInset: null,
+      legendBottom: insets.bottom + commandAllowance + 10,
+      legendLeft: insets.left + 10,
+      tickerLines: 1,
+    };
+  }
+
   if (isLandscape) {
     const maxByBoardReserve = Math.max(300, safeWidth - 160);
     const dockWidth = clamp(

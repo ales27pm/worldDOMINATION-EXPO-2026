@@ -26,22 +26,22 @@ test("campaign HUD uses a full-width bottom command strip on phone portrait", ()
   equal(layout.tickerLines, 3);
 });
 
-test("campaign HUD docks a compact command rail on short landscape phones", () => {
+test("campaign HUD keeps a shallow bottom command dock on short landscape phones", () => {
   const layout = resolveCampaignHudLayout({
     width: 844,
     height: 390,
     insets: { top: 0, right: 21, bottom: 0, left: 21 },
   });
 
-  equal(layout.commandPlacement, "right");
-  equal(layout.commandWidth, 337);
-  equal(layout.commandMaxHeight, 351);
-  equal(layout.commandPaddingRight, 27);
-  equal(layout.commandPaddingBottom, 6);
-  equal(layout.cameraControlsRightInset, 347);
-  equal(layout.legendBottom, 10);
+  equal(layout.commandPlacement, "bottom");
+  equal(layout.commandWidth, "100%");
+  equal(layout.commandMaxHeight, 117);
+  equal(layout.commandPaddingRight, 21);
+  equal(layout.commandPaddingBottom, 0);
+  equal(layout.cameraControlsRightInset, null);
+  equal(layout.legendBottom, 127);
   equal(layout.legendLeft, 31);
-  equal(layout.tickerLines, 2);
+  equal(layout.tickerLines, 1);
 });
 
 test("campaign HUD widens the command rail on tablet landscape without taking the board", () => {

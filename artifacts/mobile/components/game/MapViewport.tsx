@@ -592,7 +592,9 @@ export function MapViewport({
         testID="map-camera-controls"
         style={[
           styles.cluster,
-          isLandscape && styles.clusterLandscape,
+          isLandscape &&
+            cameraControlsRightInset !== undefined &&
+            styles.clusterLandscape,
           isLandscape &&
             cameraControlsRightInset !== undefined && {
               right: cameraControlsRightInset,

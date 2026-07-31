@@ -459,6 +459,26 @@ async function assertTransparentMapChrome(page, label) {
   );
 }
 
+async function assertLandscapeCommandPanelKeepsMapOpen(page, label) {
+  const panel = page.getByTestId("map-command-panel");
+  await panel.waitFor({ state: "visible", timeout: 10000 });
+  const box = await panel.boundingBox();
+  const viewport = page.viewportSize();
+  assert(box && viewport, `${label} command panel was not measurable`);
+  assert(
+    box.y >= viewport.height * 0.56,
+    `${label} command panel was not docked low enough: y=${box.y}, viewport=${viewport.height}`,
+  );
+  assert(
+    box.height <= viewport.height * 0.42,
+    `${label} command panel consumed too much map height: ${box.height}`,
+  );
+  assert(
+    box.x <= viewport.width * 0.08 && box.width >= viewport.width * 0.84,
+    `${label} command panel was still acting like a right rail: x=${box.x}, width=${box.width}, viewport=${viewport.width}`,
+  );
+}
+
 async function cameraTransform(page) {
   return page.getByTestId("map-board-transform").evaluate((element) => {
     const matrix = new DOMMatrixReadOnly(
@@ -1790,6 +1810,10 @@ async function assertRenderedPreview() {
       ],
       "rendered landscape Same Time game screen",
       async (page) => {
+        await assertLandscapeCommandPanelKeepsMapOpen(
+          page,
+          "rendered landscape Same Time game screen",
+        );
         await assertNoHorizontalOverflow(
           page,
           "rendered landscape Same Time game screen",
@@ -1828,6 +1852,10 @@ async function assertRenderedPreview() {
       ],
       "rendered landscape Same Time attack-order screen",
       async (page) => {
+        await assertLandscapeCommandPanelKeepsMapOpen(
+          page,
+          "rendered landscape Same Time attack-order screen",
+        );
         await assertNoHorizontalOverflow(
           page,
           "rendered landscape Same Time attack-order screen",
