@@ -1,4 +1,5 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
+import * as Application from "expo-application";
 import Constants from "expo-constants";
 import * as Device from "expo-device";
 import React, {
@@ -180,20 +181,16 @@ const PERFORMANCE_DEVICE = {
   osVersion: Device.osVersion,
   deviceYearClass: Device.deviceYearClass,
 };
+const nativeApplicationVersion =
+  PERFORMANCE_PLATFORM === "web"
+    ? Constants.expoConfig?.version ?? null
+    : Application.nativeApplicationVersion;
 const nativeBuildVersion =
-  PERFORMANCE_PLATFORM === "ios"
-    ? Constants.platform?.ios?.buildNumber ??
-      Constants.expoConfig?.ios?.buildNumber ??
-      null
-    : PERFORMANCE_PLATFORM === "android"
-      ? String(
-          Constants.platform?.android?.versionCode ??
-            Constants.expoConfig?.android?.versionCode ??
-            "",
-        ) || null
-      : null;
+  PERFORMANCE_PLATFORM === "web"
+    ? null
+    : Application.nativeBuildVersion;
 const PERFORMANCE_APPLICATION = {
-  version: Constants.expoConfig?.version ?? null,
+  version: nativeApplicationVersion,
   nativeBuildVersion,
   sourceRevision:
     BUILD_SOURCE_REVISION ??
