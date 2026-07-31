@@ -1549,6 +1549,54 @@ async function assertRenderedPreview() {
       },
     );
     await withFreshPage(
+      "/game?autostart=1&renderer=svg&cards=1&players=2",
+      ["Napoleon", "REINFORCE", "Open Cards (must trade)"],
+      "rendered card-hand input blocker",
+      async (page) => {
+        await page
+          .getByRole("button", { name: "Open Cards (must trade)" })
+          .click({ timeout: 10000 });
+        let bodyText = await page.locator("body").innerText({ timeout: 10000 });
+        assertIncludes(bodyText, "RISK CARDS", "rendered card hand overlay");
+        assertIncludes(
+          bodyText,
+          "Must trade (5+ cards)",
+          "rendered card hand overlay",
+        );
+        await assertTextWithinViewport(
+          page,
+          "RISK CARDS",
+          "rendered card hand overlay",
+        );
+        await assertNoHorizontalOverflow(page, "rendered card hand overlay");
+        await assertBackgroundAlpha(
+          page.getByTestId("map-card-hand"),
+          0.4,
+          "rendered card hand overlay",
+        );
+        const blocker = page.getByTestId("map-card-input-blocker");
+        await blocker.waitFor({ state: "visible", timeout: 10000 });
+        const blockerBox = await blocker.boundingBox();
+        const viewport = page.viewportSize();
+        assert(
+          blockerBox &&
+            viewport &&
+            blockerBox.width >= viewport.width - 2 &&
+            blockerBox.height >= viewport.height - 2,
+          "rendered card hand blocker did not cover the map",
+        );
+        await blocker.click({ position: { x: 20, y: 20 }, timeout: 10000 });
+        await page
+          .getByTestId("map-card-hand")
+          .waitFor({ state: "hidden", timeout: 10000 });
+        bodyText = await page.locator("body").innerText({ timeout: 10000 });
+        assert(
+          !bodyText.includes("RISK CARDS"),
+          "card hand blocker did not dismiss the overlay",
+        );
+      },
+    );
+    await withFreshPage(
       "/game?autostart=1&renderer=svg&extra=1",
       [
         "PACIFIC",

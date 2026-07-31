@@ -1,4 +1,5 @@
 import React from 'react';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { Colors } from '@/constants/colors';
 import { MAP_HUD_TEXT_SHADOW, MapHud } from '@/constants/mapHud';
@@ -405,19 +406,19 @@ export default function GamePanel({
         <View style={{ flex: 1 }} />
         <Pressable
           onPress={onOpenRoster}
-          style={styles.iconBtn}
+          style={({ pressed }) => [styles.iconBtn, pressed && styles.iconBtnPressed]}
           accessibilityRole="button"
           accessibilityLabel="Open commander roster"
         >
-          <Text style={styles.iconBtnText}>👥</Text>
+          <Ionicons name="people-outline" size={20} color={Colors.gold} />
         </Pressable>
         <Pressable
           onPress={onOpenLog}
-          style={styles.iconBtn}
+          style={({ pressed }) => [styles.iconBtn, pressed && styles.iconBtnPressed]}
           accessibilityRole="button"
           accessibilityLabel="Open field dispatch"
         >
-          <Text style={styles.iconBtnText}>📋</Text>
+          <Ionicons name="newspaper-outline" size={20} color={Colors.gold} />
         </Pressable>
       </View>
 
@@ -629,8 +630,16 @@ const styles = StyleSheet.create({
   },
   badge: { backgroundColor: Colors.gold, borderRadius: 10, paddingHorizontal: 7, paddingVertical: 2 },
   badgeText: { color: Colors.bg, fontFamily: 'Alegreya_700Bold', fontSize: 11 },
-  iconBtn: { padding: 4 },
-  iconBtnText: { fontSize: 18 },
+  iconBtn: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(201,183,146,0.28)',
+    backgroundColor: MapHud.control,
+  },
+  iconBtnPressed: { opacity: 0.72 },
   selectedRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   selectedName: { ...MAP_HUD_TEXT_SHADOW, color: Colors.text, fontFamily: 'Alegreya_600SemiBold', fontSize: 13 },
   selectedArmies: { ...MAP_HUD_TEXT_SHADOW, color: Colors.textMuted, fontFamily: 'Alegreya_400Regular', fontSize: 12 },

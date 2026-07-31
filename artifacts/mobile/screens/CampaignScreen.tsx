@@ -143,6 +143,9 @@ type PreviewParams = {
   battlePlayback?: string | string[];
   orders?: string | string[];
   battleOrders?: string | string[];
+  cards?: string | string[];
+  cardHand?: string | string[];
+  mustTrade?: string | string[];
   renderer?: string | string[];
   attackDemo?: string | string[];
   victory?: string | string[];
@@ -244,6 +247,14 @@ function previewWantsAttackDemo(params: PreviewParams): boolean {
   return truthyParam(firstParam(params.attackDemo));
 }
 
+function previewWantsCardHand(params: PreviewParams): boolean {
+  return (
+    truthyParam(firstParam(params.cards)) ||
+    truthyParam(firstParam(params.cardHand)) ||
+    truthyParam(firstParam(params.mustTrade))
+  );
+}
+
 function previewWantsVictory(params: PreviewParams): boolean {
   return truthyParam(firstParam(params.victory));
 }
@@ -256,7 +267,68 @@ function previewPrepareFromParams(
   if (previewWantsBattlePlayback(params))
     return previewSameTimeBattlePlaybackState;
   if (previewWantsBattleOrders(params)) return previewSameTimeBattleOrdersState;
+  if (previewWantsCardHand(params)) return previewCardHandState;
   return undefined;
+}
+
+function previewCardHandState(state: GameState): GameState {
+  const ownedTerritories = state.activeIds.filter(
+    (id) => state.territories[id]?.owner === 0,
+  );
+  const cardTerritory = (index: number) =>
+    ownedTerritories[index] ?? state.activeIds[index] ?? null;
+  const previewCards = [
+    {
+      id: "preview-card-infantry-1",
+      type: "infantry",
+      territory: cardTerritory(0),
+    },
+    {
+      id: "preview-card-cavalry-1",
+      type: "cavalry",
+      territory: cardTerritory(1),
+    },
+    {
+      id: "preview-card-artillery-1",
+      type: "artillery",
+      territory: cardTerritory(2),
+    },
+    {
+      id: "preview-card-infantry-2",
+      type: "infantry",
+      territory: cardTerritory(3),
+    },
+    {
+      id: "preview-card-cavalry-2",
+      type: "cavalry",
+      territory: cardTerritory(4),
+    },
+  ] satisfies GameState["players"][number]["cards"];
+
+  return {
+    ...state,
+    phase: "reinforcement",
+    currentPlayer: 0,
+    awaitingHandoff: false,
+    pendingProposal: null,
+    pendingOccupy: null,
+    mustTrade: true,
+    players: state.players.map((player, index) =>
+      index === 0
+        ? { ...player, cards: previewCards.map((card) => ({ ...card })) }
+        : player,
+    ),
+    log: [
+      ...state.log,
+      {
+        id: state.logCounter + 1,
+        turn: state.turn,
+        text: "Napoleon's courier delivers a full hand of RISK cards.",
+        tone: "gold",
+      },
+    ],
+    logCounter: state.logCounter + 1,
+  };
 }
 
 function previewR3FAttackState(state: GameState): GameState {

@@ -1,4 +1,5 @@
 import React from 'react';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Colors } from '@/constants/colors';
 import { MAP_HUD_TEXT_SHADOW, MapHud } from '@/constants/mapHud';
@@ -42,8 +43,13 @@ export function TopBar({ game, onExit }: { game: GameState; onExit: () => void }
   return (
     <View testID="map-top-bar" style={styles.bar}>
       <View style={styles.row}>
-        <Pressable onPress={onExit} style={styles.hallBtn} accessibilityLabel="Exit to hall">
-          <Text style={styles.hallText}>⌂ Hall</Text>
+        <Pressable
+          onPress={onExit}
+          style={({ pressed }) => [styles.hallBtn, pressed && styles.iconBtnPressed]}
+          accessibilityRole="button"
+          accessibilityLabel="Exit to hall"
+        >
+          <Ionicons name="home-outline" size={18} color={Colors.gold} />
         </Pressable>
 
         {/* Player dot with inset shine */}
@@ -78,8 +84,18 @@ export function TopBar({ game, onExit }: { game: GameState; onExit: () => void }
           )}
         </View>
 
-        <Pressable onPress={toggleSfxMuted} style={styles.muteBtn} accessibilityLabel="Toggle sound">
-          <Text style={[styles.muteText, sfxMuted && { opacity: 0.5 }]}>{sfxMuted ? '♪̸' : '♪'}</Text>
+        <Pressable
+          onPress={toggleSfxMuted}
+          style={({ pressed }) => [styles.muteBtn, pressed && styles.iconBtnPressed]}
+          accessibilityRole="switch"
+          accessibilityLabel="Toggle sound"
+          accessibilityState={{ checked: !sfxMuted }}
+        >
+          <Ionicons
+            name={sfxMuted ? 'volume-mute-outline' : 'volume-high-outline'}
+            size={18}
+            color={sfxMuted ? Colors.textMuted : Colors.gold}
+          />
         </Pressable>
       </View>
 
@@ -102,18 +118,15 @@ const styles = StyleSheet.create({
   },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   hallBtn: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
     borderColor: 'rgba(222,190,115,0.4)',
-    paddingHorizontal: 7,
-    paddingVertical: 3,
+    backgroundColor: MapHud.control,
   },
-  hallText: {
-    ...MAP_HUD_TEXT_SHADOW,
-    color: Colors.gold,
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 11,
-    letterSpacing: 1,
-  },
+  iconBtnPressed: { opacity: 0.72 },
   dot: {
     width: 16,
     height: 16,
@@ -166,15 +179,14 @@ const styles = StyleSheet.create({
   },
   pipTextActive: { color: Colors.gold },
   muteBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 44,
+    height: 44,
     borderWidth: 1,
     borderColor: 'rgba(222,190,115,0.4)',
+    backgroundColor: MapHud.control,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  muteText: { ...MAP_HUD_TEXT_SHADOW, color: Colors.gold, fontSize: 14 },
   mission: {
     ...MAP_HUD_TEXT_SHADOW,
     color: Colors.gold,

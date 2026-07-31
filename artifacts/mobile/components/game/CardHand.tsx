@@ -80,6 +80,13 @@ export default function CardHand({ game, dispatch, open, onClose }: Props) {
           layout.placement === 'right' ? styles.backdropRight : styles.backdropBottom,
         ]}
       >
+        <Pressable
+          testID="map-card-input-blocker"
+          style={StyleSheet.absoluteFill}
+          onPress={onClose}
+          accessibilityRole="button"
+          accessibilityLabel="Dismiss risk cards"
+        />
         <View
           testID="map-card-hand"
           style={[
@@ -232,7 +239,7 @@ const styles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: MapHud.scrim },
   backdropBottom: { justifyContent: 'flex-end' },
   backdropRight: { alignItems: 'flex-end', justifyContent: 'flex-start' },
-  sheet: { backgroundColor: MapHud.modal, gap: 12 },
+  sheet: { backgroundColor: MapHud.modal, gap: 12, zIndex: 1 },
   sheetBottom: { alignSelf: 'stretch' },
   sheetRight: { flex: 1 },
   sheetBorderTop: { borderTopWidth: 1, borderTopColor: Colors.borderGold },

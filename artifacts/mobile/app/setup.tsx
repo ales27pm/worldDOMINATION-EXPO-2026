@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import {
   View, Text, StyleSheet, ScrollView, Pressable,
   TextInput, Switch, Alert, useWindowDimensions,
@@ -109,11 +110,16 @@ export default function SetupScreen() {
     <View style={styles.container}>
       <SafeAreaView style={{ flex: 1 }}>
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn}>
-            <Text style={styles.backText}>← Back</Text>
+          <Pressable
+            onPress={() => router.back()}
+            style={({ pressed }) => [styles.backBtn, pressed && styles.iconBtnPressed]}
+            accessibilityRole="button"
+            accessibilityLabel="Back"
+          >
+            <Ionicons name="chevron-back" size={21} color={Colors.gold} />
           </Pressable>
           <Text style={styles.title}>NEW CAMPAIGN</Text>
-          <View style={{ width: 60 }} />
+          <View style={styles.headerSpacer} />
         </View>
         <View style={styles.divider} />
 
@@ -138,7 +144,12 @@ export default function SetupScreen() {
               />
             ))}
             {players.length < 6 && (
-              <Pressable onPress={addPlayer} style={styles.addBtn}>
+              <Pressable
+                onPress={addPlayer}
+                style={({ pressed }) => [styles.addBtn, pressed && styles.controlPressed]}
+                accessibilityRole="button"
+                accessibilityLabel="Add commander"
+              >
                 <Text style={styles.addBtnText}>+ Add Commander</Text>
               </Pressable>
             )}
@@ -206,6 +217,7 @@ export default function SetupScreen() {
                   </Text>
                 </View>
                 <Switch
+                  accessibilityLabel="Restricted reinforcement"
                   value={restrictedReinforcement}
                   onValueChange={setRestrictedReinforcement}
                   trackColor={{ true: Colors.gold, false: Colors.border }}
@@ -225,6 +237,7 @@ export default function SetupScreen() {
                 </Text>
               </View>
               <Switch
+                accessibilityLabel="Extended map"
                 value={extraTerritories}
                 onValueChange={setExtraTerritories}
                 trackColor={{ true: Colors.gold, false: Colors.border }}
@@ -245,8 +258,14 @@ export default function SetupScreen() {
           </Section>
 
           {/* Start Button */}
-          <Pressable onPress={handleStart} style={styles.startBtn}>
-            <Text style={styles.startBtnText}>⚔ LAUNCH CAMPAIGN</Text>
+          <Pressable
+            onPress={handleStart}
+            style={({ pressed }) => [styles.startBtn, pressed && styles.startBtnPressed]}
+            accessibilityRole="button"
+            accessibilityLabel="Launch campaign"
+          >
+            <Ionicons name="flag-outline" size={19} color={Colors.bg} />
+            <Text style={styles.startBtnText}>LAUNCH CAMPAIGN</Text>
           </Pressable>
         </ScrollView>
       </SafeAreaView>
@@ -295,12 +314,14 @@ function PlayerRow({
           style={[styles.nameInput, { color: Colors.text }]}
           value={player.name}
           onChangeText={(name) => onChange({ name })}
+          accessibilityLabel={`Commander ${idx + 1} name`}
           placeholderTextColor={Colors.textMuted}
           maxLength={20}
         />
         <View style={styles.humanToggle}>
           <Text style={styles.humanLabel}>{player.isHuman ? 'Human' : 'AI'}</Text>
           <Switch
+            accessibilityLabel={`Commander ${idx + 1} human player`}
             value={player.isHuman}
             onValueChange={(v) => onChange({ isHuman: v, generalId: v ? null : (AI_GENERALS[idx]?.id ?? null) })}
             trackColor={{ true: Colors.gold, false: Colors.border }}
@@ -309,8 +330,13 @@ function PlayerRow({
           />
         </View>
         {canRemove && (
-          <Pressable onPress={onRemove} style={styles.removeBtn}>
-            <Text style={styles.removeBtnText}>✕</Text>
+          <Pressable
+            onPress={onRemove}
+            style={({ pressed }) => [styles.removeBtn, pressed && styles.iconBtnPressed]}
+            accessibilityRole="button"
+            accessibilityLabel={`Remove commander ${idx + 1}`}
+          >
+            <Ionicons name="close-outline" size={20} color={Colors.crimsonLight} />
           </Pressable>
         )}
       </View>
@@ -338,7 +364,14 @@ function SegmentedPicker<T extends string>({
         <Pressable
           key={opt.value}
           onPress={() => onChange(opt.value)}
-          style={[styles.pickerOpt, opt.value === value && styles.pickerOptSelected]}
+          style={({ pressed }) => [
+            styles.pickerOpt,
+            opt.value === value && styles.pickerOptSelected,
+            pressed && styles.controlPressed,
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel={opt.label}
+          accessibilityState={{ selected: opt.value === value }}
         >
           <Text style={[styles.pickerOptText, opt.value === value && styles.pickerOptTextSelected]}>
             {opt.label}
@@ -355,8 +388,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 16, paddingVertical: 12,
   },
-  backBtn: { padding: 8 },
-  backText: { color: Colors.gold, fontFamily: 'Alegreya_500Medium', fontSize: 14 },
+  backBtn: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(222,190,115,0.36)',
+    backgroundColor: 'rgba(21,13,9,0.18)',
+  },
+  iconBtnPressed: { opacity: 0.72 },
+  headerSpacer: { width: 44, height: 44 },
   title: { color: Colors.gold, fontFamily: 'IMFellEnglishSC_400Regular', fontSize: 14, letterSpacing: 3 },
   divider: { height: 1, backgroundColor: Colors.border, marginHorizontal: 16 },
   content: { padding: 16, gap: 24, paddingBottom: 40 },
@@ -404,16 +446,27 @@ const styles = StyleSheet.create({
   },
   humanToggle: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   humanLabel: { color: Colors.textMuted, fontFamily: 'Alegreya_400Regular', fontSize: 12 },
-  removeBtn: { padding: 4 },
-  removeBtnText: { color: Colors.crimson, fontSize: 14 },
+  removeBtn: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(186,38,43,0.34)',
+    backgroundColor: 'rgba(117,21,27,0.12)',
+  },
   addBtn: {
     borderWidth: 1, borderColor: Colors.border, borderStyle: 'dashed',
-    paddingVertical: 12, alignItems: 'center',
+    minHeight: 44, paddingVertical: 12, alignItems: 'center', justifyContent: 'center',
   },
+  controlPressed: { opacity: 0.74 },
   addBtnText: { color: Colors.textMuted, fontFamily: 'Alegreya_500Medium', fontSize: 14 },
   picker: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   pickerOpt: {
-    paddingVertical: 8, paddingHorizontal: 12,
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.bgCard,
   },
   pickerOptSelected: { borderColor: Colors.gold, backgroundColor: '#2a1d08' },
@@ -436,8 +489,16 @@ const styles = StyleSheet.create({
     lineHeight: 17,
   },
   startBtn: {
-    backgroundColor: Colors.gold, paddingVertical: 18, alignItems: 'center', marginTop: 8,
+    minHeight: 56,
+    backgroundColor: Colors.gold,
+    paddingVertical: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 8,
   },
+  startBtnPressed: { opacity: 0.82 },
   startBtnText: {
     color: Colors.bg, fontFamily: 'Alegreya_700Bold', fontSize: 16, letterSpacing: 3,
   },
