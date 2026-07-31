@@ -1,22 +1,28 @@
 import {
   REQUIRED_MAP_FRAME_PROFILE_KINDS,
+  type MapPerformanceEnvironment,
   type MapRendererPerformanceQualification,
 } from "./mapFrameQualification";
 import type { MapPerformanceEvidence } from "./mapPerformanceEvidence";
 
-export const REQUIRED_MAP_PHYSICAL_PLATFORMS = [
-  "android",
-  "ios",
-] as const;
+export const REQUIRED_MAP_RELEASE_PLATFORMS = ["android", "ios"] as const;
 
-export type MapPhysicalPlatform =
-  (typeof REQUIRED_MAP_PHYSICAL_PLATFORMS)[number];
+export type MapReleasePlatform =
+  (typeof REQUIRED_MAP_RELEASE_PLATFORMS)[number];
 
-export type MapPhysicalQualificationFailureCode =
+export const ACCEPTED_MAP_RELEASE_ENVIRONMENTS = {
+  android: ["simulator", "physical"],
+  ios: ["physical"],
+} as const satisfies Record<
+  MapReleasePlatform,
+  readonly MapPerformanceEnvironment[]
+>;
+
+export type MapReleaseQualificationFailureCode =
   | "expected-source-revision"
   | "missing-platform"
   | "platform-mismatch"
-  | "physical-environment"
+  | "qualification-environment"
   | "qualification-status"
   | "metric-status"
   | "missing-profile"
@@ -32,14 +38,14 @@ export type MapPhysicalQualificationFailureCode =
   | "session-pair"
   | "capture-window-pair";
 
-export interface MapPhysicalQualificationFailure {
-  code: MapPhysicalQualificationFailureCode;
-  platform?: MapPhysicalPlatform;
+export interface MapReleaseQualificationFailure {
+  code: MapReleaseQualificationFailureCode;
+  platform?: MapReleasePlatform;
   detail: string;
 }
 
-export interface MapPhysicalQualificationPlatformSummary {
-  platform: MapPhysicalPlatform;
+export interface MapReleaseQualificationPlatformSummary {
+  platform: MapReleasePlatform;
   capturedAt: string;
   applicationVersion: string | null;
   nativeBuildVersion: string | null;
@@ -49,39 +55,39 @@ export interface MapPhysicalQualificationPlatformSummary {
   modelId: string | null;
   osName: string | null;
   osVersion: string | null;
+  environment: MapPerformanceEnvironment;
   sceneRevisionFingerprint: string;
   variant: MapPerformanceEvidence["scene"]["variant"];
   viewMode: MapPerformanceEvidence["scene"]["viewMode"];
   territoryCount: number;
-  qualificationStatus:
-    MapRendererPerformanceQualification["status"];
-  metricStatus:
-    MapRendererPerformanceQualification["metricStatus"];
+  qualificationStatus: MapRendererPerformanceQualification["status"];
+  metricStatus: MapRendererPerformanceQualification["metricStatus"];
 }
 
-export interface MapPhysicalQualificationReport {
-  contractVersion: 1;
+export interface MapReleaseQualificationReport {
+  contractVersion: 2;
   status: "pass" | "fail";
   evaluatedAt: string;
   expectedSourceRevision: string;
   maximumEvidenceAgeMs: number;
   maximumPairSkewMs: number;
-  requiredPlatforms: readonly MapPhysicalPlatform[];
+  requiredPlatforms: readonly MapReleasePlatform[];
+  acceptedEnvironments: typeof ACCEPTED_MAP_RELEASE_ENVIRONMENTS;
   platforms: Partial<
-    Record<MapPhysicalPlatform, MapPhysicalQualificationPlatformSummary>
+    Record<MapReleasePlatform, MapReleaseQualificationPlatformSummary>
   >;
-  failures: MapPhysicalQualificationFailure[];
+  failures: MapReleaseQualificationFailure[];
 }
 
-export interface MapPhysicalQualificationOptions {
+export interface MapReleaseQualificationOptions {
   expectedSourceRevision: string;
   nowMs?: number;
   maximumEvidenceAgeMs?: number;
   maximumPairSkewMs?: number;
 }
 
-export type MapPhysicalQualificationEvidence = Partial<
-  Record<MapPhysicalPlatform, MapPerformanceEvidence>
+export type MapReleaseQualificationEvidence = Partial<
+  Record<MapReleasePlatform, MapPerformanceEvidence>
 >;
 
 const FULL_GIT_REVISION = /^[0-9a-f]{40}$/i;
@@ -111,13 +117,11 @@ function isObviousVirtualDevice(
   modelId: string | null,
 ): boolean {
   const identity = `${modelName ?? ""} ${modelId ?? ""}`.toLowerCase();
-  return /(simulator|emulator|x86_64|sdk_gphone|generic_x86)/.test(
-    identity,
-  );
+  return /(simulator|emulator|x86_64|sdk_gphone|generic_x86)/.test(identity);
 }
 
 function expectedOsName(
-  platform: MapPhysicalPlatform,
+  platform: MapReleasePlatform,
   osName: string | null,
 ): boolean {
   if (!nonBlank(osName)) return false;
@@ -136,9 +140,9 @@ function revisionFingerprint(revision: string): string {
 }
 
 function platformSummary(
-  platform: MapPhysicalPlatform,
+  platform: MapReleasePlatform,
   evidence: MapPerformanceEvidence,
-): MapPhysicalQualificationPlatformSummary {
+): MapReleaseQualificationPlatformSummary {
   return {
     platform,
     capturedAt: evidence.capturedAt,
@@ -150,6 +154,7 @@ function platformSummary(
     modelId: evidence.device.modelId,
     osName: evidence.device.osName,
     osVersion: evidence.device.osVersion,
+    environment: evidence.qualification.environment,
     sceneRevisionFingerprint: revisionFingerprint(evidence.scene.revision),
     variant: evidence.scene.variant,
     viewMode: evidence.scene.viewMode,
@@ -172,10 +177,56 @@ function sameFixture(
   );
 }
 
-export function qualifyMapPhysicalPair(
-  evidenceByPlatform: MapPhysicalQualificationEvidence,
-  options: MapPhysicalQualificationOptions,
-): MapPhysicalQualificationReport {
+function acceptsEnvironment(
+  platform: MapReleasePlatform,
+  environment: MapPerformanceEnvironment,
+): boolean {
+  const accepted: readonly MapPerformanceEnvironment[] =
+    ACCEPTED_MAP_RELEASE_ENVIRONMENTS[platform];
+  return accepted.includes(environment);
+}
+
+function expectedQualificationStatus(
+  platform: MapReleasePlatform,
+  environment: MapPerformanceEnvironment,
+): MapRendererPerformanceQualification["status"] | null {
+  if (environment === "physical") return "pass";
+  if (platform === "android" && environment === "simulator") {
+    return "ineligible";
+  }
+  return null;
+}
+
+function hasCredibleDeviceIdentity(
+  platform: MapReleasePlatform,
+  evidence: MapPerformanceEvidence,
+): boolean {
+  const { modelName, modelId, osName, osVersion } = evidence.device;
+  if (!expectedOsName(platform, osName) || !nonBlank(osVersion)) {
+    return false;
+  }
+
+  const isVirtual = isObviousVirtualDevice(modelName, modelId);
+  if (evidence.qualification.environment === "simulator") {
+    return (
+      platform === "android" &&
+      (nonBlank(modelName) || nonBlank(modelId)) &&
+      isVirtual
+    );
+  }
+
+  return (
+    evidence.qualification.environment === "physical" &&
+    nonBlank(modelName) &&
+    nonBlank(modelId) &&
+    !isVirtual
+  );
+}
+
+export function qualifyMapReleasePair(
+  evidenceByPlatform: MapReleaseQualificationEvidence,
+  options: MapReleaseQualificationOptions,
+): MapReleaseQualificationReport {
   const nowMs = Number.isFinite(options.nowMs)
     ? (options.nowMs as number)
     : Date.now();
@@ -187,25 +238,27 @@ export function qualifyMapPhysicalPair(
     options.maximumPairSkewMs,
     DEFAULT_MAXIMUM_PAIR_SKEW_MS,
   );
-  const expectedSourceRevision =
-    options.expectedSourceRevision.trim().toLowerCase();
-  const failures: MapPhysicalQualificationFailure[] = [];
-  const platforms: MapPhysicalQualificationReport["platforms"] = {};
+  const expectedSourceRevision = options.expectedSourceRevision
+    .trim()
+    .toLowerCase();
+  const failures: MapReleaseQualificationFailure[] = [];
+  const platforms: MapReleaseQualificationReport["platforms"] = {};
 
   if (!FULL_GIT_REVISION.test(expectedSourceRevision)) {
     failures.push({
       code: "expected-source-revision",
-      detail: "The expected source revision must be a full 40-character Git SHA.",
+      detail:
+        "The expected source revision must be a full 40-character Git SHA.",
     });
   }
 
-  for (const platform of REQUIRED_MAP_PHYSICAL_PLATFORMS) {
+  for (const platform of REQUIRED_MAP_RELEASE_PLATFORMS) {
     const evidence = evidenceByPlatform[platform];
     if (!evidence) {
       failures.push({
         code: "missing-platform",
         platform,
-        detail: `No ${platform} physical qualification evidence was supplied.`,
+        detail: `No ${platform} release qualification evidence was supplied.`,
       });
       continue;
     }
@@ -219,18 +272,26 @@ export function qualifyMapPhysicalPair(
         detail: `The ${platform} slot contains ${evidence.platform} evidence.`,
       });
     }
-    if (evidence.qualification.environment !== "physical") {
+    const environment = evidence.qualification.environment;
+    if (!acceptsEnvironment(platform, environment)) {
       failures.push({
-        code: "physical-environment",
+        code: "qualification-environment",
         platform,
-        detail: `${platform} evidence is ${evidence.qualification.environment}, not physical hardware.`,
+        detail: `${platform} ${environment} evidence is not accepted by the release policy.`,
       });
     }
-    if (evidence.qualification.status !== "pass") {
+    const requiredQualificationStatus = expectedQualificationStatus(
+      platform,
+      environment,
+    );
+    if (
+      requiredQualificationStatus !== null &&
+      evidence.qualification.status !== requiredQualificationStatus
+    ) {
       failures.push({
         code: "qualification-status",
         platform,
-        detail: `${platform} qualification status is ${evidence.qualification.status}.`,
+        detail: `${platform} qualification status is ${evidence.qualification.status}; expected ${requiredQualificationStatus} for ${environment}.`,
       });
     }
     if (evidence.qualification.metricStatus !== "pass") {
@@ -282,24 +343,16 @@ export function qualifyMapPhysicalPair(
       });
     }
 
-    const device = evidence.device;
-    if (
-      !nonBlank(device.modelName) ||
-      !nonBlank(device.modelId) ||
-      !expectedOsName(platform, device.osName) ||
-      !nonBlank(device.osVersion) ||
-      isObviousVirtualDevice(device.modelName, device.modelId)
-    ) {
+    if (!hasCredibleDeviceIdentity(platform, evidence)) {
       failures.push({
         code: "device-provenance",
         platform,
-        detail: `${platform} evidence lacks credible physical-device identity.`,
+        detail: `${platform} evidence lacks credible ${environment} device identity.`,
       });
     }
 
     if (
-      evidence.scene.territoryCount !==
-      TERRITORY_COUNTS[evidence.scene.variant]
+      evidence.scene.territoryCount !== TERRITORY_COUNTS[evidence.scene.variant]
     ) {
       failures.push({
         code: "territory-count",
@@ -336,43 +389,45 @@ export function qualifyMapPhysicalPair(
     if (android.application.version !== ios.application.version) {
       failures.push({
         code: "application-version-pair",
-        detail: "Android and iOS evidence must use the same application version.",
+        detail:
+          "Android and iOS evidence must use the same application version.",
       });
     }
     if (!sameFixture(android, ios)) {
       failures.push({
         code: "scene-fixture-pair",
-        detail: "Android and iOS evidence must profile the same canonical scene fixture.",
+        detail:
+          "Android and iOS evidence must profile the same canonical scene fixture.",
       });
     }
     if (android.application.sessionId === ios.application.sessionId) {
       failures.push({
         code: "session-pair",
-        detail: "Android and iOS evidence must come from distinct runtime sessions.",
+        detail:
+          "Android and iOS evidence must come from distinct runtime sessions.",
       });
     }
     const captureSkewMs = Math.abs(
       Date.parse(android.capturedAt) - Date.parse(ios.capturedAt),
     );
-    if (
-      Number.isFinite(captureSkewMs) &&
-      captureSkewMs > maximumPairSkewMs
-    ) {
+    if (Number.isFinite(captureSkewMs) && captureSkewMs > maximumPairSkewMs) {
       failures.push({
         code: "capture-window-pair",
-        detail: "Android and iOS captures are too far apart for one qualification run.",
+        detail:
+          "Android and iOS captures are too far apart for one qualification run.",
       });
     }
   }
 
   return {
-    contractVersion: 1,
+    contractVersion: 2,
     status: failures.length === 0 ? "pass" : "fail",
     evaluatedAt: new Date(nowMs).toISOString(),
     expectedSourceRevision,
     maximumEvidenceAgeMs,
     maximumPairSkewMs,
-    requiredPlatforms: REQUIRED_MAP_PHYSICAL_PLATFORMS,
+    requiredPlatforms: REQUIRED_MAP_RELEASE_PLATFORMS,
+    acceptedEnvironments: ACCEPTED_MAP_RELEASE_ENVIRONMENTS,
     platforms,
     failures,
   };

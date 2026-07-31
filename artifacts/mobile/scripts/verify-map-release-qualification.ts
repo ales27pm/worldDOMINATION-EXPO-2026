@@ -3,9 +3,9 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import {
-  qualifyMapPhysicalPair,
-  type MapPhysicalPlatform,
-} from "../game/mapPhysicalQualification";
+  qualifyMapReleasePair,
+  type MapReleasePlatform,
+} from "../game/mapReleaseQualification";
 import {
   parseMapPerformanceEvidence,
   type MapPerformanceEvidence,
@@ -25,12 +25,16 @@ const DEFAULT_MAXIMUM_PAIR_SKEW_HOURS = 24;
 
 function usage(): string {
   return `Usage:
-  pnpm run map:physical:check -- \\
+  pnpm run map:release:check -- \\
     --android <android-evidence.json> \\
     --ios <ios-evidence.json> \\
     [--source-revision <full-git-sha>] \\
     [--max-age-hours <hours>] \\
     [--max-pair-skew-hours <hours>]
+
+Accepted environments:
+  Android emulator or physical hardware
+  iOS physical hardware
 
 Environment fallbacks:
   MAP_ANDROID_PERFORMANCE_EVIDENCE
@@ -49,8 +53,7 @@ function positiveNumber(value: string, flag: string): number {
 
 function parseArgs(argv: readonly string[]): CliOptions {
   const options: CliOptions = {
-    androidPath:
-      process.env.MAP_ANDROID_PERFORMANCE_EVIDENCE?.trim() || null,
+    androidPath: process.env.MAP_ANDROID_PERFORMANCE_EVIDENCE?.trim() || null,
     iosPath: process.env.MAP_IOS_PERFORMANCE_EVIDENCE?.trim() || null,
     sourceRevision: process.env.MAP_SOURCE_REVISION?.trim() || null,
     maximumEvidenceAgeHours: DEFAULT_MAXIMUM_EVIDENCE_AGE_HOURS,
@@ -91,7 +94,7 @@ function currentGitRevision(): string {
 }
 
 function loadEvidence(
-  platform: MapPhysicalPlatform,
+  platform: MapReleasePlatform,
   filePath: string,
 ): MapPerformanceEvidence {
   const absolutePath = resolve(filePath);
@@ -111,21 +114,20 @@ function main(): void {
     return;
   }
   if (!options.androidPath || !options.iosPath) {
-    throw new Error(`Both physical evidence files are required.\n${usage()}`);
+    throw new Error(
+      `Android and iOS qualification evidence files are required.\n${usage()}`,
+    );
   }
 
-  const report = qualifyMapPhysicalPair(
+  const report = qualifyMapReleasePair(
     {
       android: loadEvidence("android", options.androidPath),
       ios: loadEvidence("ios", options.iosPath),
     },
     {
-      expectedSourceRevision:
-        options.sourceRevision ?? currentGitRevision(),
-      maximumEvidenceAgeMs:
-        options.maximumEvidenceAgeHours * 60 * 60 * 1000,
-      maximumPairSkewMs:
-        options.maximumPairSkewHours * 60 * 60 * 1000,
+      expectedSourceRevision: options.sourceRevision ?? currentGitRevision(),
+      maximumEvidenceAgeMs: options.maximumEvidenceAgeHours * 60 * 60 * 1000,
+      maximumPairSkewMs: options.maximumPairSkewHours * 60 * 60 * 1000,
     },
   );
 
@@ -137,6 +139,6 @@ try {
   main();
 } catch (error) {
   const message = error instanceof Error ? error.message : String(error);
-  process.stderr.write(`Map physical qualification failed: ${message}\n`);
+  process.stderr.write(`Map release qualification failed: ${message}\n`);
   process.exitCode = 1;
 }

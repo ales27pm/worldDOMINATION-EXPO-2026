@@ -93,7 +93,7 @@ test("renderer qualification remains pending until camera and battle complete", 
   deepEqual(qualification.missingKinds, ["battle"]);
 });
 
-test("browser and simulator metrics are never eligible for the device gate", () => {
+test("browser and simulator retain environment-neutral ineligible status", () => {
   const reports = {
     camera: passingReport("camera"),
     battle: passingReport("battle"),
@@ -107,7 +107,7 @@ test("browser and simulator metrics are never eligible for the device gate", () 
   equal(simulator.status, "ineligible");
 });
 
-test("only complete passing physical profiles satisfy the performance gate", () => {
+test("only complete passing physical profiles pass at renderer level", () => {
   const passing = qualifyMapRendererPerformance(
     {
       camera: passingReport("camera"),

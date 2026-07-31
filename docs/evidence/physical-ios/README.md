@@ -2,8 +2,8 @@
 
 These records were exported by build 15 of source revision
 `0c136a5c57e5fd0d9bd68946fbf2244da29622ce` on a physical iPhone 16 Pro.
-They are retained because physical performance cannot be regenerated from a
-simulator or browser run.
+They are retained because the iOS side of the release-pair contract remains
+physical-only.
 
 - `cold-fail.json`: complete cold battle profile; failed the dropped-frame
   ratio threshold.
@@ -13,5 +13,7 @@ simulator or browser run.
   `r3f-full-board-table.png`: sanitized visual evidence from the same device
   session.
 
-The iOS record alone does not open Gate 4. The checked-in physical qualifier
-still requires a passing same-source Android and iOS evidence pair.
+The iOS record alone does not open Gate 4. Contract version 2 accepts either an
+Android emulator or Android hardware for the other half, while retaining the
+same-source, same-fixture, provenance, recency, and passing camera/battle
+profile requirements. Browser and iOS Simulator evidence remain ineligible.

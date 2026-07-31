@@ -2,10 +2,10 @@ import { deepEqual, equal } from "node:assert/strict";
 import { test } from "node:test";
 
 import {
-  qualifyMapPhysicalPair,
-  type MapPhysicalQualificationFailureCode,
-  type MapPhysicalPlatform,
-} from "../../game/mapPhysicalQualification";
+  qualifyMapReleasePair,
+  type MapReleasePlatform,
+  type MapReleaseQualificationFailureCode,
+} from "../../game/mapReleaseQualification";
 import {
   createMapPerformanceEvidence,
   type MapPerformanceEvidence,
@@ -19,7 +19,10 @@ import type {
 const SOURCE_REVISION = "a".repeat(40);
 const NOW = Date.parse("2026-07-30T18:00:00.000Z");
 
-function passingReport(kind: MapFrameProfileKind): MapFrameProfileReport {
+function passingReport(
+  kind: MapFrameProfileKind,
+  overrides: Partial<MapFrameProfileReport> = {},
+): MapFrameProfileReport {
   return {
     contractVersion: 1,
     kind,
@@ -34,11 +37,12 @@ function passingReport(kind: MapFrameProfileKind): MapFrameProfileReport {
     slowFrameCount: 2,
     estimatedDroppedFrames: 0,
     withinBudgetRatio: 0.983,
+    ...overrides,
   };
 }
 
 function physicalEvidence(
-  platform: MapPhysicalPlatform,
+  platform: MapReleasePlatform,
   overrides: Partial<MapPerformanceEvidence> = {},
 ): MapPerformanceEvidence {
   const isAndroid = platform === "android";
@@ -82,13 +86,13 @@ function physicalEvidence(
 }
 
 function failureCodes(
-  report: ReturnType<typeof qualifyMapPhysicalPair>,
-): MapPhysicalQualificationFailureCode[] {
+  report: ReturnType<typeof qualifyMapReleasePair>,
+): MapReleaseQualificationFailureCode[] {
   return report.failures.map((failure) => failure.code);
 }
 
-test("physical qualification passes only for a matching Android and iOS pair", () => {
-  const report = qualifyMapPhysicalPair(
+test("release qualification passes for a matching physical Android and iOS pair", () => {
+  const report = qualifyMapReleasePair(
     {
       android: physicalEvidence("android"),
       ios: physicalEvidence("ios"),
@@ -104,8 +108,8 @@ test("physical qualification passes only for a matching Android and iOS pair", (
   deepEqual(Object.keys(report.platforms), ["android", "ios"]);
 });
 
-test("physical qualification fails closed when one platform is absent", () => {
-  const report = qualifyMapPhysicalPair(
+test("release qualification fails closed when one platform is absent", () => {
+  const report = qualifyMapReleasePair(
     { android: physicalEvidence("android") },
     {
       expectedSourceRevision: SOURCE_REVISION,
@@ -118,7 +122,60 @@ test("physical qualification fails closed when one platform is absent", () => {
   equal(report.failures[0]?.platform, "ios");
 });
 
-test("simulator metrics remain ineligible even when their numbers pass", () => {
+test("Android simulator metrics can pair with physical iOS", () => {
+  const android = physicalEvidence("android");
+  android.qualification = qualifyMapRendererPerformance(
+    {
+      camera: passingReport("camera"),
+      battle: passingReport("battle"),
+    },
+    "simulator",
+  );
+  android.device.modelName = "Android SDK built for x86_64";
+  android.device.modelId = null;
+
+  const report = qualifyMapReleasePair(
+    { android, ios: physicalEvidence("ios") },
+    {
+      expectedSourceRevision: SOURCE_REVISION,
+      nowMs: NOW,
+    },
+  );
+
+  equal(report.status, "pass");
+  deepEqual(report.failures, []);
+  equal(report.platforms.android?.environment, "simulator");
+  equal(report.platforms.android?.qualificationStatus, "ineligible");
+  deepEqual(report.acceptedEnvironments.android, ["simulator", "physical"]);
+  deepEqual(report.acceptedEnvironments.ios, ["physical"]);
+});
+
+test("Android simulator evidence still requires passing performance profiles", () => {
+  const android = physicalEvidence("android");
+  android.qualification = qualifyMapRendererPerformance(
+    {
+      camera: passingReport("camera"),
+      battle: passingReport("battle", { p95FrameMs: 25 }),
+    },
+    "simulator",
+  );
+  android.device.modelName = "sdk_gphone64_x86_64";
+  android.device.modelId = null;
+
+  const report = qualifyMapReleasePair(
+    { android, ios: physicalEvidence("ios") },
+    {
+      expectedSourceRevision: SOURCE_REVISION,
+      nowMs: NOW,
+    },
+  );
+
+  equal(report.status, "fail");
+  equal(failureCodes(report).includes("metric-status"), true);
+  equal(failureCodes(report).includes("profile-status"), true);
+});
+
+test("iOS simulator metrics remain ineligible for the release pair", () => {
   const ios = physicalEvidence("ios");
   ios.qualification = qualifyMapRendererPerformance(
     {
@@ -130,7 +187,7 @@ test("simulator metrics remain ineligible even when their numbers pass", () => {
   ios.device.modelName = "Simulator iOS";
   ios.device.modelId = "x86_64";
 
-  const report = qualifyMapPhysicalPair(
+  const report = qualifyMapReleasePair(
     { android: physicalEvidence("android"), ios },
     {
       expectedSourceRevision: SOURCE_REVISION,
@@ -139,8 +196,7 @@ test("simulator metrics remain ineligible even when their numbers pass", () => {
   );
 
   const codes = failureCodes(report);
-  equal(codes.includes("physical-environment"), true);
-  equal(codes.includes("qualification-status"), true);
+  equal(codes.includes("qualification-environment"), true);
   equal(codes.includes("device-provenance"), true);
 });
 
@@ -149,7 +205,7 @@ test("source and application provenance must identify the exact commit", () => {
   android.application.sourceRevision = "b".repeat(40);
   android.application.nativeBuildVersion = null;
 
-  const report = qualifyMapPhysicalPair(
+  const report = qualifyMapReleasePair(
     { android, ios: physicalEvidence("ios") },
     {
       expectedSourceRevision: SOURCE_REVISION,
@@ -172,7 +228,7 @@ test("both platforms must profile the same canonical fixture and app version", (
     territoryCount: 48,
   };
 
-  const report = qualifyMapPhysicalPair(
+  const report = qualifyMapReleasePair(
     { android: physicalEvidence("android"), ios },
     {
       expectedSourceRevision: SOURCE_REVISION,
@@ -193,7 +249,7 @@ test("stale, future, and widely separated captures cannot form a pair", () => {
     capturedAt: "2026-07-30T19:00:00.000Z",
   });
 
-  const report = qualifyMapPhysicalPair(
+  const report = qualifyMapReleasePair(
     { android, ios },
     {
       expectedSourceRevision: SOURCE_REVISION,
@@ -209,12 +265,12 @@ test("stale, future, and widely separated captures cannot form a pair", () => {
   equal(codes.includes("capture-window-pair"), true);
 });
 
-test("obvious virtual-device identities are rejected independently of flags", () => {
+test("virtual-device identities are rejected for physical evidence", () => {
   const android = physicalEvidence("android");
   android.device.modelName = "Android SDK built for x86_64";
   android.device.modelId = "sdk_gphone64_x86_64";
 
-  const report = qualifyMapPhysicalPair(
+  const report = qualifyMapReleasePair(
     { android, ios: physicalEvidence("ios") },
     {
       expectedSourceRevision: SOURCE_REVISION,
