@@ -1,4 +1,5 @@
 import React, { useCallback, useState } from 'react';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -61,11 +62,16 @@ export default function RecordsScreen() {
       <SafeAreaView style={{ flex: 1 }}>
         {/* Header */}
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn}>
-            <Text style={styles.backText}>← Back</Text>
+          <Pressable
+            onPress={() => router.back()}
+            style={({ pressed }) => [styles.backBtn, pressed && styles.iconBtnPressed]}
+            accessibilityRole="button"
+            accessibilityLabel="Back"
+          >
+            <Ionicons name="chevron-back" size={21} color={Colors.gold} />
           </Pressable>
           <Text style={styles.title}>HALL OF RECORDS</Text>
-          <View style={{ width: 60 }} />
+          <View style={styles.headerSpacer} />
         </View>
 
         <View style={styles.divider} />
@@ -156,7 +162,12 @@ export default function RecordsScreen() {
                       <Text style={styles.recordName} numberOfLines={1}>
                         {campaign.winnerName}
                       </Text>
-                      <Text style={styles.trophy}>⚔</Text>
+                      <Ionicons
+                        name="trophy-outline"
+                        size={14}
+                        color={Colors.gold}
+                        style={styles.trophy}
+                      />
                       <Text style={styles.recordObjective}>{objectiveName(campaign.objective)}</Text>
                     </View>
                     <Text style={styles.recordDetail}>
@@ -201,8 +212,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 16, paddingVertical: 12,
   },
-  backBtn: { padding: 8 },
-  backText: { color: Colors.gold, fontFamily: 'Alegreya_500Medium', fontSize: 14 },
+  backBtn: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(222,190,115,0.36)',
+    backgroundColor: 'rgba(21,13,9,0.18)',
+  },
+  iconBtnPressed: { opacity: 0.72 },
+  headerSpacer: { width: 44, height: 44 },
   title: {
     color: Colors.gold, fontFamily: 'IMFellEnglishSC_400Regular', fontSize: 14,
     letterSpacing: 3,
@@ -256,7 +276,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: '#3a2812',
   },
   recordName: { color: Colors.text, fontFamily: 'Alegreya_600SemiBold', fontSize: 15, flexShrink: 1 },
-  trophy: { color: Colors.gold, fontSize: 12, marginLeft: 'auto' },
+  trophy: { marginLeft: 'auto' },
   recordObjective: {
     color: Colors.textMuted, fontFamily: 'Alegreya_500Medium', fontSize: 10,
     letterSpacing: 1.5, textTransform: 'uppercase',

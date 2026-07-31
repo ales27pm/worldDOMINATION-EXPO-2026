@@ -1,4 +1,5 @@
 import React, { useCallback, useState } from 'react';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import {
   Alert,
   Pressable,
@@ -59,8 +60,14 @@ export default function TournamentScreen() {
       <View style={styles.root}>
         <GradientFill colors={['#0d0804', '#1a1005', '#221508']} style={StyleSheet.absoluteFillObject} />
         <SafeAreaView style={styles.inner} edges={['top', 'bottom']}>
-          <Pressable onPress={() => router.replace('/')} style={styles.back}>
-            <Text style={styles.backText}>← Main Menu</Text>
+          <Pressable
+            onPress={() => router.replace('/')}
+            style={({ pressed }) => [styles.back, pressed && styles.iconBtnPressed]}
+            accessibilityRole="button"
+            accessibilityLabel="Main menu"
+          >
+            <Ionicons name="chevron-back" size={19} color={Colors.gold} />
+            <Text style={styles.backText}>Main Menu</Text>
           </Pressable>
 
           <ScrollView contentContainerStyle={styles.startScroll} showsVerticalScrollIndicator={false}>
@@ -84,9 +91,12 @@ export default function TournamentScreen() {
               style={styles.nameInput}
               maxLength={24}
               returnKeyType="done"
+              accessibilityLabel="Commander name"
             />
             <Pressable
-              style={styles.startBtn}
+              style={({ pressed }) => [styles.startBtn, pressed && styles.startBtnPressed]}
+              accessibilityRole="button"
+              accessibilityLabel="Begin tournament"
               onPress={() => {
                 if (!nameInput.trim()) {
                   Alert.alert('Name required', 'Enter your commander name to begin.');
@@ -95,6 +105,7 @@ export default function TournamentScreen() {
                 startTournament(nameInput.trim());
               }}
             >
+              <Ionicons name="flag-outline" size={18} color={Colors.bg} />
               <Text style={styles.startBtnText}>BEGIN TOURNAMENT</Text>
             </Pressable>
           </View>
@@ -145,11 +156,22 @@ export default function TournamentScreen() {
       <SafeAreaView style={styles.inner} edges={['top', 'bottom']}>
         {/* Header */}
         <View style={styles.header}>
-          <Pressable onPress={() => router.replace('/')} style={styles.back}>
-            <Text style={styles.backText}>← Menu</Text>
+          <Pressable
+            onPress={() => router.replace('/')}
+            style={({ pressed }) => [styles.back, pressed && styles.iconBtnPressed]}
+            accessibilityRole="button"
+            accessibilityLabel="Menu"
+          >
+            <Ionicons name="chevron-back" size={19} color={Colors.gold} />
+            <Text style={styles.backText}>Menu</Text>
           </Pressable>
           <Text style={styles.headerTitle}>TOURNAMENT</Text>
-          <Pressable onPress={handleEndTournament}>
+          <Pressable
+            onPress={handleEndTournament}
+            style={({ pressed }) => [styles.abandonBtn, pressed && styles.controlPressed]}
+            accessibilityRole="button"
+            accessibilityLabel="Abandon tournament"
+          >
             <Text style={styles.abandonText}>Abandon</Text>
           </Pressable>
         </View>
@@ -195,6 +217,9 @@ export default function TournamentScreen() {
                 ]}
                 onPress={() => isCurrent && handleStartGame(idx)}
                 disabled={!isCurrent}
+                accessibilityRole="button"
+                accessibilityLabel={`${def.title}. ${isCurrent ? 'Play campaign' : isLocked ? 'Locked campaign' : 'Completed campaign'}`}
+                accessibilityState={{ disabled: !isCurrent }}
               >
                 {/* Roman numeral */}
                 <Text style={[styles.roman, isCurrent && styles.romanCurrent]}>
@@ -241,7 +266,10 @@ export default function TournamentScreen() {
                     <Text style={styles.badgePts}>+{record.result.points}</Text>
                   </View>
                 ) : isCurrent ? (
-                  <Text style={styles.playNow}>► PLAY</Text>
+                  <View style={styles.playNow}>
+                    <Ionicons name="play" size={13} color={Colors.gold} />
+                    <Text style={styles.playNowText}>PLAY</Text>
+                  </View>
                 ) : (
                   <Text style={styles.lockedPts}>max {summary.maxPoints}</Text>
                 )}
@@ -254,7 +282,10 @@ export default function TournamentScreen() {
             <View style={styles.finalCard}>
               {session.currentGame >= TOURNAMENT_LENGTH ? (
                 <>
-                  <Text style={styles.finalTitle}>⚔ TOURNAMENT COMPLETE</Text>
+                  <View style={styles.finalTitleRow}>
+                    <Ionicons name="trophy-outline" size={22} color={Colors.gold} />
+                    <Text style={styles.finalTitle}>TOURNAMENT COMPLETE</Text>
+                  </View>
                   <Text style={styles.finalScore}>
                     {session.totalPoints} / {totalPossible} points
                   </Text>
@@ -262,16 +293,22 @@ export default function TournamentScreen() {
                 </>
               ) : (
                 <>
-                  <Text style={[styles.finalTitle, { color: Colors.textCrimson }]}>
-                    ✕ ELIMINATED
-                  </Text>
+                  <View style={styles.finalTitleRow}>
+                    <Ionicons name="close-circle-outline" size={22} color={Colors.textCrimson} />
+                    <Text style={[styles.finalTitle, { color: Colors.textCrimson }]}>ELIMINATED</Text>
+                  </View>
                   <Text style={styles.finalScore}>
                     {session.totalPoints} pts after {session.currentGame} campaign
                     {session.currentGame !== 1 ? 's' : ''}
                   </Text>
                 </>
               )}
-              <Pressable style={styles.newRunBtn} onPress={endTournament}>
+              <Pressable
+                style={({ pressed }) => [styles.newRunBtn, pressed && styles.controlPressed]}
+                onPress={endTournament}
+                accessibilityRole="button"
+                accessibilityLabel="New tournament run"
+              >
                 <Text style={styles.newRunText}>NEW TOURNAMENT RUN</Text>
               </Pressable>
             </View>
@@ -326,7 +363,19 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.bg },
   inner: { flex: 1 },
 
-  back: { padding: 4 },
+  back: {
+    minHeight: 44,
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(222,190,115,0.36)',
+    backgroundColor: 'rgba(21,13,9,0.18)',
+    paddingHorizontal: 10,
+  },
+  iconBtnPressed: { opacity: 0.72 },
+  controlPressed: { opacity: 0.78 },
   backText: { color: Colors.gold, fontFamily: 'Alegreya_500Medium', fontSize: 13 },
 
   heroBlock: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32, gap: 12 },
@@ -342,7 +391,16 @@ const styles = StyleSheet.create({
     color: Colors.text, fontFamily: 'Alegreya_400Regular', fontSize: 16,
     paddingHorizontal: 14, paddingVertical: 12,
   },
-  startBtn: { backgroundColor: Colors.gold, paddingVertical: 16, alignItems: 'center' },
+  startBtn: {
+    minHeight: 52,
+    backgroundColor: Colors.gold,
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  startBtnPressed: { opacity: 0.82 },
   startBtnText: { color: Colors.bg, fontFamily: 'Alegreya_700Bold', fontSize: 14, letterSpacing: 3 },
 
   footer: { color: Colors.textMuted, fontFamily: 'Alegreya_400Regular', fontSize: 10, textAlign: 'center', paddingBottom: 12, letterSpacing: 1 },
@@ -350,6 +408,14 @@ const styles = StyleSheet.create({
   // Active tournament
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 10 },
   headerTitle: { color: Colors.gold, fontFamily: 'IMFellEnglishSC_400Regular', fontSize: 14, letterSpacing: 4 },
+  abandonBtn: {
+    minHeight: 44,
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(186,38,43,0.34)',
+    backgroundColor: 'rgba(117,21,27,0.12)',
+    paddingHorizontal: 12,
+  },
   abandonText: { color: Colors.textCrimson, fontFamily: 'Alegreya_500Medium', fontSize: 12 },
 
   scoreBar: {
@@ -391,17 +457,27 @@ const styles = StyleSheet.create({
   badgeProgress: { color: '#6ab' },
   badgePts: { color: Colors.textMuted, fontFamily: 'Alegreya_400Regular', fontSize: 11 },
 
-  playNow: { color: Colors.gold, fontFamily: 'Alegreya_700Bold', fontSize: 13, letterSpacing: 2 },
+  playNow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  playNowText: { color: Colors.gold, fontFamily: 'Alegreya_700Bold', fontSize: 13, letterSpacing: 2 },
   lockedPts: { color: Colors.textMuted, fontFamily: 'Alegreya_400Regular', fontSize: 11 },
 
   finalCard: {
     marginTop: 16, borderWidth: 1, borderColor: Colors.gold,
     backgroundColor: '#1e1508', padding: 24, alignItems: 'center', gap: 10,
   },
+  finalTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   finalTitle: { color: Colors.gold, fontFamily: 'Alegreya_700Bold', fontSize: 20, letterSpacing: 3 },
   finalScore: { color: Colors.text, fontFamily: 'Alegreya_400Regular', fontSize: 15 },
   finalRating: { color: Colors.goldDim, fontFamily: 'Alegreya_600SemiBold', fontSize: 13, letterSpacing: 3 },
-  newRunBtn: { marginTop: 8, borderWidth: 1, borderColor: Colors.border, paddingVertical: 12, paddingHorizontal: 32 },
+  newRunBtn: {
+    minHeight: 44,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+    justifyContent: 'center',
+  },
   newRunText: { color: Colors.textMuted, fontFamily: 'Alegreya_600SemiBold', fontSize: 12, letterSpacing: 2 },
 
   // High-score ledger
