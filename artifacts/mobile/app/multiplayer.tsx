@@ -4,15 +4,22 @@ import {
   ActivityIndicator,
   Alert,
   Pressable,
+  Image,
+  ImageBackground,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
+  type StyleProp,
+  type ViewStyle,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, type Href } from 'expo-router';
 import { Colors } from '@/constants/colors';
+import { MAP_HUD_TEXT_SHADOW } from '@/constants/mapHud';
+import { resolveMultiplayerCommandLayout } from '@/game/multiplayerCommandLayout';
 import {
   createMultiplayerClientSessionId,
   createMultiplayerClient,
@@ -34,6 +41,10 @@ import {
   type MultiplayerLocalSession,
 } from '@/lib/multiplayerSession';
 import type { GameSetup } from '@/game/types';
+
+const COMMAND_TABLE_TEXTURE = require('../assets/ui/command-table-walnut.webp') as number;
+const PARCHMENT_PANEL_TEXTURE = require('../assets/ui/parchment-panel.webp') as number;
+const IMPERIAL_COMMAND_SEAL = require('../assets/ui/imperial-command-seal.png') as number;
 
 function defaultSetup(name: string): GameSetup {
   return {
@@ -74,6 +85,12 @@ const LOBBY_SCOPE_OPTIONS: Array<{ value: MultiplayerMatchListScope; label: stri
 
 export default function MultiplayerScreen() {
   const router = useRouter();
+  const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const layout = useMemo(
+    () => resolveMultiplayerCommandLayout({ width, height, insets }),
+    [height, insets, width],
+  );
   const [apiBaseUrl, setApiBaseUrl] = useState(defaultMultiplayerApiBaseUrl());
   const [apiAuthToken, setApiAuthToken] = useState(defaultMultiplayerApiAuthToken());
   const [playerName, setPlayerName] = useState('Commander');
@@ -489,21 +506,68 @@ export default function MultiplayerScreen() {
   }, []);
 
   const aliveNames = snapshot?.state.players.filter((player) => player.alive).map((player) => player.name) ?? [];
+  const serverReady = client ? 'API ROUTE READY' : 'API ROUTE NEEDED';
+  const authState = apiAuthToken.trim() ? 'AUTH TOKEN SET' : 'NO SHARED TOKEN';
+  const linkedState = session ? `MATCH V${snapshot?.version ?? '-'} LINKED` : 'NO LINKED MATCH';
+  const sectionStyle = { width: layout.sectionWidth };
+  const wideSectionStyle = { width: layout.wideSectionWidth };
 
   return (
-    <View style={styles.container}>
-      <SafeAreaView style={{ flex: 1 }}>
-        <View style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn}>
+    <ImageBackground
+      source={COMMAND_TABLE_TEXTURE}
+      style={styles.container}
+      imageStyle={styles.tableTexture}
+      resizeMode="cover"
+    >
+      <View style={styles.tableShade} />
+      <View style={[styles.safe, { paddingTop: insets.top }]}>
+        <View
+          style={[
+            styles.header,
+            {
+              maxWidth: layout.contentMaxWidth,
+              paddingLeft: layout.contentPaddingLeft,
+              paddingRight: layout.contentPaddingRight,
+              flexDirection: layout.headerDirection,
+            },
+          ]}
+        >
+          <Pressable onPress={() => router.back()} style={styles.backBtn} accessibilityRole="button">
             <Text style={styles.backText}>{'< Back'}</Text>
           </Pressable>
-          <Text style={styles.title}>MULTIPLAYER COMMAND</Text>
-          <View style={{ width: 60 }} />
+          <View style={styles.titleBlock}>
+            <Image
+              source={IMPERIAL_COMMAND_SEAL}
+              style={{ width: layout.sealSize, height: layout.sealSize }}
+              resizeMode="contain"
+              accessibilityIgnoresInvertColors
+            />
+            <View style={styles.titleTextBlock}>
+              <Text style={styles.title}>MULTIPLAYER COMMAND</Text>
+              <Text style={styles.subtitle}>Server-authoritative Same Time command board</Text>
+            </View>
+          </View>
+          <View style={styles.statusCluster}>
+            <StatusPill label={serverReady} tone={client ? 'gold' : 'crimson'} />
+            <StatusPill label={authState} />
+            <StatusPill label={linkedState} tone={session ? 'gold' : 'muted'} />
+          </View>
         </View>
-        <View style={styles.divider} />
+        <View style={[styles.divider, { maxWidth: layout.contentMaxWidth }]} />
 
-        <ScrollView contentContainerStyle={styles.content}>
-          <Section title="SERVER">
+        <ScrollView
+          contentContainerStyle={[
+            styles.content,
+            {
+              maxWidth: layout.contentMaxWidth,
+              paddingTop: layout.contentPaddingTop,
+              paddingRight: layout.contentPaddingRight,
+              paddingBottom: layout.contentPaddingBottom,
+              paddingLeft: layout.contentPaddingLeft,
+            },
+          ]}
+        >
+          <Section title="SERVER" style={sectionStyle}>
             <Text style={styles.label}>API Base URL</Text>
             <TextInput
               accessibilityLabel="API Base URL"
@@ -529,7 +593,7 @@ export default function MultiplayerScreen() {
             />
           </Section>
 
-          <Section title="COMMANDER">
+          <Section title="COMMANDER" style={sectionStyle}>
             <Text style={styles.label}>Commander Name</Text>
             <TextInput
               accessibilityLabel="Commander Name"
@@ -542,27 +606,32 @@ export default function MultiplayerScreen() {
             />
           </Section>
 
-          <Section title="HOST">
+          <Section title="HOST" style={sectionStyle}>
             <Text style={styles.body}>
-              Find a public Same Time RISK seat or create a server-owned match. Manual host still claims player 0.
+              Find a public Same Time RISK seat or create a server-owned match. Manual host claims player 0.
             </Text>
             <CommandButton label="Quick Match" onPress={quickMatch} disabled={busy} primary />
             <CommandButton label="Create Host Seat" onPress={createHostMatch} disabled={busy} />
           </Section>
 
-          <Section title="LOBBY">
+          <Section title="LOBBY" style={wideSectionStyle}>
             <View style={styles.filterRow}>
               {LOBBY_STATUS_OPTIONS.map((option) => (
                 <Pressable
                   key={option.value}
                   accessibilityRole="button"
+                  accessibilityState={{ selected: lobbyStatus === option.value }}
                   onPress={() => {
                     setLobbyStatus(option.value);
                     setLobbyMatches([]);
                   }}
                   style={[styles.filterButton, lobbyStatus === option.value && styles.filterButtonActive]}
                 >
-                  <Text style={[styles.filterText, lobbyStatus === option.value && styles.filterTextActive]}>
+                  <Text
+                    style={[styles.filterText, lobbyStatus === option.value && styles.filterTextActive]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                  >
                     {option.label}
                   </Text>
                 </Pressable>
@@ -573,13 +642,18 @@ export default function MultiplayerScreen() {
                 <Pressable
                   key={option.value}
                   accessibilityRole="button"
+                  accessibilityState={{ selected: lobbyScope === option.value }}
                   onPress={() => {
                     setLobbyScope(option.value);
                     setLobbyMatches([]);
                   }}
                   style={[styles.filterButton, lobbyScope === option.value && styles.filterButtonActive]}
                 >
-                  <Text style={[styles.filterText, lobbyScope === option.value && styles.filterTextActive]}>
+                  <Text
+                    style={[styles.filterText, lobbyScope === option.value && styles.filterTextActive]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                  >
                     {option.label}
                   </Text>
                 </Pressable>
@@ -599,7 +673,7 @@ export default function MultiplayerScreen() {
             ))}
           </Section>
 
-          <Section title="PENDING INVITATIONS">
+          <Section title="PENDING INVITATIONS" style={sectionStyle}>
             <Text style={styles.meta}>Invitation alerts {invitationLiveMode}</Text>
             <CommandButton label="Refresh Invitations" onPress={refreshInvitations} disabled={busy} />
             <CommandButton
@@ -624,7 +698,7 @@ export default function MultiplayerScreen() {
             ))}
           </Section>
 
-          <Section title="CONTACTS">
+          <Section title="CONTACTS" style={sectionStyle}>
             <CommandButton label="Refresh Contacts" onPress={refreshContacts} disabled={busy} />
             {contacts.map((contact) => (
               <Pressable
@@ -638,7 +712,7 @@ export default function MultiplayerScreen() {
             ))}
           </Section>
 
-          <Section title="INVITE SEAT">
+          <Section title="INVITE SEAT" style={sectionStyle}>
             <Text style={styles.label}>Invite Player ID</Text>
             <TextInput
               accessibilityLabel="Invite Player ID"
@@ -663,7 +737,7 @@ export default function MultiplayerScreen() {
             <CommandButton label="Invite Seat" onPress={inviteSeat} disabled={busy || !session} />
           </Section>
 
-          <Section title="JOIN">
+          <Section title="JOIN" style={sectionStyle}>
             <Text style={styles.label}>Match ID</Text>
             <TextInput
               accessibilityLabel="Match ID"
@@ -688,7 +762,7 @@ export default function MultiplayerScreen() {
             <CommandButton label="Join Seat" onPress={joinSeat} disabled={busy} />
           </Section>
 
-          <Section title="LINKED MATCH">
+          <Section title="LINKED MATCH" style={wideSectionStyle}>
             <View style={styles.statusRow}>
               <Text style={styles.body}>{status}</Text>
               {busy && <ActivityIndicator color={Colors.gold} />}
@@ -728,16 +802,59 @@ export default function MultiplayerScreen() {
             )}
           </Section>
         </ScrollView>
-      </SafeAreaView>
-    </View>
+      </View>
+    </ImageBackground>
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({
+  title,
+  children,
+  style,
+}: {
+  title: string;
+  children: React.ReactNode;
+  style?: StyleProp<ViewStyle>;
+}) {
   return (
-    <View style={styles.section}>
+    <ImageBackground
+      source={PARCHMENT_PANEL_TEXTURE}
+      style={[styles.section, style]}
+      imageStyle={styles.sectionTexture}
+      resizeMode="cover"
+    >
       <Text style={styles.sectionTitle}>{title}</Text>
       <View style={styles.sectionContent}>{children}</View>
+    </ImageBackground>
+  );
+}
+
+function StatusPill({
+  label,
+  tone = 'muted',
+}: {
+  label: string;
+  tone?: 'gold' | 'crimson' | 'muted';
+}) {
+  return (
+    <View
+      style={[
+        styles.statusPill,
+        tone === 'gold' && styles.statusPillGold,
+        tone === 'crimson' && styles.statusPillCrimson,
+      ]}
+    >
+      <Text
+        style={[
+          styles.statusPillText,
+          tone === 'gold' && styles.statusPillTextGold,
+          tone === 'crimson' && styles.statusPillTextCrimson,
+        ]}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+      >
+        {label}
+      </Text>
     </View>
   );
 }
@@ -758,6 +875,7 @@ function CommandButton({
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityState={{ disabled: Boolean(disabled) }}
       onPress={onPress}
       disabled={disabled}
       style={({ pressed }) => [
@@ -768,7 +886,11 @@ function CommandButton({
         pressed && !disabled && styles.buttonPressed,
       ]}
     >
-      <Text style={[styles.buttonText, primary && styles.buttonTextPrimary, danger && styles.buttonTextDanger]}>
+      <Text
+        style={[styles.buttonText, primary && styles.buttonTextPrimary, danger && styles.buttonTextDanger]}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+      >
         {label}
       </Text>
     </Pressable>
@@ -776,30 +898,80 @@ function CommandButton({
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.bg },
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingVertical: 12,
+  container: { flex: 1, backgroundColor: Colors.bg, overflow: 'hidden' },
+  tableTexture: { opacity: 0.94 },
+  tableShade: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(8,5,2,0.28)',
   },
-  backBtn: { padding: 8 },
-  backText: { color: Colors.gold, fontFamily: 'Alegreya_500Medium', fontSize: 14 },
-  title: { color: Colors.gold, fontFamily: 'IMFellEnglishSC_400Regular', fontSize: 14, letterSpacing: 3 },
-  divider: { height: 1, backgroundColor: Colors.border, marginHorizontal: 16 },
-  content: { padding: 16, gap: 20, paddingBottom: 40 },
-  section: { gap: 10 },
+  safe: { flex: 1 },
+  header: {
+    alignSelf: 'center',
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 14,
+    paddingVertical: 14,
+  },
+  backBtn: {
+    minHeight: 44,
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(222,190,115,0.32)',
+    backgroundColor: 'rgba(21,13,9,0.38)',
+    paddingHorizontal: 12,
+  },
+  backText: { ...MAP_HUD_TEXT_SHADOW, color: Colors.gold, fontFamily: 'Alegreya_600SemiBold', fontSize: 13 },
+  titleBlock: { flexDirection: 'row', alignItems: 'center', gap: 12, flexShrink: 1 },
+  titleTextBlock: { gap: 3, flexShrink: 1 },
+  title: { ...MAP_HUD_TEXT_SHADOW, color: Colors.gold, fontFamily: 'IMFellEnglishSC_400Regular', fontSize: 17, letterSpacing: 3 },
+  subtitle: { ...MAP_HUD_TEXT_SHADOW, color: Colors.textMuted, fontFamily: 'Alegreya_500Medium', fontSize: 12 },
+  statusCluster: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 6, maxWidth: 360 },
+  statusPill: {
+    minHeight: 28,
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(201,183,146,0.34)',
+    backgroundColor: 'rgba(21,13,9,0.38)',
+    paddingHorizontal: 8,
+  },
+  statusPillGold: { borderColor: 'rgba(222,190,115,0.64)', backgroundColor: 'rgba(79,57,24,0.34)' },
+  statusPillCrimson: { borderColor: 'rgba(157,37,41,0.7)', backgroundColor: 'rgba(80,15,18,0.36)' },
+  statusPillText: { ...MAP_HUD_TEXT_SHADOW, color: Colors.textMuted, fontFamily: 'Alegreya_700Bold', fontSize: 10, letterSpacing: 1 },
+  statusPillTextGold: { color: Colors.gold },
+  statusPillTextCrimson: { color: Colors.textCrimson },
+  divider: { alignSelf: 'center', width: '100%', height: 1, backgroundColor: 'rgba(222,190,115,0.24)' },
+  content: {
+    width: '100%',
+    alignSelf: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'flex-start',
+    gap: 16,
+  },
+  section: {
+    gap: 10,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(222,190,115,0.34)',
+    backgroundColor: 'rgba(21,13,9,0.74)',
+    padding: 14,
+  },
+  sectionTexture: { opacity: 0.18 },
   sectionTitle: {
+    ...MAP_HUD_TEXT_SHADOW,
     color: Colors.goldDim, fontFamily: 'Alegreya_600SemiBold', fontSize: 11,
     letterSpacing: 3, textTransform: 'uppercase',
   },
   sectionContent: { gap: 10 },
-  label: { color: Colors.textMuted, fontFamily: 'Alegreya_500Medium', fontSize: 12 },
-  body: { color: Colors.text, fontFamily: 'Alegreya_400Regular', fontSize: 14, lineHeight: 20 },
-  meta: { color: Colors.textMuted, fontFamily: 'Alegreya_400Regular', fontSize: 12, lineHeight: 18 },
+  label: { ...MAP_HUD_TEXT_SHADOW, color: Colors.textMuted, fontFamily: 'Alegreya_500Medium', fontSize: 12 },
+  body: { ...MAP_HUD_TEXT_SHADOW, color: Colors.text, fontFamily: 'Alegreya_400Regular', fontSize: 14, lineHeight: 20 },
+  meta: { ...MAP_HUD_TEXT_SHADOW, color: Colors.textMuted, fontFamily: 'Alegreya_400Regular', fontSize: 12, lineHeight: 18 },
   input: {
     minHeight: 44,
     borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.bgCard,
+    borderColor: 'rgba(222,190,115,0.26)',
+    backgroundColor: 'rgba(8,5,2,0.50)',
     color: Colors.text,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -811,15 +983,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.bgCard,
+    borderColor: 'rgba(222,190,115,0.34)',
+    backgroundColor: 'rgba(21,13,9,0.56)',
     paddingHorizontal: 14,
   },
   buttonPrimary: { backgroundColor: Colors.gold, borderColor: Colors.gold },
   buttonDanger: { borderColor: Colors.crimson },
   buttonDisabled: { opacity: 0.5 },
   buttonPressed: { transform: [{ scale: 0.99 }] },
-  buttonText: { color: Colors.text, fontFamily: 'Alegreya_700Bold', fontSize: 13, letterSpacing: 1 },
+  buttonText: { ...MAP_HUD_TEXT_SHADOW, color: Colors.text, fontFamily: 'Alegreya_700Bold', fontSize: 13, letterSpacing: 1 },
   buttonTextPrimary: { color: Colors.bg },
   buttonTextDanger: { color: Colors.crimson },
   statusRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
@@ -830,29 +1002,29 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.bgCard,
+    borderColor: 'rgba(222,190,115,0.28)',
+    backgroundColor: 'rgba(21,13,9,0.48)',
     paddingHorizontal: 10,
   },
   filterButtonActive: { backgroundColor: Colors.gold, borderColor: Colors.gold },
-  filterText: { color: Colors.text, fontFamily: 'Alegreya_700Bold', fontSize: 12 },
+  filterText: { ...MAP_HUD_TEXT_SHADOW, color: Colors.text, fontFamily: 'Alegreya_700Bold', fontSize: 12 },
   filterTextActive: { color: Colors.bg },
   snapshot: {
     gap: 6,
     borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.bgCard,
+    borderColor: 'rgba(222,190,115,0.28)',
+    backgroundColor: 'rgba(8,5,2,0.42)',
     padding: 12,
   },
   lobbyRow: {
     gap: 4,
     borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.bgCard,
+    borderColor: 'rgba(222,190,115,0.28)',
+    backgroundColor: 'rgba(8,5,2,0.42)',
     padding: 12,
   },
-  lobbyTitle: { color: Colors.gold, fontFamily: 'Alegreya_700Bold', fontSize: 13 },
-  snapshotTitle: { color: Colors.gold, fontFamily: 'Alegreya_700Bold', fontSize: 14 },
+  lobbyTitle: { ...MAP_HUD_TEXT_SHADOW, color: Colors.gold, fontFamily: 'Alegreya_700Bold', fontSize: 13 },
+  snapshotTitle: { ...MAP_HUD_TEXT_SHADOW, color: Colors.gold, fontFamily: 'Alegreya_700Bold', fontSize: 14 },
   seatList: { gap: 4, marginTop: 4 },
-  seat: { color: Colors.text, fontFamily: 'Alegreya_400Regular', fontSize: 12 },
+  seat: { ...MAP_HUD_TEXT_SHADOW, color: Colors.text, fontFamily: 'Alegreya_400Regular', fontSize: 12 },
 });

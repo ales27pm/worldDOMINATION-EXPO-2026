@@ -39,6 +39,7 @@ interface Props {
   interactive: Set<TerritoryId>;
   viewMode: MapViewMode;
   rendererMode?: MapRendererMode;
+  cameraControlsRightInset?: number;
   onTerritoryTap: (id: TerritoryId) => void;
   onPerformanceEvidence?: (evidence: MapPerformanceEvidence) => void;
 }
@@ -78,6 +79,7 @@ export default function GameMap({
   interactive,
   viewMode,
   rendererMode = DEFAULT_MAP_RENDERER_MODE,
+  cameraControlsRightInset,
   onTerritoryTap,
   onPerformanceEvidence,
 }: Props) {
@@ -111,7 +113,12 @@ export default function GameMap({
   }, [model, rendererMode]);
 
   const svgMap = (
-    <MapViewport game={game} selected={selected} onBoardTap={handleBoardTap}>
+    <MapViewport
+      game={game}
+      selected={selected}
+      onBoardTap={handleBoardTap}
+      cameraControlsRightInset={cameraControlsRightInset}
+    >
       <WorldBoard game={game} model={model} />
     </MapViewport>
   );
@@ -123,6 +130,7 @@ export default function GameMap({
           <R3FGameMap
             game={game}
             model={model}
+            cameraControlsRightInset={cameraControlsRightInset}
             onTerritoryTap={onTerritoryTap}
             onPerformanceEvidence={onPerformanceEvidence}
           />

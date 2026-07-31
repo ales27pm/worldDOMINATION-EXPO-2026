@@ -1,13 +1,22 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Pressable,
-  TextInput, Switch, Alert,
+  TextInput, Switch, Alert, useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useGame } from '@/context/GameContext';
 import { Colors } from '@/constants/colors';
-import { GENERAL_LIST } from '@/game/generals';
+import { GENERAL_LIST, GENERALS } from '@/game/generals';
+import {
+  ALLOCATION_OPTIONS,
+  CARD_RULE_OPTIONS,
+  OBJECTIVE_OPTIONS,
+  TURN_STYLE_OPTIONS,
+  mapSetupBriefing,
+  optionByValue,
+  setupBriefingLines,
+} from '@/game/setupBriefing';
 import { PLAYER_COLORS, TURN_STYLE_INFO } from '@/game/types';
 import type { Allocation, CardRule, GeneralId, Objective, TurnStyle } from '@/game/types';
 
@@ -18,31 +27,13 @@ interface PlayerConfig {
   generalId: GeneralId | null;
 }
 
-const OBJECTIVES: { value: Objective; label: string; desc: string }[] = [
-  { value: 'domination60', label: '60% Domination', desc: 'Hold 60% of territories' },
-  { value: 'domination80', label: '80% Domination', desc: 'Hold 80% of territories' },
-  { value: 'domination100', label: 'World Domination', desc: 'Conquer every territory' },
-  { value: 'capital', label: 'Capital RISK', desc: 'Capture enemy capitals' },
-  { value: 'mission', label: 'Secret Mission', desc: 'Complete a hidden objective' },
-];
-
-const ALLOCATIONS: { value: Allocation; label: string }[] = [
-  { value: 'random', label: 'Random Deal' },
-  { value: 'grab', label: 'Territory Grab' },
-  { value: 'election', label: 'Elections' },
-];
-
-const CARD_RULES: { value: CardRule; label: string }[] = [
-  { value: 'ascending', label: 'Ascending (classic)' },
-  { value: 'ascendingByOne', label: 'Ascending +1' },
-  { value: 'setValue', label: 'Set Value' },
-];
-
 const AI_GENERALS = GENERAL_LIST.slice(0, 8);
 
 export default function SetupScreen() {
   const router = useRouter();
   const { startGame } = useGame();
+  const { width, height } = useWindowDimensions();
+  const wideLayout = width >= 760 || width > height * 1.18;
 
   const [players, setPlayers] = useState<PlayerConfig[]>([
     { name: 'Commander', colorIdx: 0, isHuman: true, generalId: null },
@@ -55,6 +46,19 @@ export default function SetupScreen() {
   const [extraTerritories, setExtraTerritories] = useState(false);
   const [turnStyle, setTurnStyle] = useState<TurnStyle>('classic');
   const [restrictedReinforcement, setRestrictedReinforcement] = useState(false);
+  const objectiveBriefing = optionByValue(OBJECTIVE_OPTIONS, objective);
+  const allocationBriefing = optionByValue(ALLOCATION_OPTIONS, allocation);
+  const cardRuleBriefing = optionByValue(CARD_RULE_OPTIONS, cardRule);
+  const turnStyleBriefing = optionByValue(TURN_STYLE_OPTIONS, turnStyle);
+  const mapBriefing = mapSetupBriefing(extraTerritories);
+  const launchBriefing = setupBriefingLines({
+    objective,
+    allocation,
+    cardRule,
+    turnStyle,
+    useExtraTerritories: extraTerritories,
+    restrictedReinforcement,
+  });
 
   const addPlayer = () => {
     if (players.length >= 6) return;
@@ -113,9 +117,16 @@ export default function SetupScreen() {
         </View>
         <View style={styles.divider} />
 
-        <ScrollView contentContainerStyle={styles.content}>
+        <ScrollView contentContainerStyle={[styles.content, wideLayout && styles.contentWide]}>
           {/* Players */}
           <Section title="COMMANDERS">
+            <BriefingNote
+              title="Command table"
+              lines={[
+                'Human commanders receive handoff prompts for private missions and orders.',
+                'AI generals use distinct aggression, risk tolerance, unpredictability and honor.',
+              ]}
+            />
             {players.map((p, idx) => (
               <PlayerRow
                 key={idx}
@@ -136,38 +147,56 @@ export default function SetupScreen() {
           {/* Objective */}
           <Section title="VICTORY OBJECTIVE">
             <SegmentedPicker
-              options={OBJECTIVES.map((o) => ({ value: o.value, label: o.label }))}
+              options={OBJECTIVE_OPTIONS}
               value={objective}
               onChange={(v) => setObjective(v as Objective)}
+            />
+            <BriefingNote
+              title={objectiveBriefing.label}
+              lines={[objectiveBriefing.desc, objectiveBriefing.tableCue]}
             />
           </Section>
 
           {/* Allocation */}
           <Section title="TERRITORY ALLOCATION">
             <SegmentedPicker
-              options={ALLOCATIONS}
+              options={ALLOCATION_OPTIONS}
               value={allocation}
               onChange={(v) => setAllocation(v as Allocation)}
+            />
+            <BriefingNote
+              title={allocationBriefing.label}
+              lines={[allocationBriefing.desc, allocationBriefing.tableCue]}
             />
           </Section>
 
           {/* Card Rule */}
           <Section title="CARD TRADING RULE">
             <SegmentedPicker
-              options={CARD_RULES}
+              options={CARD_RULE_OPTIONS}
               value={cardRule}
               onChange={(v) => setCardRule(v as CardRule)}
+            />
+            <BriefingNote
+              title={cardRuleBriefing.label}
+              lines={[cardRuleBriefing.desc, cardRuleBriefing.tableCue]}
             />
           </Section>
 
           {/* Turn Style */}
           <Section title="TURN STYLE">
             <SegmentedPicker
-              options={(Object.keys(TURN_STYLE_INFO) as TurnStyle[]).map((v) => ({ value: v, label: TURN_STYLE_INFO[v].name }))}
+              options={TURN_STYLE_OPTIONS}
               value={turnStyle}
               onChange={(v) => setTurnStyle(v as TurnStyle)}
             />
-            <Text style={styles.switchDesc}>{TURN_STYLE_INFO[turnStyle].description}</Text>
+            <BriefingNote
+              title={turnStyleBriefing.label}
+              lines={[
+                TURN_STYLE_INFO[turnStyle].description,
+                turnStyleBriefing.tableCue,
+              ]}
+            />
             {turnStyle === 'sameTime' && (
               <View style={styles.switchRow}>
                 <View style={{ flex: 1 }}>
@@ -192,7 +221,7 @@ export default function SetupScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={styles.switchLabel}>Extended Map</Text>
                 <Text style={styles.switchDesc}>
-                  Add 6 extra territories (Hawaii, Svalbard, Falklands, etc.)
+                  {extraTerritories ? 'Enabled' : 'Disabled'}: {mapBriefing.territoryCount} territories. {mapBriefing.desc}
                 </Text>
               </View>
               <Switch
@@ -201,6 +230,17 @@ export default function SetupScreen() {
                 trackColor={{ true: Colors.gold, false: Colors.border }}
                 thumbColor={extraTerritories ? Colors.goldDim : Colors.textMuted}
               />
+            </View>
+            <BriefingNote title={mapBriefing.label} lines={[mapBriefing.tableCue]} />
+          </Section>
+
+          <Section title="CAMPAIGN ORDER">
+            <View style={styles.summaryPanel}>
+              {launchBriefing.map((line) => (
+                <Text key={line} style={styles.summaryLine}>
+                  {line}
+                </Text>
+              ))}
             </View>
           </Section>
 
@@ -223,6 +263,19 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
+function BriefingNote({ title, lines }: { title: string; lines: string[] }) {
+  return (
+    <View style={styles.briefingNote}>
+      <Text style={styles.briefingTitle}>{title}</Text>
+      {lines.map((line) => (
+        <Text key={line} style={styles.briefingText}>
+          {line}
+        </Text>
+      ))}
+    </View>
+  );
+}
+
 function PlayerRow({
   player, idx, canRemove, onChange, onRemove,
 }: {
@@ -233,31 +286,41 @@ function PlayerRow({
   onRemove: () => void;
 }) {
   const color = PLAYER_COLORS[player.colorIdx]?.hex ?? '#888';
+  const general = player.generalId ? GENERALS[player.generalId] : null;
   return (
-    <View style={styles.playerRow}>
-      <View style={[styles.colorDot, { backgroundColor: color }]} />
-      <TextInput
-        style={[styles.nameInput, { color: Colors.text }]}
-        value={player.name}
-        onChangeText={(name) => onChange({ name })}
-        placeholderTextColor={Colors.textMuted}
-        maxLength={20}
-      />
-      <View style={styles.humanToggle}>
-        <Text style={styles.humanLabel}>{player.isHuman ? 'Human' : 'AI'}</Text>
-        <Switch
-          value={player.isHuman}
-          onValueChange={(v) => onChange({ isHuman: v, generalId: v ? null : (AI_GENERALS[idx]?.id ?? null) })}
-          trackColor={{ true: Colors.gold, false: Colors.border }}
-          thumbColor={player.isHuman ? Colors.goldDim : Colors.textMuted}
-          style={{ transform: [{ scale: 0.75 }] }}
+    <View style={styles.playerCard}>
+      <View style={styles.playerRow}>
+        <View style={[styles.colorDot, { backgroundColor: color }]} />
+        <TextInput
+          style={[styles.nameInput, { color: Colors.text }]}
+          value={player.name}
+          onChangeText={(name) => onChange({ name })}
+          placeholderTextColor={Colors.textMuted}
+          maxLength={20}
         />
+        <View style={styles.humanToggle}>
+          <Text style={styles.humanLabel}>{player.isHuman ? 'Human' : 'AI'}</Text>
+          <Switch
+            value={player.isHuman}
+            onValueChange={(v) => onChange({ isHuman: v, generalId: v ? null : (AI_GENERALS[idx]?.id ?? null) })}
+            trackColor={{ true: Colors.gold, false: Colors.border }}
+            thumbColor={player.isHuman ? Colors.goldDim : Colors.textMuted}
+            style={{ transform: [{ scale: 0.75 }] }}
+          />
+        </View>
+        {canRemove && (
+          <Pressable onPress={onRemove} style={styles.removeBtn}>
+            <Text style={styles.removeBtnText}>✕</Text>
+          </Pressable>
+        )}
       </View>
-      {canRemove && (
-        <Pressable onPress={onRemove} style={styles.removeBtn}>
-          <Text style={styles.removeBtnText}>✕</Text>
-        </Pressable>
-      )}
+      <Text style={styles.commanderBrief} numberOfLines={3}>
+        {player.isHuman
+          ? 'Local commander: handoff privacy, manual decisions and direct table feedback.'
+          : general
+            ? `${general.name}: ${general.description}`
+            : 'AI general: automated campaign decisions.'}
+      </Text>
     </View>
   );
 }
@@ -297,16 +360,43 @@ const styles = StyleSheet.create({
   title: { color: Colors.gold, fontFamily: 'IMFellEnglishSC_400Regular', fontSize: 14, letterSpacing: 3 },
   divider: { height: 1, backgroundColor: Colors.border, marginHorizontal: 16 },
   content: { padding: 16, gap: 24, paddingBottom: 40 },
+  contentWide: { width: '100%', maxWidth: 920, alignSelf: 'center' },
   section: { gap: 10 },
   sectionTitle: {
     color: Colors.goldDim, fontFamily: 'Alegreya_600SemiBold', fontSize: 11,
     letterSpacing: 3, textTransform: 'uppercase',
   },
   sectionContent: { gap: 8 },
+  briefingNote: {
+    backgroundColor: 'rgba(238,229,201,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(222,190,115,0.24)',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 4,
+  },
+  briefingTitle: {
+    color: Colors.gold,
+    fontFamily: 'Alegreya_600SemiBold',
+    fontSize: 13,
+  },
+  briefingText: {
+    color: Colors.textMuted,
+    fontFamily: 'Alegreya_400Regular',
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  playerCard: {
+    backgroundColor: Colors.bgCard,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    gap: 8,
+  },
   playerRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: Colors.bgCard, padding: 12, borderWidth: 1, borderColor: Colors.border,
   },
+  commanderBrief: { color: Colors.textMuted, fontFamily: 'Alegreya_400Regular', fontSize: 12, lineHeight: 16 },
   colorDot: { width: 14, height: 14, borderRadius: 7 },
   nameInput: {
     flex: 1, fontFamily: 'Alegreya_500Medium', fontSize: 14,
@@ -332,6 +422,19 @@ const styles = StyleSheet.create({
   switchRow: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: Colors.bgCard, padding: 12, borderWidth: 1, borderColor: Colors.border },
   switchLabel: { color: Colors.text, fontFamily: 'Alegreya_600SemiBold', fontSize: 14 },
   switchDesc: { color: Colors.textMuted, fontFamily: 'Alegreya_400Regular', fontSize: 12, marginTop: 2 },
+  summaryPanel: {
+    backgroundColor: Colors.bgCard,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    padding: 12,
+    gap: 6,
+  },
+  summaryLine: {
+    color: Colors.textMuted,
+    fontFamily: 'Alegreya_400Regular',
+    fontSize: 12,
+    lineHeight: 17,
+  },
   startBtn: {
     backgroundColor: Colors.gold, paddingVertical: 18, alignItems: 'center', marginTop: 8,
   },

@@ -3,6 +3,11 @@ import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { Colors } from '@/constants/colors';
 import { MAP_HUD_TEXT_SHADOW, MapHud } from '@/constants/mapHud';
 import { allianceBetween } from '@/game/analysis';
+import {
+  buildCommandStatus,
+  type CommandStatus,
+  type CommandTone,
+} from '@/game/commandStatus';
 import { TERRITORY_MAP } from '@/game/mapData';
 import { ALLIANCE_LEVEL_INFO } from '@/game/types';
 import type { GameAction, GameState, TerritoryId } from '@/game/types';
@@ -42,6 +47,14 @@ export default function GamePanel({
 
   const selectedTerritory = selected ? game.territories[selected] : null;
   const selectedOwned = selectedTerritory?.owner === player.id;
+  const commandStatus = buildCommandStatus({
+    game,
+    playerId: player.id,
+    selected,
+    targetsCount: targets.size,
+    stagedMove,
+    diceCount,
+  });
 
   const renderPhaseHint = () => {
     switch (phase) {
@@ -435,12 +448,88 @@ export default function GamePanel({
         <Text style={styles.phaseHint}>{renderPhaseHint()}</Text>
       )}
 
+      <CommandStatusBar status={commandStatus} />
+
       {/* Action area */}
       <View style={styles.actions}>
         {renderActions()}
       </View>
     </View>
   );
+}
+
+function CommandStatusBar({ status }: { status: CommandStatus | null }) {
+  if (!status) return null;
+  return (
+    <View
+      style={[styles.commandStatus, toneStyle(status.tone, 'status')]}
+      accessibilityRole="summary"
+      accessibilityLabel={`${status.headline}. ${status.chips
+        .map((chip) => `${chip.label} ${chip.value}`)
+        .join(', ')}`}
+    >
+      <Text style={[styles.commandStatusHeadline, toneStyle(status.tone, 'text')]} numberOfLines={2}>
+        {status.headline}
+      </Text>
+      <View style={styles.commandChips}>
+        {status.chips.map((chip) => (
+          <View
+            key={`${chip.label}-${chip.value}`}
+            style={[styles.commandChip, toneStyle(chip.tone ?? status.tone, 'chip')]}
+          >
+            <Text style={styles.commandChipLabel}>{chip.label}</Text>
+            <Text style={[styles.commandChipValue, toneStyle(chip.tone ?? status.tone, 'text')]}>
+              {chip.value}
+            </Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function toneStyle(
+  tone: CommandTone,
+  slot: 'chip' | 'status' | 'text',
+) {
+  const palette: Record<CommandTone, { border: string; background: string; color: string }> = {
+    active: {
+      border: 'rgba(222,190,115,0.45)',
+      background: 'rgba(222,190,115,0.08)',
+      color: Colors.gold,
+    },
+    blocked: {
+      border: 'rgba(186,38,43,0.55)',
+      background: 'rgba(117,21,27,0.18)',
+      color: Colors.textCrimson,
+    },
+    complete: {
+      border: 'rgba(144,192,128,0.45)',
+      background: 'rgba(80,112,64,0.14)',
+      color: '#b6d49f',
+    },
+    danger: {
+      border: 'rgba(224,80,64,0.55)',
+      background: 'rgba(157,37,41,0.16)',
+      color: '#efb199',
+    },
+    sealed: {
+      border: 'rgba(155,118,70,0.62)',
+      background: 'rgba(222,190,115,0.12)',
+      color: Colors.goldDim,
+    },
+    waiting: {
+      border: 'rgba(201,183,146,0.34)',
+      background: 'rgba(21,13,9,0.18)',
+      color: Colors.textMuted,
+    },
+  };
+  const values = palette[tone];
+  if (slot === 'text') return { color: values.color };
+  if (slot === 'chip') {
+    return { borderColor: values.border, backgroundColor: values.background };
+  }
+  return { borderColor: values.border };
 }
 
 function ActionBtn({ label, onPress, gold, flex, disabled }: {
@@ -450,6 +539,8 @@ function ActionBtn({ label, onPress, gold, flex, disabled }: {
     <Pressable
       onPress={onPress}
       disabled={disabled}
+      accessibilityRole="button"
+      accessibilityState={{ disabled: Boolean(disabled) }}
       style={({ pressed }) => [
         styles.btn,
         gold && styles.btnGold,
@@ -474,6 +565,9 @@ function Stepper({ value, min, max, onChange }: {
         onPress={() => onChange(Math.max(min, value - 1))}
         style={styles.stepBtn}
         disabled={value <= min}
+        accessibilityRole="button"
+        accessibilityLabel="Decrease armies"
+        accessibilityState={{ disabled: value <= min }}
       >
         <Text style={styles.stepBtnText}>−</Text>
       </Pressable>
@@ -482,6 +576,9 @@ function Stepper({ value, min, max, onChange }: {
         onPress={() => onChange(Math.min(max, value + 1))}
         style={styles.stepBtn}
         disabled={value >= max}
+        accessibilityRole="button"
+        accessibilityLabel="Increase armies"
+        accessibilityState={{ disabled: value >= max }}
       >
         <Text style={styles.stepBtnText}>+</Text>
       </Pressable>
@@ -542,6 +639,47 @@ const styles = StyleSheet.create({
   allianceBadge: { ...MAP_HUD_TEXT_SHADOW, color: '#90a860', fontFamily: 'Alegreya_500Medium', fontSize: 10 },
   phaseHint: { ...MAP_HUD_TEXT_SHADOW, color: Colors.textMuted, fontFamily: 'Alegreya_400Regular', fontSize: 12 },
   hint: { ...MAP_HUD_TEXT_SHADOW, color: Colors.textMuted, fontFamily: 'Alegreya_400Regular', fontSize: 12 },
+  commandStatus: {
+    borderWidth: 1,
+    borderColor: 'rgba(222,190,115,0.36)',
+    backgroundColor: 'rgba(21,13,9,0.16)',
+    paddingHorizontal: 9,
+    paddingVertical: 7,
+    gap: 6,
+  },
+  commandStatusHeadline: {
+    ...MAP_HUD_TEXT_SHADOW,
+    color: Colors.gold,
+    fontFamily: 'Alegreya_600SemiBold',
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  commandChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 5 },
+  commandChip: {
+    minHeight: 26,
+    borderWidth: 1,
+    borderColor: 'rgba(201,183,146,0.28)',
+    backgroundColor: 'rgba(21,13,9,0.18)',
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 5,
+  },
+  commandChipLabel: {
+    ...MAP_HUD_TEXT_SHADOW,
+    color: Colors.textMuted,
+    fontFamily: 'Alegreya_500Medium',
+    fontSize: 9,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  commandChipValue: {
+    ...MAP_HUD_TEXT_SHADOW,
+    color: Colors.gold,
+    fontFamily: 'Alegreya_700Bold',
+    fontSize: 12,
+  },
   actions: { gap: 6 },
   actionGroup: { gap: 6 },
   deployRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },

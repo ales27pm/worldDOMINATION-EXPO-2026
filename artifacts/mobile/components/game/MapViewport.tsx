@@ -58,6 +58,7 @@ interface MapViewportProps {
   game: GameState;
   selected: TerritoryId | null;
   onBoardTap: (x: number, y: number) => void;
+  cameraControlsRightInset?: number;
   children: React.ReactNode;
 }
 
@@ -89,6 +90,7 @@ export function MapViewport({
   game,
   selected,
   onBoardTap,
+  cameraControlsRightInset,
   children,
 }: MapViewportProps) {
   const [layout, setLayout] = useState({ w: 0, h: 0 });
@@ -588,7 +590,14 @@ export function MapViewport({
 
       <View
         testID="map-camera-controls"
-        style={[styles.cluster, isLandscape && styles.clusterLandscape]}
+        style={[
+          styles.cluster,
+          isLandscape && styles.clusterLandscape,
+          isLandscape &&
+            cameraControlsRightInset !== undefined && {
+              right: cameraControlsRightInset,
+            },
+        ]}
         pointerEvents="box-none"
       >
         <ClusterButton

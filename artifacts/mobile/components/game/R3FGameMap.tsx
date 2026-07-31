@@ -36,6 +36,7 @@ import {
 } from "three";
 
 import { R3FArmyLayer } from "@/components/game/R3FArmyLayer";
+import R3FCommandRoom from "@/components/game/R3FCommandRoom";
 import { R3FGestureSurface } from "@/components/game/R3FGestureSurface";
 import R3FTable from "@/components/game/R3FTable";
 import R3FTerritoryLabels from "@/components/game/R3FTerritoryLabels";
@@ -118,6 +119,7 @@ import {
 interface Props {
   game: GameState;
   model: MapSceneModel;
+  cameraControlsRightInset?: number;
   onTerritoryTap: (id: TerritoryId) => void;
   onPerformanceEvidence?: (evidence: MapPerformanceEvidence) => void;
 }
@@ -147,6 +149,9 @@ interface WebWheelEvent {
 
 interface SceneBridgeState extends PickerState {
   projected: Record<string, { x: number; y: number }>;
+  roomMeshCount: number;
+  texturedRoomMeshCount: number;
+  texturedTableMeshCount: number;
   territoryLabelCount: number;
 }
 
@@ -305,7 +310,7 @@ function BattleEffect({
     [lineGeometry, lineMaterial],
   );
 
-  useFrame(() => {
+  useFrame((_state, frameDeltaSeconds) => {
     const visibilityRevision = getBattleSceneVisibilityRevision();
     if (observedVisibilityRevision.current !== visibilityRevision) {
       observedVisibilityRevision.current = visibilityRevision;
@@ -329,10 +334,10 @@ function BattleEffect({
       if (Platform.OS !== "web") invalidate();
       return;
     }
-    const deltaSeconds = activeFrameDeltaSeconds(
-      previousFrameAtMs,
-      frameAtMs,
-    );
+    const deltaSeconds =
+      Platform.OS === "web"
+        ? Math.min(frameDeltaSeconds, MAX_ACTIVE_FRAME_GAP_MS / 1000)
+        : activeFrameDeltaSeconds(previousFrameAtMs, frameAtMs);
     if (deltaSeconds === null) {
       elapsed.current = 0;
       completed.current = false;
@@ -428,6 +433,7 @@ function CameraRig({
 }) {
   const camera = useThree((state) => state.camera);
   const invalidate = useThree((state) => state.invalidate);
+  const updatePointerEvents = useThree((state) => state.events.update);
   const onCameraIdleRef = useRef(onCameraIdle);
   onCameraIdleRef.current = onCameraIdle;
   const lastApplied = useRef({
@@ -461,6 +467,7 @@ function CameraRig({
         perspectiveCamera.updateProjectionMatrix();
       }
       camera.updateMatrixWorld(true);
+      updatePointerEvents?.();
       previous.cx = current.cx;
       previous.cy = current.cy;
       previous.vw = current.vw;
@@ -513,6 +520,15 @@ function SceneProjection({
   return null;
 }
 
+function meshUsesTexture(mesh: Mesh): boolean {
+  const materials = Array.isArray(mesh.material)
+    ? mesh.material
+    : [mesh.material];
+  return materials.some((material) =>
+    Boolean((material as { map?: unknown }).map),
+  );
+}
+
 function SceneBridge({
   model,
   layout,
@@ -551,10 +567,23 @@ function SceneBridge({
 
   const publishBridge = useCallback(() => {
     const meshes: Mesh[] = [];
+    let roomMeshCount = 0;
+    let texturedRoomMeshCount = 0;
+    let texturedTableMeshCount = 0;
     scene.traverse((object) => {
       const mesh = object as Mesh;
       if (mesh.isMesh && mesh.name.startsWith("pick__")) {
         meshes.push(mesh);
+      }
+      if (!mesh.isMesh) return;
+
+      const usesTexture = meshUsesTexture(mesh);
+      if (mesh.name.startsWith("command_room_")) {
+        roomMeshCount += 1;
+        if (usesTexture) texturedRoomMeshCount += 1;
+      }
+      if (mesh.name.startsWith("tabletop_") && usesTexture) {
+        texturedTableMeshCount += 1;
       }
     });
     const labelLayer = scene.getObjectByName("territory_labels");
@@ -567,6 +596,9 @@ function SceneBridge({
       invalidate,
       meshes,
       projected,
+      roomMeshCount,
+      texturedRoomMeshCount,
+      texturedTableMeshCount,
       territoryLabelCount,
     });
   }, [camera, invalidate, onBridge, projected, scene]);
@@ -706,17 +738,19 @@ function PerformanceProbe({
       const frameAtMs = activeFrameTimeMs();
       const previousFrameAtMs = lastBattleFrameAtMs.current;
       lastBattleFrameAtMs.current = frameAtMs;
-      const deltaSeconds =
+      const battleDeltaSeconds =
         previousFrameAtMs === null
           ? 0
-          : activeFrameDeltaSeconds(previousFrameAtMs, frameAtMs);
-      if (deltaSeconds === null) {
+          : Platform.OS === "web"
+            ? Math.min(deltaSeconds, MAX_ACTIVE_FRAME_GAP_MS / 1000)
+            : activeFrameDeltaSeconds(previousFrameAtMs, frameAtMs);
+      if (battleDeltaSeconds === null) {
         if (activeProfile.current?.accumulator.kind === "battle") {
           activeProfile.current = null;
         }
         return;
       }
-      activeDeltaSeconds = deltaSeconds;
+      activeDeltaSeconds = battleDeltaSeconds;
     } else {
       lastBattleFrameAtMs.current = null;
     }
@@ -832,9 +866,9 @@ function TabletopScene({
 }) {
   return (
     <>
-      <color attach="background" args={["#777169"]} />
-      <ambientLight intensity={0.78} />
-      <hemisphereLight args={["#fff0c4", "#72542c", 1.1]} />
+      <color attach="background" args={["#24201d"]} />
+      <ambientLight intensity={0.72} />
+      <hemisphereLight args={["#fff0c4", "#6b4b2d", 1.05]} />
       <directionalLight
         castShadow={DYNAMIC_SHADOWS}
         color="#fff1ca"
@@ -849,8 +883,9 @@ function TabletopScene({
         shadow-camera-top={7}
         shadow-camera-bottom={-7}
       />
-      <R3FTable />
       <Suspense fallback={null}>
+        <R3FCommandRoom />
+        <R3FTable />
         <R3FTerritoryMeshes
           model={model}
           onLoaded={onLoaded}
@@ -917,6 +952,7 @@ function CameraButton({
 export default function R3FGameMap({
   game,
   model,
+  cameraControlsRightInset,
   onTerritoryTap,
   onPerformanceEvidence,
 }: Props) {
@@ -1084,10 +1120,19 @@ export default function R3FGameMap({
   }, []);
 
   useEffect(() => {
-    const subscription = AppState.addEventListener("change", (state) => {
+    const changeSubscription = AppState.addEventListener("change", (state) => {
       if (state !== "active") attentionDirector.cancel("background");
     });
-    return () => subscription.remove();
+    const blurSubscription =
+      Platform.OS === "android"
+        ? AppState.addEventListener("blur", () =>
+            attentionDirector.cancel("background"),
+          )
+        : null;
+    return () => {
+      changeSubscription.remove();
+      blurSubscription?.remove();
+    };
   }, [attentionDirector]);
 
   useEffect(() => {
@@ -1227,6 +1272,19 @@ export default function R3FGameMap({
     updateR3FDebug({
       projected: projectedRef.current,
       pickerMeshCount: bridge.meshes.length,
+      room:
+        bridge.roomMeshCount > 0 ? "imperial-command-room" : null,
+      roomMeshCount: bridge.roomMeshCount,
+      roomTextureSet:
+        bridge.texturedRoomMeshCount >= 3
+          ? "imagegen-command-room-v1"
+          : null,
+      tableTextureSet:
+        bridge.texturedTableMeshCount >= 4
+          ? "imagegen-command-table-v1"
+          : null,
+      texturedRoomMeshCount: bridge.texturedRoomMeshCount,
+      texturedTableMeshCount: bridge.texturedTableMeshCount,
       territoryLabelCount: bridge.territoryLabelCount,
       camera: runtime.current.current,
     });
@@ -1699,6 +1757,10 @@ export default function R3FGameMap({
         style={[
           styles.cameraControls,
           layout.width > layout.height && styles.cameraControlsLandscape,
+          layout.width > layout.height &&
+            cameraControlsRightInset !== undefined && {
+              right: cameraControlsRightInset,
+            },
         ]}
       >
         <CameraButton

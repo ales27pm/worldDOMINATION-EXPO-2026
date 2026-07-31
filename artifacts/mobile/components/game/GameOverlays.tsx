@@ -1,8 +1,20 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, View, Text, StyleSheet, Pressable, Modal, ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Animated,
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  Modal,
+  ScrollView,
+  useWindowDimensions,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/colors';
 import { MAP_HUD_TEXT_SHADOW, MapHud } from '@/constants/mapHud';
+import { resolveDecisionSheetLayout, resolveDispatchLogLayout, type DecisionSheetKind } from '@/game/overlayLayout';
 import { useBattleSceneVisible } from '@/lib/battleScenes';
 import { TERRITORY_MAP } from '@/game/mapData';
 import { campaignEventFeedSnapshot } from '@/game/eventFeed';
@@ -18,28 +30,24 @@ export function HandoffOverlay({ game, dispatch }: { game: GameState; dispatch: 
   if (!game.awaitingHandoff) return null;
   const player = game.players[game.currentPlayer];
   return (
-    <Modal visible transparent animationType="fade">
-      <View style={styles.backdrop}>
-        <View testID="map-decision-sheet" style={styles.sheet}>
-          <Text style={styles.handoffTitle}>COMMANDER'S TURN</Text>
-          <View style={[styles.colorBar, { backgroundColor: player?.color ?? Colors.gold }]} />
-          <Text style={styles.handoffName}>{player?.name}</Text>
-          <Text style={styles.handoffPhase}>{game.phase.toUpperCase()} PHASE</Text>
-          {player?.mission && (
-            <View style={styles.missionBox}>
-              <Text style={styles.missionLabel}>SECRET MISSION</Text>
-              <Text style={styles.missionText}>{missionText(player.mission, game.players)}</Text>
-            </View>
-          )}
-          <Pressable
-            onPress={() => dispatch({ type: 'ACKNOWLEDGE_HANDOFF' })}
-            style={styles.primaryBtn}
-          >
-            <Text style={styles.primaryBtnText}>⚔ TAKE COMMAND</Text>
-          </Pressable>
+    <DecisionModal animationType="fade">
+      <Text style={styles.handoffTitle}>COMMANDER'S TURN</Text>
+      <View style={[styles.colorBar, { backgroundColor: player?.color ?? Colors.gold }]} />
+      <Text style={styles.handoffName}>{player?.name}</Text>
+      <Text style={styles.handoffPhase}>{game.phase.toUpperCase()} PHASE</Text>
+      {player?.mission && (
+        <View style={styles.missionBox}>
+          <Text style={styles.missionLabel}>SECRET MISSION</Text>
+          <Text style={styles.missionText}>{missionText(player.mission, game.players)}</Text>
         </View>
-      </View>
-    </Modal>
+      )}
+      <Pressable
+        onPress={() => dispatch({ type: 'ACKNOWLEDGE_HANDOFF' })}
+        style={styles.primaryBtn}
+      >
+        <Text style={styles.primaryBtnText}>⚔ TAKE COMMAND</Text>
+      </Pressable>
+    </DecisionModal>
   );
 }
 
@@ -169,36 +177,47 @@ function OccupySheet({
   const decrement = () => setCount((c) => Math.max(pending.min, c - 1));
   const increment = () => setCount((c) => Math.min(pending.max, c + 1));
   return (
-    <Modal visible transparent animationType="slide">
-      <View style={styles.backdrop}>
-        <View testID="map-decision-sheet" style={styles.sheet}>
-          <Text style={styles.occupyTitle}>OCCUPY TERRITORY</Text>
-          <Text style={styles.occupyDesc}>
-            March armies from <Text style={styles.bold}>{fromName}</Text> into{' '}
-            <Text style={styles.bold}>{toName}</Text>
-          </Text>
-          <View style={styles.stepperRow}>
-            <Pressable onPress={decrement} disabled={count <= pending.min} style={styles.stepBtn}>
-              <Text style={styles.stepBtnText}>−</Text>
-            </Pressable>
-            <Text style={styles.stepCount}>{count}</Text>
-            <Pressable onPress={increment} disabled={count >= pending.max} style={styles.stepBtn}>
-              <Text style={styles.stepBtnText}>+</Text>
-            </Pressable>
-            <Text style={styles.stepRange}>of {pending.min}–{pending.max}</Text>
-          </View>
-          <Text style={styles.sliderHint}>
-            Leave {fromArmies - count} armies in {fromName}
-          </Text>
-          <Pressable
-            onPress={() => onAdvance(count)}
-            style={styles.primaryBtn}
-          >
-            <Text style={styles.primaryBtnText}>ADVANCE</Text>
-          </Pressable>
-        </View>
+    <DecisionModal>
+      <Text style={styles.occupyTitle}>OCCUPY TERRITORY</Text>
+      <Text style={styles.occupyDesc}>
+        March armies from <Text style={styles.bold}>{fromName}</Text> into{' '}
+        <Text style={styles.bold}>{toName}</Text>
+      </Text>
+      <View style={styles.stepperRow}>
+        <Pressable
+          onPress={decrement}
+          disabled={count <= pending.min}
+          style={styles.stepBtn}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: count <= pending.min }}
+          accessibilityLabel="Reduce advancing armies"
+        >
+          <Text style={styles.stepBtnText}>−</Text>
+        </Pressable>
+        <Text style={styles.stepCount}>{count}</Text>
+        <Pressable
+          onPress={increment}
+          disabled={count >= pending.max}
+          style={styles.stepBtn}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: count >= pending.max }}
+          accessibilityLabel="Increase advancing armies"
+        >
+          <Text style={styles.stepBtnText}>+</Text>
+        </Pressable>
+        <Text style={styles.stepRange}>of {pending.min}–{pending.max}</Text>
       </View>
-    </Modal>
+      <Text style={styles.sliderHint}>
+        Leave {fromArmies - count} armies in {fromName}
+      </Text>
+      <Pressable
+        onPress={() => onAdvance(count)}
+        style={styles.primaryBtn}
+        accessibilityRole="button"
+      >
+        <Text style={styles.primaryBtnText}>ADVANCE</Text>
+      </Pressable>
+    </DecisionModal>
   );
 }
 
@@ -209,37 +228,35 @@ export function ProposalOverlay({ game, dispatch }: { game: GameState; dispatch:
   const from = game.players[proposal.from];
   const level = ALLIANCE_LEVEL_INFO[proposal.level];
   return (
-    <Modal visible transparent animationType="slide">
-      <View style={styles.backdrop}>
-        <View testID="map-decision-sheet" style={styles.sheet}>
-          <Text style={styles.proposalTitle}>DIPLOMATIC DISPATCH</Text>
-          <View style={[styles.colorBar, { backgroundColor: from?.color ?? Colors.gold }]} />
-          <Text style={styles.proposalName}>{from?.name}</Text>
-          <Text style={styles.proposalText}>
-            offers you a <Text style={styles.bold}>{level.name}</Text>
-          </Text>
-          <Text style={styles.proposalDesc}>
-            {proposal.level === 1 && 'A basic pact of non-aggression. Territories in your empire and continents are protected.'}
-            {proposal.level === 2 && 'A military alliance. Neither party may attack the other\'s territories.'}
-            {proposal.level === 3 && 'A grand alliance. Full mutual protection and cooperation.'}
-          </Text>
-          <View style={styles.proposalBtns}>
-            <Pressable
-              onPress={() => dispatch({ type: 'RESPOND_PROPOSAL', accept: false })}
-              style={styles.refuseBtn}
-            >
-              <Text style={styles.refuseBtnText}>REFUSE</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => dispatch({ type: 'RESPOND_PROPOSAL', accept: true })}
-              style={styles.acceptBtn}
-            >
-              <Text style={styles.acceptBtnText}>ACCEPT</Text>
-            </Pressable>
-          </View>
-        </View>
+    <DecisionModal>
+      <Text style={styles.proposalTitle}>DIPLOMATIC DISPATCH</Text>
+      <View style={[styles.colorBar, { backgroundColor: from?.color ?? Colors.gold }]} />
+      <Text style={styles.proposalName}>{from?.name}</Text>
+      <Text style={styles.proposalText}>
+        offers you a <Text style={styles.bold}>{level.name}</Text>
+      </Text>
+      <Text style={styles.proposalDesc}>
+        {proposal.level === 1 && 'A basic pact of non-aggression. Territories in your empire and continents are protected.'}
+        {proposal.level === 2 && 'A military alliance. Neither party may attack the other\'s territories.'}
+        {proposal.level === 3 && 'A grand alliance. Full mutual protection and cooperation.'}
+      </Text>
+      <View style={styles.proposalBtns}>
+        <Pressable
+          onPress={() => dispatch({ type: 'RESPOND_PROPOSAL', accept: false })}
+          style={styles.refuseBtn}
+          accessibilityRole="button"
+        >
+          <Text style={styles.refuseBtnText}>REFUSE</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => dispatch({ type: 'RESPOND_PROPOSAL', accept: true })}
+          style={styles.acceptBtn}
+          accessibilityRole="button"
+        >
+          <Text style={styles.acceptBtnText}>ACCEPT</Text>
+        </Pressable>
       </View>
-    </Modal>
+    </DecisionModal>
   );
 }
 
@@ -272,33 +289,40 @@ export function VictoryOverlay({
       : 0;
 
   return (
-    <Modal visible transparent animationType="fade">
-      <View style={styles.backdrop}>
-        {playerWon && <Fireworks />}
-        <View testID="map-victory-sheet" style={[styles.sheet, styles.victorySheet]}>
-          <Text style={[styles.victoryResult, playerWon ? styles.victory : styles.defeat]}>
-            {isSharedWin ? (playerWon ? '⚔ SHARED VICTORY' : '⚔ SHARED WIN') : playerWon ? '⚔ VICTORY' : '✕ DEFEAT'}
-          </Text>
-          <View style={[styles.colorBar, { backgroundColor: displayColor }]} />
-          <Text style={styles.victoryName}>{displayName}</Text>
-          <Text style={styles.victoryReason}>{game.winReason}</Text>
+    <>
+      <DecisionModal
+        kind="victory"
+        animationType="fade"
+        sheetTestID="map-victory-sheet"
+        contentStyle={styles.victorySheet}
+        behindSheet={playerWon ? <Fireworks /> : null}
+      >
+        <Text style={[styles.victoryResult, playerWon ? styles.victory : styles.defeat]}>
+          {isSharedWin ? (playerWon ? '⚔ SHARED VICTORY' : '⚔ SHARED WIN') : playerWon ? '⚔ VICTORY' : '✕ DEFEAT'}
+        </Text>
+        <View style={[styles.colorBar, { backgroundColor: displayColor }]} />
+        <Text style={styles.victoryName}>{displayName}</Text>
+        <Text style={styles.victoryReason}>{game.winReason}</Text>
 
-          <View style={styles.statsGrid}>
-            <StatItem label="Turns" value={String(game.turn)} />
-            <StatItem label="Battles" value={String(game.battlesFought)} />
-            <StatItem label="Territories" value={String(territoryCount)} />
-          </View>
-
-          <Pressable onPress={() => setShowStats(true)} style={styles.statsBtn}>
-            <Text style={styles.statsBtnText}>CAMPAIGN STATISTICS</Text>
-          </Pressable>
-          <Pressable onPress={onExit} style={styles.primaryBtn}>
-            <Text style={styles.primaryBtnText}>RETURN TO MAIN MENU</Text>
-          </Pressable>
+        <View style={styles.statsGrid}>
+          <StatItem label="Turns" value={String(game.turn)} />
+          <StatItem label="Battles" value={String(game.battlesFought)} />
+          <StatItem label="Territories" value={String(territoryCount)} />
         </View>
-        <StatsScreen game={game} visible={showStats} onClose={() => setShowStats(false)} />
-      </View>
-    </Modal>
+
+        <Pressable
+          onPress={() => setShowStats(true)}
+          style={styles.statsBtn}
+          accessibilityRole="button"
+        >
+          <Text style={styles.statsBtnText}>CAMPAIGN STATISTICS</Text>
+        </Pressable>
+        <Pressable onPress={onExit} style={styles.primaryBtn} accessibilityRole="button">
+          <Text style={styles.primaryBtnText}>RETURN TO MAIN MENU</Text>
+        </Pressable>
+      </DecisionModal>
+      <StatsScreen game={game} visible={showStats} onClose={() => setShowStats(false)} />
+    </>
   );
 }
 
@@ -315,26 +339,32 @@ export function SameTimeBattlePlayback({ game, dispatch }: { game: GameState; di
   if (!report) return null;
   const remaining = (game.sameTime?.playback.length ?? 1) - 1;
   return (
-    <Modal visible transparent animationType="fade">
-      <View style={styles.backdrop}>
-        <View testID="map-decision-sheet" style={[styles.sheet, styles.playbackSheet]}>
-          <Text style={styles.handoffTitle}>ROUND {game.turn} — BATTLE REPORT</Text>
-          <BattleReportCard battle={report} game={game} />
-          {remaining > 0 && (
-            <Text style={styles.playbackCount}>{remaining} more report{remaining === 1 ? '' : 's'} to review</Text>
-          )}
-          <Pressable onPress={() => dispatch({ type: 'ST_ACK_PLAYBACK' })} style={styles.primaryBtn}>
-            <Text style={styles.primaryBtnText}>{remaining > 0 ? 'CONTINUE →' : 'PROCEED TO MOVEMENT →'}</Text>
-          </Pressable>
-        </View>
-      </View>
-    </Modal>
+    <DecisionModal kind="playback" animationType="fade" contentStyle={styles.playbackSheet}>
+      <Text style={styles.handoffTitle}>ROUND {game.turn} — BATTLE REPORT</Text>
+      <BattleReportCard battle={report} game={game} />
+      {remaining > 0 && (
+        <Text style={styles.playbackCount}>{remaining} more report{remaining === 1 ? '' : 's'} to review</Text>
+      )}
+      <Pressable
+        onPress={() => dispatch({ type: 'ST_ACK_PLAYBACK' })}
+        style={styles.primaryBtn}
+        accessibilityRole="button"
+      >
+        <Text style={styles.primaryBtnText}>{remaining > 0 ? 'CONTINUE →' : 'PROCEED TO MOVEMENT →'}</Text>
+      </Pressable>
+    </DecisionModal>
   );
 }
 
 // ─── Dispatch Log Overlay ─────────────────────────────────────────────────────
 export function DispatchLog({ game, visible, onClose }: { game: GameState; visible: boolean; onClose: () => void }) {
   const snapshot = campaignEventFeedSnapshot(game.log, game.log.length);
+  const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const layout = useMemo(
+    () => resolveDispatchLogLayout({ width, height, insets }),
+    [height, insets, width],
+  );
   const toneColor: Record<string, string> = {
     info: Colors.text,
     gold: Colors.gold,
@@ -343,14 +373,42 @@ export function DispatchLog({ game, visible, onClose }: { game: GameState; visib
   };
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.backdrop}>
-        <SafeAreaView testID="map-dispatch-sheet" style={styles.dispatchSheet} edges={['bottom']}>
+      <View
+        style={[
+          styles.dispatchBackdrop,
+          layout.placement === 'right' ? styles.dispatchBackdropRight : styles.dispatchBackdropBottom,
+        ]}
+      >
+        <Pressable
+          testID="map-dispatch-input-blocker"
+          style={StyleSheet.absoluteFill}
+          onPress={onClose}
+          accessibilityRole="button"
+          accessibilityLabel="Dismiss field dispatch"
+        />
+        <View
+          testID="map-dispatch-sheet"
+          style={[
+            styles.dispatchSheet,
+            layout.placement === 'right' ? styles.dispatchSheetRight : styles.dispatchSheetBottom,
+            layout.borderEdge === 'left' ? styles.dispatchBorderLeft : styles.dispatchBorderTop,
+            {
+              width: layout.width,
+              maxHeight: layout.maxHeight,
+              paddingTop: layout.paddingTop,
+              paddingRight: layout.paddingRight,
+              paddingBottom: layout.paddingBottom,
+              paddingLeft: layout.paddingLeft,
+            },
+          ]}
+        >
           <View style={styles.dispatchHeader}>
             <Text style={styles.title}>FIELD DISPATCH</Text>
             <Pressable
               onPress={onClose}
               accessibilityRole="button"
               accessibilityLabel="Close field dispatch"
+              style={styles.dispatchCloseBtn}
             >
               <Text style={styles.closeText}>✕</Text>
             </Pressable>
@@ -369,7 +427,7 @@ export function DispatchLog({ game, visible, onClose }: { game: GameState; visib
               ))
             )}
           </ScrollView>
-        </SafeAreaView>
+        </View>
       </View>
     </Modal>
   );
@@ -384,6 +442,66 @@ function StatItem({ label, value }: { label: string; value: string }) {
   );
 }
 
+function DecisionModal({
+  children,
+  kind = "compact",
+  animationType = "slide",
+  contentStyle,
+  sheetTestID = "map-decision-sheet",
+  behindSheet,
+}: {
+  children: React.ReactNode;
+  kind?: DecisionSheetKind;
+  animationType?: "none" | "slide" | "fade";
+  contentStyle?: StyleProp<ViewStyle>;
+  sheetTestID?: string;
+  behindSheet?: React.ReactNode;
+}) {
+  const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const layout = useMemo(
+    () => resolveDecisionSheetLayout({ width, height, insets, kind }),
+    [height, insets, kind, width],
+  );
+  return (
+    <Modal visible transparent animationType={animationType}>
+      <View
+        style={[
+          styles.decisionBackdrop,
+          layout.placement === 'right' ? styles.decisionBackdropRight : styles.decisionBackdropBottom,
+        ]}
+      >
+        <View testID="map-decision-input-blocker" style={StyleSheet.absoluteFill} />
+        {behindSheet}
+        <View
+          testID={sheetTestID}
+          style={[
+            styles.decisionSheet,
+            layout.placement === 'right' ? styles.decisionSheetRight : styles.decisionSheetBottom,
+            layout.borderEdge === 'left' ? styles.decisionBorderLeft : styles.decisionBorderTop,
+            {
+              width: layout.width,
+              maxHeight: layout.maxHeight,
+              paddingTop: layout.paddingTop,
+              paddingRight: layout.paddingRight,
+              paddingBottom: layout.paddingBottom,
+              paddingLeft: layout.paddingLeft,
+            },
+          ]}
+        >
+          <ScrollView
+            bounces={false}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={[styles.decisionContent, contentStyle]}
+          >
+            {children}
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 const styles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: MapHud.scrim, justifyContent: 'center', alignItems: 'center', padding: 24 },
   sheet: {
@@ -393,6 +511,15 @@ const styles = StyleSheet.create({
   victorySheet: { gap: 16 },
   colorBar: { height: 3, borderRadius: 2, width: '100%' },
   bold: { ...MAP_HUD_TEXT_SHADOW, fontFamily: 'Alegreya_700Bold', color: Colors.text },
+  decisionBackdrop: { flex: 1, backgroundColor: MapHud.scrim },
+  decisionBackdropBottom: { justifyContent: 'flex-end' },
+  decisionBackdropRight: { alignItems: 'flex-end', justifyContent: 'flex-start' },
+  decisionSheet: { backgroundColor: MapHud.modal },
+  decisionSheetBottom: { alignSelf: 'stretch' },
+  decisionSheetRight: { flex: 1 },
+  decisionBorderTop: { borderTopWidth: 1, borderTopColor: Colors.borderGold },
+  decisionBorderLeft: { borderLeftWidth: 1, borderLeftColor: Colors.borderGold },
+  decisionContent: { gap: 14 },
 
   // Handoff
   handoffTitle: { ...MAP_HUD_TEXT_SHADOW, color: Colors.goldDim, fontFamily: 'Alegreya_600SemiBold', fontSize: 11, letterSpacing: 3, textAlign: 'center' },
@@ -465,11 +592,27 @@ const styles = StyleSheet.create({
   primaryBtnText: { color: Colors.bg, fontFamily: 'Alegreya_700Bold', fontSize: 14, letterSpacing: 3 },
 
   // Dispatch log
-  dispatchSheet: { backgroundColor: MapHud.modal, borderTopWidth: 1, borderTopColor: Colors.border, maxHeight: '70%' },
-  dispatchHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16 },
+  dispatchBackdrop: { flex: 1, backgroundColor: MapHud.scrim },
+  dispatchBackdropBottom: { justifyContent: 'flex-end' },
+  dispatchBackdropRight: { alignItems: 'flex-end', justifyContent: 'flex-start' },
+  dispatchSheet: { backgroundColor: MapHud.modal, gap: 10 },
+  dispatchSheetBottom: { alignSelf: 'stretch' },
+  dispatchSheetRight: { flex: 1 },
+  dispatchBorderTop: { borderTopWidth: 1, borderTopColor: Colors.borderGold },
+  dispatchBorderLeft: { borderLeftWidth: 1, borderLeftColor: Colors.borderGold },
+  dispatchHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
   title: { ...MAP_HUD_TEXT_SHADOW, color: Colors.gold, fontFamily: 'Alegreya_700Bold', fontSize: 14, letterSpacing: 3 },
-  closeText: { ...MAP_HUD_TEXT_SHADOW, color: Colors.textMuted, fontSize: 18, padding: 4 },
-  logContent: { padding: 16, gap: 8 },
+  dispatchCloseBtn: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: MapHud.control,
+  },
+  closeText: { ...MAP_HUD_TEXT_SHADOW, color: Colors.textMuted, fontSize: 18 },
+  logContent: { gap: 8, paddingBottom: 2 },
   logEntry: { flexDirection: 'row', gap: 8 },
   logTurn: { ...MAP_HUD_TEXT_SHADOW, color: Colors.textMuted, fontFamily: 'Alegreya_400Regular', fontSize: 10, minWidth: 24, paddingTop: 2 },
   logText: { ...MAP_HUD_TEXT_SHADOW, flex: 1, fontFamily: 'Alegreya_400Regular', fontSize: 13, lineHeight: 18 },

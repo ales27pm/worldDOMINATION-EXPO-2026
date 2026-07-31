@@ -128,6 +128,8 @@ function assertExportShape() {
     "HALL OF RECORDS",
     "Tournament High Scores",
     "MULTIPLAYER COMMAND",
+    "Server-authoritative Same Time command board",
+    "API ROUTE READY",
     "Quick Match",
     "Create Host Seat",
     "Joinable",
@@ -144,6 +146,8 @@ function assertExportShape() {
     "OUTLOOK",
     "Attacker edge",
     "No dispatches yet.",
+    "Campaign Statistics",
+    "Capital cities seized",
     "REINFORCE (SIM)",
     "Napoleon",
     "Wellington",
@@ -195,6 +199,17 @@ function assertExportShape() {
     `expected three bundled piece assets, found ${pieceAssets.length}`,
   );
   for (const file of pieceAssets) assertFile(file, "bundled piece asset");
+
+  const commandUiAssets = files.filter((file) =>
+    /assets\/ui\/(command-table-walnut|parchment-panel|imperial-command-seal)\.[^.]+\.(webp|png)$/.test(
+      file,
+    ),
+  );
+  assert(
+    commandUiAssets.length === 3,
+    `expected three bundled generated command UI assets, found ${commandUiAssets.length}`,
+  );
+  for (const file of commandUiAssets) assertFile(file, "bundled command UI asset");
 
   const battleViews = files.filter((file) =>
     /assets\/game\/battle-views\/[^/]+\.[^.]+\.webp$/.test(file),
@@ -542,6 +557,9 @@ async function assertDefaultR3FRenderer(page) {
         scene.territoryCount === 42 &&
         scene.pickerMeshCount === 42 &&
         scene.territoryLabelCount === 42 &&
+        scene.room === "imperial-command-room" &&
+        scene.roomTextureSet === "imagegen-command-room-v1" &&
+        scene.tableTextureSet === "imagegen-command-table-v1" &&
         shared?.rendererMode === "r3f" &&
         shared.sceneRevision === scene.sceneRevision
       );
@@ -573,6 +591,18 @@ async function assertR3FVerticalSlice(page) {
   assert(
     initial.renderer === "r3f",
     "R3F preview did not retain the requested renderer",
+  );
+  assert(
+    initial.room === "imperial-command-room",
+    `R3F preview did not mount the command room: ${JSON.stringify(initial.room)}`,
+  );
+  assert(
+    initial.roomTextureSet === "imagegen-command-room-v1",
+    `R3F preview did not expose room textures: ${JSON.stringify(initial.roomTextureSet)}`,
+  );
+  assert(
+    initial.tableTextureSet === "imagegen-command-table-v1",
+    `R3F preview did not expose table textures: ${JSON.stringify(initial.tableTextureSet)}`,
   );
   assert(
     initial.variant === "classic",
@@ -770,18 +800,20 @@ async function assertR3FVerticalSlice(page) {
   const viewport = page.viewportSize();
   assert(viewport, "R3F battle scene viewport was unavailable");
   await page.mouse.click(viewport.width / 2, viewport.height / 2);
-  await page.waitForFunction(
-    () =>
-      document.body.innerText.includes("TAP TO CONTINUE") ||
-      document.body.innerText.includes("RETREAT"),
-    null,
-    { timeout: 10000 },
-  );
-  const retreat = page.getByText(/RETREAT/);
-  if (await retreat.isVisible()) {
+  const retreat = page.getByText(/RETREAT/).last();
+  const continuePrompt = page.getByText("TAP TO CONTINUE").last();
+  const battleDecision = await Promise.race([
+    retreat
+      .waitFor({ state: "visible", timeout: 10000 })
+      .then(() => "retreat"),
+    continuePrompt
+      .waitFor({ state: "visible", timeout: 10000 })
+      .then(() => "continue"),
+  ]);
+  if (battleDecision === "retreat") {
     await retreat.click();
   } else {
-    await page.mouse.click(viewport.width / 2, viewport.height / 2);
+    await continuePrompt.click({ force: true });
   }
   await page.waitForFunction(
     () =>
@@ -1299,6 +1331,9 @@ async function assertRenderedPreview() {
       [
         "MULTIPLAYER COMMAND",
         "API Base URL",
+        "Server-authoritative Same Time command board",
+        "API ROUTE READY",
+        "NO LINKED MATCH",
         "Quick Match",
         "Create Host Seat",
         "Joinable",
@@ -1325,6 +1360,11 @@ async function assertRenderedPreview() {
         await assertTextWithinViewport(
           page,
           "MULTIPLAYER COMMAND",
+          "rendered multiplayer command screen",
+        );
+        await assertTextWithinViewport(
+          page,
+          "API ROUTE READY",
           "rendered multiplayer command screen",
         );
         await assertTextWithinViewport(
@@ -1651,6 +1691,62 @@ async function assertRenderedPreview() {
         );
       },
     );
+    await withFreshPage(
+      "/game?autostart=1&renderer=svg&victory=1",
+      [
+        "Napoleon",
+        "VICTORY",
+        "Capital cities seized",
+        "CAMPAIGN STATISTICS",
+      ],
+      "rendered landscape victory statistics screen",
+      async (page) => {
+        await assertNoHorizontalOverflow(
+          page,
+          "rendered landscape victory statistics screen",
+        );
+        const viewport = page.viewportSize();
+        assert(
+          viewport,
+          "rendered landscape victory statistics screen missing viewport size",
+        );
+        const victoryBox = await page
+          .getByTestId("map-victory-sheet")
+          .boundingBox();
+        assert(
+          victoryBox &&
+            victoryBox.x > viewport.width * 0.45 &&
+            victoryBox.x + victoryBox.width <= viewport.width + 1,
+          "victory sheet was not docked to the right edge",
+        );
+        await page
+          .getByText("CAMPAIGN STATISTICS", { exact: true })
+          .click({ timeout: 10000 });
+        const statsSheet = page.getByTestId("map-stats-sheet");
+        await statsSheet.waitFor({ state: "visible", timeout: 10000 });
+        const statsBox = await statsSheet.boundingBox();
+        assert(
+          statsBox &&
+            statsBox.x > viewport.width * 0.45 &&
+            statsBox.width >= 340 &&
+            statsBox.width <= 500 &&
+            statsBox.x + statsBox.width <= viewport.width + 1,
+          "statistics sheet was not a right-edge command rail",
+        );
+        const chartBox = await statsSheet.locator("svg").first().boundingBox();
+        assert(
+          chartBox && chartBox.width >= 260 && chartBox.height >= 150,
+          "statistics chart did not render with a stable landscape size",
+        );
+        await page.getByText("ARMIES", { exact: true }).click({ timeout: 10000 });
+        await page.getByText("CONTINUE", { exact: true }).click({ timeout: 10000 });
+        await statsSheet.waitFor({ state: "hidden", timeout: 10000 });
+        await page
+          .getByTestId("map-victory-sheet")
+          .waitFor({ state: "visible", timeout: 10000 });
+      },
+      VIEWPORTS.landscape,
+    );
     await assertBrowserSaveRestore();
 
     assert(
@@ -1663,7 +1759,7 @@ async function assertRenderedPreview() {
       `rendered browser emitted page errors: ${errors.join("; ")}`,
     );
     console.log(
-      `ok - rendered browser smoke covered home/setup/restricted setup/records/tournament/multiplayer command+battlefield/R3F multiplayer snapshots/classic standard+expanded maps/roster+dispatch/Same Time/orders/playback/R3F save-restore across portrait/landscape/desktop with ${loadedImages} game images`,
+      `ok - rendered browser smoke covered home/setup/restricted setup/records/tournament/multiplayer command+battlefield/R3F multiplayer snapshots/classic standard+expanded maps/roster+dispatch/victory statistics/Same Time/orders/playback/R3F save-restore across portrait/landscape/desktop with ${loadedImages} game images`,
     );
   } finally {
     if (browser) await browser.close();

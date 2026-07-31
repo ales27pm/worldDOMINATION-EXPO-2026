@@ -10,6 +10,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   Alert,
   Pressable,
+  ScrollView,
   Share,
   StyleSheet,
   Text,
@@ -33,6 +34,10 @@ import {
   mapRendererModeFromParam,
 } from "@/game/mapRendererMode";
 import { friendlyReachableSet } from "@/game/sameTime";
+import {
+  resolveCampaignHudLayout,
+  resolveRosterDrawerLayout,
+} from "@/game/overlayLayout";
 import { tournamentResult } from "@/game/tournament";
 import {
   isCompleteMapPerformanceEvidence,
@@ -140,6 +145,7 @@ type PreviewParams = {
   battleOrders?: string | string[];
   renderer?: string | string[];
   attackDemo?: string | string[];
+  victory?: string | string[];
   qualificationRun?: string | string[];
 };
 
@@ -238,9 +244,14 @@ function previewWantsAttackDemo(params: PreviewParams): boolean {
   return truthyParam(firstParam(params.attackDemo));
 }
 
+function previewWantsVictory(params: PreviewParams): boolean {
+  return truthyParam(firstParam(params.victory));
+}
+
 function previewPrepareFromParams(
   params: PreviewParams,
 ): ((state: GameState) => GameState) | undefined {
+  if (previewWantsVictory(params)) return previewVictoryState;
   if (previewWantsAttackDemo(params)) return previewR3FAttackState;
   if (previewWantsBattlePlayback(params))
     return previewSameTimeBattlePlaybackState;
@@ -274,6 +285,75 @@ function previewR3FAttackState(state: GameState): GameState {
         turn: state.turn,
         text: "Napoleon prepares a transatlantic assault from Brazil.",
         tone: "info",
+      },
+    ],
+    logCounter: state.logCounter + 1,
+  };
+}
+
+function previewVictoryState(state: GameState): GameState {
+  const territories = { ...state.territories };
+  const lastPlayerId = Math.max(0, state.players.length - 1);
+  state.activeIds.forEach((id, index) => {
+    const preferredOwner =
+      index < 24 ? 0 : index < 32 ? 1 : index < 38 ? 2 : 3;
+    const owner = Math.min(preferredOwner, lastPlayerId);
+    territories[id] = {
+      owner,
+      armies: owner === 0 ? 4 + (index % 3) : 1 + (index % 2),
+    };
+  });
+
+  return {
+    ...state,
+    phase: "gameOver",
+    currentPlayer: 0,
+    awaitingHandoff: false,
+    pendingProposal: null,
+    pendingOccupy: null,
+    winner: 0,
+    winReason: "Capital cities seized after eight turns.",
+    battlesFought: 19,
+    turn: 8,
+    reinforcementsRemaining: 0,
+    mustTrade: false,
+    territories,
+    history: [
+      {
+        turn: 1,
+        counts: [
+          { territories: 12, troops: 34 },
+          { territories: 10, troops: 28 },
+          { territories: 10, troops: 26 },
+          { territories: 10, troops: 24 },
+        ],
+      },
+      {
+        turn: 4,
+        counts: [
+          { territories: 17, troops: 58 },
+          { territories: 9, troops: 31 },
+          { territories: 8, troops: 25 },
+          { territories: 8, troops: 22 },
+        ],
+      },
+      {
+        turn: 7,
+        counts: [
+          { territories: 23, troops: 102 },
+          { territories: 8, troops: 27 },
+          { territories: 6, troops: 18 },
+          { territories: 5, troops: 15 },
+        ],
+      },
+    ],
+    log: [
+      ...state.log,
+      {
+        id: state.logCounter + 1,
+        turn: 8,
+        text: "Napoleon has seized the capitals and ended the campaign.",
+        tone: "gold",
       },
     ],
     logCounter: state.logCounter + 1,
@@ -537,7 +617,26 @@ export function CampaignScreen({
   // Landscape: the map spans the full width, chrome docks right (RISK II
   // keeps the board full-bleed — the panel must never eat the map).
   const { width: winW, height: winH } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const isLandscape = winW > winH;
+  const campaignHudLayout = useMemo(
+    () =>
+      resolveCampaignHudLayout({
+        width: winW,
+        height: winH,
+        insets,
+      }),
+    [insets, winH, winW],
+  );
+  const rosterDrawerLayout = useMemo(
+    () =>
+      resolveRosterDrawerLayout({
+        width: winW,
+        height: winH,
+        insets,
+      }),
+    [insets, winH, winW],
+  );
 
   const player = game.players[game.currentPlayer];
   const isHumanTurn = player?.isHuman ?? false;
@@ -978,6 +1077,9 @@ export function CampaignScreen({
           interactive={interactive}
           viewMode={viewMode}
           rendererMode={rendererMode}
+          cameraControlsRightInset={
+            campaignHudLayout.cameraControlsRightInset ?? undefined
+          }
           onTerritoryTap={handleTerritoryTap}
           onPerformanceEvidence={
             MAP_PERFORMANCE_QUALIFICATION_ENABLED
@@ -992,6 +1094,10 @@ export function CampaignScreen({
         style={[
           styles.legendOverlay,
           isLandscape && styles.legendOverlayLandscape,
+          {
+            bottom: campaignHudLayout.legendBottom,
+            left: campaignHudLayout.legendLeft,
+          },
         ]}
         pointerEvents="none"
       >
@@ -1097,13 +1203,21 @@ export function CampaignScreen({
       {/* Floating bottom chrome */}
       <SafeAreaView
         edges={isLandscape ? ["bottom", "right"] : ["bottom"]}
-        style={isLandscape ? styles.bottomChromeLandscape : styles.bottomChrome}
+        style={[
+          isLandscape ? styles.bottomChromeLandscape : styles.bottomChrome,
+          isLandscape && {
+            width: campaignHudLayout.commandWidth,
+            maxHeight: campaignHudLayout.commandMaxHeight,
+            paddingRight: campaignHudLayout.commandPaddingRight,
+            paddingBottom: campaignHudLayout.commandPaddingBottom,
+          },
+        ]}
         pointerEvents="box-none"
       >
         {/* War dispatches — translucent ticker, the original's scrolling readout */}
         {game.phase !== "gameOver" && (
           <View style={styles.tickerWrap} pointerEvents="none">
-            <EventTicker game={game} />
+            <EventTicker game={game} lines={campaignHudLayout.tickerLines} />
           </View>
         )}
 
@@ -1142,21 +1256,55 @@ export function CampaignScreen({
 
       {/* Roster overlay */}
       {rosterOpen && (
-        <View testID="map-roster-overlay" style={styles.rosterOverlay}>
-          <View style={styles.rosterHeader}>
-            <Text style={styles.rosterTitle}>COMMANDERS</Text>
-            <Pressable
-              onPress={() => setRosterOpen(false)}
-              accessibilityRole="button"
-              accessibilityLabel="Close commander roster"
-            >
-              <Text style={styles.rosterClose}>✕</Text>
-            </Pressable>
-          </View>
-          <PlayerRoster
-            game={game}
-            dispatch={canSubmitCurrentPlayer ? dispatch : undefined}
+        <View style={styles.rosterLayer} pointerEvents="box-none">
+          <Pressable
+            testID="map-overlay-input-blocker"
+            style={styles.overlayInputBlocker}
+            onPress={() => setRosterOpen(false)}
+            accessibilityRole="button"
+            accessibilityLabel="Dismiss open overlay"
           />
+          <View
+            testID="map-roster-overlay"
+            style={[
+              styles.rosterOverlay,
+              rosterDrawerLayout.placement === "right"
+                ? styles.rosterOverlayRight
+                : styles.rosterOverlayBottom,
+              rosterDrawerLayout.borderEdge === "left"
+                ? styles.rosterBorderLeft
+                : styles.rosterBorderTop,
+              {
+                width: rosterDrawerLayout.width,
+                maxHeight: rosterDrawerLayout.maxHeight,
+                paddingTop: rosterDrawerLayout.paddingTop,
+                paddingRight: rosterDrawerLayout.paddingRight,
+                paddingBottom: rosterDrawerLayout.paddingBottom,
+                paddingLeft: rosterDrawerLayout.paddingLeft,
+              },
+            ]}
+          >
+            <View style={styles.rosterHeader}>
+              <Text style={styles.rosterTitle}>COMMANDERS</Text>
+              <Pressable
+                onPress={() => setRosterOpen(false)}
+                accessibilityRole="button"
+                accessibilityLabel="Close commander roster"
+                style={styles.rosterCloseBtn}
+              >
+                <Text style={styles.rosterClose}>✕</Text>
+              </Pressable>
+            </View>
+            <ScrollView
+              contentContainerStyle={styles.rosterContent}
+              showsVerticalScrollIndicator={false}
+            >
+              <PlayerRoster
+                game={game}
+                dispatch={canSubmitCurrentPlayer ? dispatch : undefined}
+              />
+            </ScrollView>
+          </View>
         </View>
       )}
 
@@ -1203,8 +1351,8 @@ export function CampaignScreen({
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
-  legendOverlay: { position: "absolute", left: 10, bottom: 128, zIndex: 5 },
-  legendOverlayLandscape: { bottom: 10 },
+  legendOverlay: { position: "absolute", zIndex: 5 },
+  legendOverlayLandscape: {},
   topBar: { position: "absolute", top: 0, left: 0, right: 0, zIndex: 10 },
   viewRail: { alignItems: "flex-start", paddingLeft: 8, paddingTop: 8, gap: 6 },
   viewModeBtn: {
@@ -1247,9 +1395,6 @@ const styles = StyleSheet.create({
     bottom: 0,
     right: 0,
     zIndex: 10,
-    width: 348,
-    paddingRight: 6,
-    paddingBottom: 6,
   },
   tickerWrap: { paddingHorizontal: 12, marginBottom: 2 },
   battleContainer: { paddingHorizontal: 12, paddingVertical: 4 },
@@ -1301,24 +1446,45 @@ const styles = StyleSheet.create({
   },
 
   // Roster overlay
+  rosterLayer: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 90,
+  },
+  overlayInputBlocker: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.08)",
+    zIndex: 98,
+  },
   rosterOverlay: {
     position: "absolute",
-    right: 0,
-    top: 0,
-    bottom: 0,
-    width: 240,
     backgroundColor: MapHud.focused,
-    borderLeftWidth: 1,
-    borderLeftColor: Colors.border,
-    padding: 12,
     gap: 12,
     zIndex: 100,
+  },
+  rosterOverlayRight: {
+    top: 0,
+    right: 0,
+    bottom: 0,
+  },
+  rosterOverlayBottom: {
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  rosterBorderLeft: {
+    borderLeftWidth: 1,
+    borderLeftColor: Colors.border,
+  },
+  rosterBorderTop: {
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
   },
   rosterHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
+  rosterContent: { paddingBottom: 4, gap: 8 },
   rosterTitle: {
     ...MAP_HUD_TEXT_SHADOW,
     color: Colors.gold,
@@ -1326,10 +1492,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     letterSpacing: 3,
   },
+  rosterCloseBtn: {
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   rosterClose: {
     ...MAP_HUD_TEXT_SHADOW,
     color: Colors.textMuted,
     fontSize: 18,
-    padding: 4,
   },
 });

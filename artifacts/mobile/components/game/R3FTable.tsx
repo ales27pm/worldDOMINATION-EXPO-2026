@@ -1,14 +1,19 @@
-import React, { useMemo } from "react";
+import { Asset } from "expo-asset";
+import React, { useEffect, useMemo } from "react";
 import { Platform } from "react-native";
 import {
   BufferGeometry,
   ExtrudeGeometry,
   Float32BufferAttribute,
   Path,
+  RepeatWrapping,
   Shape,
   ShapeGeometry,
+  SRGBColorSpace,
+  TextureLoader,
 } from "three";
 
+import { useLoader } from "@/components/game/r3fRuntime";
 import {
   MAP_SCENE_BOARD_PIXELS,
   MAP_SCENE_TABLETOP_RADIUS,
@@ -17,6 +22,7 @@ import {
 } from "@/game/mapSceneGeometry";
 
 const DYNAMIC_SHADOWS = Platform.OS === "web";
+const TABLE_WALNUT_TEXTURE = require("../../assets/ui/command-table-walnut-r3f.png") as number;
 const TABLETOP_THICKNESS = 0.34;
 const APRON_HEIGHT = 0.44;
 const FOOT_DEPTH = 0.58;
@@ -97,6 +103,10 @@ function createFootGeometry(): ExtrudeGeometry {
 }
 
 export default function R3FTable() {
+  const walnutTexture = useLoader(
+    TextureLoader,
+    Asset.fromModule(TABLE_WALNUT_TEXTURE).uri,
+  );
   const tabletopSurfaceGeometry = useMemo(
     createTabletopSurfaceGeometry,
     [],
@@ -106,6 +116,15 @@ export default function R3FTable() {
   const tabletopCenterY = MAP_SCENE_TABLETOP_Y - TABLETOP_THICKNESS / 2;
   const apronCenterY =
     MAP_SCENE_TABLETOP_Y - TABLETOP_THICKNESS - APRON_HEIGHT / 2 + 0.04;
+
+  useEffect(() => {
+    walnutTexture.colorSpace = SRGBColorSpace;
+    walnutTexture.wrapS = RepeatWrapping;
+    walnutTexture.wrapT = RepeatWrapping;
+    walnutTexture.repeat.set(2, 2);
+    walnutTexture.anisotropy = 8;
+    walnutTexture.needsUpdate = true;
+  }, [walnutTexture]);
 
   return (
     <group name="table">
@@ -125,7 +144,8 @@ export default function R3FTable() {
           ]}
         />
         <meshStandardMaterial
-          color="#30231d"
+          map={walnutTexture}
+          color="#5f3320"
           roughness={0.5}
           metalness={0.02}
         />
@@ -138,7 +158,8 @@ export default function R3FTable() {
         receiveShadow={DYNAMIC_SHADOWS}
       >
         <meshStandardMaterial
-          color="#443027"
+          map={walnutTexture}
+          color="#ffffff"
           roughness={0.44}
           metalness={0.015}
         />
@@ -168,7 +189,8 @@ export default function R3FTable() {
           ]}
         />
         <meshStandardMaterial
-          color="#2c211c"
+          map={walnutTexture}
+          color="#4a2a1e"
           roughness={0.58}
           metalness={0.015}
         />
@@ -183,7 +205,8 @@ export default function R3FTable() {
           args={[MAP_SCENE_TABLETOP_RADIUS - 0.13, 0.14, 8, 48]}
         />
         <meshStandardMaterial
-          color="#4c372d"
+          map={walnutTexture}
+          color="#6a3c27"
           roughness={0.46}
           metalness={0.02}
         />
@@ -198,7 +221,8 @@ export default function R3FTable() {
           args={[MAP_SCENE_TABLETOP_RADIUS - 0.42, 0.1, 6, 48]}
         />
         <meshStandardMaterial
-          color="#241b17"
+          map={walnutTexture}
+          color="#3c241b"
           roughness={0.62}
           metalness={0.01}
         />

@@ -1,9 +1,11 @@
 import React, { useMemo, useState } from "react";
-import { Modal, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import Svg, { Circle, Line as SvgLine, Polyline } from "react-native-svg";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Colors } from "@/constants/colors";
+import { MAP_HUD_TEXT_SHADOW, MapHud } from "@/constants/mapHud";
 import { Fonts } from "@/constants/typography";
+import { resolveStatsSheetLayout } from "@/game/overlayLayout";
 import type { GameState, TurnSnapshot } from "@/game/types";
 
 /**
@@ -19,8 +21,6 @@ const METRICS: Array<{ key: Metric; label: string }> = [
   { key: "troops", label: "ARMIES" },
 ];
 
-const CHART_H = 200;
-
 export function StatsScreen({
   game,
   visible,
@@ -31,10 +31,14 @@ export function StatsScreen({
   onClose: () => void;
 }) {
   const [metric, setMetric] = useState<Metric>("territories");
-
-  // Chart width tracks the live window — rotation-safe.
-  const { width: sw } = useWindowDimensions();
-  const CHART_W = Math.min(sw, 430) - 72;
+  const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const layout = useMemo(
+    () => resolveStatsSheetLayout({ width, height, insets }),
+    [height, insets, width],
+  );
+  const chartWidth = layout.chartWidth;
+  const chartHeight = layout.chartHeight;
 
   // History snapshots plus a live "now" point so the graph reaches the end
   // of the campaign. Campaigns saved before history existed chart from the
@@ -64,14 +68,45 @@ export function StatsScreen({
   }, [snaps, metric]);
 
   const n = snaps.length;
-  const xFor = (i: number) => (n <= 1 ? CHART_W / 2 : (i / (n - 1)) * CHART_W);
-  const yFor = (value: number) => CHART_H - (value / max) * (CHART_H - 10);
+  const xFor = (i: number) => (n <= 1 ? chartWidth / 2 : (i / (n - 1)) * chartWidth);
+  const yFor = (value: number) => chartHeight - (value / max) * (chartHeight - 10);
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.backdrop}>
-        <SafeAreaView style={styles.safe}>
-          <View style={styles.sheet}>
+      <View
+        style={[
+          styles.backdrop,
+          layout.placement === "right" ? styles.backdropRight : styles.backdropBottom,
+        ]}
+      >
+        <Pressable
+          testID="map-stats-input-blocker"
+          style={StyleSheet.absoluteFill}
+          onPress={onClose}
+          accessibilityRole="button"
+          accessibilityLabel="Dismiss campaign statistics"
+        />
+        <View
+          testID="map-stats-sheet"
+          style={[
+            styles.sheet,
+            layout.placement === "right" ? styles.sheetRight : styles.sheetBottom,
+            layout.borderEdge === "left" ? styles.borderLeft : styles.borderTop,
+            {
+              width: layout.width,
+              maxHeight: layout.maxHeight,
+              paddingTop: layout.paddingTop,
+              paddingRight: layout.paddingRight,
+              paddingBottom: layout.paddingBottom,
+              paddingLeft: layout.paddingLeft,
+            },
+          ]}
+        >
+          <ScrollView
+            bounces={false}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.content}
+          >
             <Text style={styles.title}>Campaign Statistics</Text>
             <Text style={styles.subtitle}>
               {n > 1 ? `${n} rounds of the campaign` : "recorded from the final round"}
@@ -84,8 +119,14 @@ export function StatsScreen({
                   key={m.key}
                   onPress={() => setMetric(m.key)}
                   style={[styles.tab, metric === m.key && styles.tabActive]}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: metric === m.key }}
                 >
-                  <Text style={[styles.tabText, metric === m.key && styles.tabTextActive]}>
+                  <Text
+                    style={[styles.tabText, metric === m.key && styles.tabTextActive]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                  >
                     {m.label}
                   </Text>
                 </Pressable>
@@ -93,22 +134,22 @@ export function StatsScreen({
             </View>
 
             {/* Chart */}
-            <View style={styles.chartBox}>
+            <View style={[styles.chartBox, { width: chartWidth }]}>
               <Text style={styles.axisMax}>{max}</Text>
-              <Svg width={CHART_W} height={CHART_H}>
+              <Svg width={chartWidth} height={chartHeight}>
                 {[0.25, 0.5, 0.75, 1].map((f) => (
                   <SvgLine
                     key={f}
                     x1={0}
                     y1={yFor(max * f)}
-                    x2={CHART_W}
+                    x2={chartWidth}
                     y2={yFor(max * f)}
                     stroke="rgba(222,190,115,0.16)"
                     strokeWidth={1}
                   />
                 ))}
                 <SvgLine
-                  x1={0} y1={CHART_H} x2={CHART_W} y2={CHART_H}
+                  x1={0} y1={chartHeight} x2={chartWidth} y2={chartHeight}
                   stroke="rgba(222,190,115,0.4)" strokeWidth={1}
                 />
                 {game.players.map((p) =>
@@ -146,42 +187,54 @@ export function StatsScreen({
               {game.players.map((p) => (
                 <View key={p.id} style={styles.legendItem}>
                   <View style={[styles.legendChip, { backgroundColor: p.color }]} />
-                  <Text style={[styles.legendText, !p.alive && styles.legendDead]} numberOfLines={1}>
+                  <Text
+                    style={[styles.legendText, !p.alive && styles.legendDead]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                  >
                     {p.alive ? p.name : `✝ ${p.name}`}
                   </Text>
                 </View>
               ))}
             </View>
 
-            <Pressable onPress={onClose} style={styles.continueBtn}>
-              <Text style={styles.continueText}>CONTINUE</Text>
+            <Pressable onPress={onClose} style={styles.continueBtn} accessibilityRole="button">
+              <Text style={styles.continueText} numberOfLines={1} adjustsFontSizeToFit>
+                CONTINUE
+              </Text>
             </Pressable>
-          </View>
-        </SafeAreaView>
+          </ScrollView>
+        </View>
       </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: "rgba(8,5,2,0.92)" },
-  safe: { flex: 1, justifyContent: "center", alignItems: "center", padding: 20 },
+  backdrop: { flex: 1, backgroundColor: MapHud.scrim },
+  backdropBottom: { justifyContent: "flex-end" },
+  backdropRight: { alignItems: "flex-end", justifyContent: "flex-start" },
   sheet: {
-    width: "100%",
-    maxWidth: 430,
-    backgroundColor: Colors.bg,
+    backgroundColor: MapHud.modal,
     borderWidth: 1,
     borderColor: Colors.goldDim,
-    padding: 22,
+  },
+  sheetBottom: { alignSelf: "stretch" },
+  sheetRight: { height: "100%" },
+  borderTop: { borderTopWidth: 1, borderTopColor: Colors.borderGold },
+  borderLeft: { borderLeftWidth: 1, borderLeftColor: Colors.borderGold },
+  content: {
     gap: 14,
   },
   title: {
+    ...MAP_HUD_TEXT_SHADOW,
     color: Colors.gold,
     fontFamily: Fonts.display,
     fontSize: 26,
     textAlign: "center",
   },
   subtitle: {
+    ...MAP_HUD_TEXT_SHADOW,
     color: Colors.textMuted,
     fontFamily: "Alegreya_400Regular",
     fontSize: 12,
@@ -195,10 +248,13 @@ const styles = StyleSheet.create({
     borderColor: Colors.goldDim,
     paddingVertical: 7,
     paddingHorizontal: 18,
-    borderRadius: 999,
+    borderRadius: 3,
+    minHeight: 36,
+    justifyContent: "center",
   },
   tabActive: { backgroundColor: Colors.gold, borderColor: Colors.gold },
   tabText: {
+    ...MAP_HUD_TEXT_SHADOW,
     color: Colors.textMuted,
     fontFamily: "Alegreya_600SemiBold",
     fontSize: 11,
@@ -207,6 +263,7 @@ const styles = StyleSheet.create({
   tabTextActive: { color: Colors.bg },
   chartBox: { alignSelf: "center" },
   axisMax: {
+    ...MAP_HUD_TEXT_SHADOW,
     color: Colors.goldDim,
     fontFamily: "Alegreya_500Medium",
     fontSize: 10,
@@ -214,6 +271,7 @@ const styles = StyleSheet.create({
   },
   axisRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 4 },
   axisText: {
+    ...MAP_HUD_TEXT_SHADOW,
     color: Colors.goldDim,
     fontFamily: "Alegreya_500Medium",
     fontSize: 10,
@@ -229,9 +287,11 @@ const styles = StyleSheet.create({
   legendItem: { flexDirection: "row", alignItems: "center", gap: 6, maxWidth: "46%" },
   legendChip: { width: 10, height: 10, borderRadius: 5 },
   legendText: {
+    ...MAP_HUD_TEXT_SHADOW,
     color: Colors.text,
     fontFamily: "Alegreya_500Medium",
     fontSize: 12,
+    flexShrink: 1,
   },
   legendDead: { color: Colors.textMuted, textDecorationLine: "line-through" },
   continueBtn: {
@@ -239,6 +299,8 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
     alignItems: "center",
     marginTop: 2,
+    minHeight: 44,
+    justifyContent: "center",
   },
   continueText: {
     color: Colors.bg,
