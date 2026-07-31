@@ -49,6 +49,43 @@ const DEFEND_SLOTS: Array<[number, number]> = [
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
+function BattleSurface({
+  visible,
+  onDismiss,
+  onRequestClose,
+  children,
+}: {
+  visible: boolean;
+  onDismiss: () => void;
+  onRequestClose: () => void;
+  children: React.ReactNode;
+}) {
+  if (Platform.OS === "ios") {
+    return visible ? (
+      <View
+        accessibilityViewIsModal
+        importantForAccessibility="yes"
+        style={styles.inlineModal}
+      >
+        {children}
+      </View>
+    ) : null;
+  }
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      statusBarTranslucent
+      onDismiss={onDismiss}
+      onRequestClose={onRequestClose}
+    >
+      {children}
+    </Modal>
+  );
+}
+
 interface Props {
   game: GameState;
   dispatch: (action: GameAction) => void;
@@ -92,7 +129,9 @@ export function BattleView({ game, dispatch }: Props) {
   const dismiss = useCallback(() => {
     clearAll();
     setModalVisible(false);
-    if (Platform.OS === "android") {
+    if (Platform.OS === "ios") {
+      finishDismiss();
+    } else if (Platform.OS === "android") {
       setTimeout(finishDismiss, 0);
     }
   }, [clearAll, finishDismiss]);
@@ -223,11 +262,8 @@ export function BattleView({ game, dispatch }: Props) {
   const maxNextDice = aCount !== null ? Math.max(1, Math.min(3, aCount - 1)) : 3;
 
   return (
-    <Modal
+    <BattleSurface
       visible={modalVisible}
-      transparent
-      animationType="fade"
-      statusBarTranslucent
       onDismiss={finishDismiss}
       onRequestClose={dismiss}
     >
@@ -381,7 +417,7 @@ export function BattleView({ game, dispatch }: Props) {
           />
         )}
       </View>
-    </Modal>
+    </BattleSurface>
   );
 }
 
@@ -471,6 +507,10 @@ function AttackArrow({ color }: { color: string }) {
 }
 
 const styles = StyleSheet.create({
+  inlineModal: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 1000,
+  },
   root: { flex: 1, backgroundColor: "#000" },
   backdropFill: { width: "100%", height: "100%" },
   vignette: {

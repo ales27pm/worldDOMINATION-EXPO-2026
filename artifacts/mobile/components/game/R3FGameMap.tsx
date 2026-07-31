@@ -401,11 +401,17 @@ function BattleEffect({
             </mesh>
           );
         })}
-        <pointLight
-          color={battle.conquered ? battle.attackerColor : battle.defenderColor}
-          intensity={2.4}
-          distance={2.2}
-        />
+        {Platform.OS === "web" ? (
+          <pointLight
+            color={
+              battle.conquered
+                ? battle.attackerColor
+                : battle.defenderColor
+            }
+            intensity={2.4}
+            distance={2.2}
+          />
+        ) : null}
       </group>
     </group>
   );
@@ -930,8 +936,6 @@ export default function R3FGameMap({
   const nativeCameraPresentTimer = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
-  const [nativeCanvasGeneration, setNativeCanvasGeneration] =
-    useState(0);
   const cameraGestureDepth = useRef(0);
   const screenReaderEnabled = useRef(false);
   const reduceMotionEnabled = useRef(false);
@@ -946,7 +950,6 @@ export default function R3FGameMap({
   }
   const attentionDirector = attentionDirectorRef.current;
   const battleSceneVisible = useBattleSceneVisible();
-  const previousBattleSceneVisible = useRef(battleSceneVisible);
   const pickerRef = useRef<PickerState | null>(null);
   const projectedRef = useRef<Record<string, { x: number; y: number }>>({});
   const completedProfiles = useRef<CompletedMapFrameProfiles>({});
@@ -1136,21 +1139,8 @@ export default function R3FGameMap({
   );
 
   useEffect(() => {
-    const resumed =
-      previousBattleSceneVisible.current && !battleSceneVisible;
-    previousBattleSceneVisible.current = battleSceneVisible;
     if (battleSceneVisible) attentionDirector.cancel("modal");
-    if (resumed && Platform.OS === "ios") {
-      pickerRef.current = null;
-      setLoaded(false);
-      activateNativeCameraRendering();
-      setNativeCanvasGeneration((generation) => generation + 1);
-    }
-  }, [
-    activateNativeCameraRendering,
-    attentionDirector,
-    battleSceneVisible,
-  ]);
+  }, [attentionDirector, battleSceneVisible]);
 
   useEffect(() => {
     const update = advanceMapScenePresentation(
@@ -1652,7 +1642,6 @@ export default function R3FGameMap({
         onDoubleTap={handleDoubleTap}
       >
         <Canvas
-          key={`map-canvas-${nativeCanvasGeneration}`}
           style={StyleSheet.absoluteFillObject}
           shadows={DYNAMIC_SHADOWS}
           dpr={Platform.OS === "web" ? [1, 2] : 1.25}
