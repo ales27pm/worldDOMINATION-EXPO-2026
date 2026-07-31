@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "result": "pass",
+  "issuedAt": "2026-07-31T14:32:01.762Z",
+  "completedAt": "2026-07-31T14:32:01.873Z",
+  "releaseCommit": "b8e16b24fa9d717225c531a02ef1dc4fb0806b85",
+  "apiBaseUrl": "http://127.0.0.1:4401/api",
+  "apiHealth": "ok",
+  "transport": {
+    "rest": "http",
+    "realtime": "ws"
+  },
+  "match": {
+    "id": "4841c267-f689-4c24-82c1-2bfe3dd79386",
+    "hostPlayerId": 0,
+    "joinerPlayerId": 1,
+    "claimedSeatCount": 2,
+    "createdVersion": 1,
+    "joinedVersion": 2,
+    "readyVersion": 3,
+    "actionVersion": 4
+  },
+  "action": {
+    "type": "DEPLOY",
+    "actorPlayerId": 0,
+    "territory": "peru",
+    "armiesBefore": 3,
+    "armiesAfter": 4
+  },
+  "convergence": {
+    "restVersion": 4,
+    "hostSocketVersion": 4,
+    "joinerSocketVersion": 4,
+    "hostAndJoinerArmyCountsEqual": true
+  },
+  "identityIsolation": {
+    "hostScopedMatchVisible": true,
+    "joinerScopedMatchVisible": true,
+    "hostSnapshotExcludesJoinerToken": true,
+    "joinerSnapshotExcludesHostToken": true,
+    "hostScopedLobbyExcludesTokens": true,
+    "joinerScopedLobbyExcludesTokens": true,
+    "unrelatedScopedLobbyEmpty": true
+  },
+  "secretsPersisted": false
+}

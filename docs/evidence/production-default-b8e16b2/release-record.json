@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-07-31T14:37:41Z",
+  "release": {
+    "name": "production-default-b8e16b2",
+    "repository": "https://github.com/ales27pm/worldDOMINATION-EXPO-2026.git",
+    "branch": "main",
+    "commit": "b8e16b24fa9d717225c531a02ef1dc4fb0806b85",
+    "rendererDefault": "r3f",
+    "rendererFallback": "svg",
+    "qualificationCandidate": "391b4949ec67330cd6e390681a1be34de7bdffeb"
+  },
+  "web": {
+    "result": "pass",
+    "fileCount": 152,
+    "deployDryRunArchive": {
+      "byteCount": 16536,
+      "sha256": "9aea72a2f8f116212dc980c79841d6dc4a45f7128f225048d7c088506ff7cb4a"
+    },
+    "deployed": false
+  },
+  "android": {
+    "buildResult": "pass",
+    "runtimeResult": "pass",
+    "package": "com.worlddomination.app",
+    "versionName": "1.0.0",
+    "versionCode": 14,
+    "minSdk": 24,
+    "targetSdk": 36,
+    "compileSdk": 36,
+    "productionAab": {
+      "byteCount": 77608608,
+      "sha256": "ccc1a50e565b18aaec9cb3b00b443f2a085659052cbfeaec309fe9f24c97ce6c",
+      "bundletoolValidation": "pass",
+      "embeddedSceneAssets": "pass"
+    },
+    "emulatorUniversalApk": {
+      "byteCount": 114789911,
+      "sha256": "1e7a51c5e881b5e17dca12435177a1269f712a19e329e05a49790c011da01b92"
+    },
+    "acceptedDeviceClass": "emulator",
+    "smoke": {
+      "defaultRenderer": "r3f",
+      "pan": "pass",
+      "zoom": "pass",
+      "focus": "pass",
+      "fullBoard": "pass",
+      "rendererRoundTrip": "pass",
+      "fatalLogs": 0
+    },
+    "screenshots": {
+      "defaultR3fSha256": "9e04fe1e15297d121bf82ed880351a37e492341a24198190d931b84f9d8ad343",
+      "fullBoardSha256": "8dd6863a9641bc6b0d4f816623dcc9b843f168ba9fdcfd956b5a860074033ed9"
+    },
+    "googlePlaySubmission": {
+      "status": "blocked_missing_service_account_key",
+      "submissionCreated": false,
+      "detail": "EAS Submit uploaded the archive to its staging service but could not configure Google Play credentials non-interactively without a service-account JSON key."
+    }
+  },
+  "ios": {
+    "directXcodeBuildResult": "pass",
+    "storeBuildResult": "pass",
+    "package": "com.worlddomination.app",
+    "versionName": "1.0.0",
+    "buildNumber": 19,
+    "minimumOsVersion": "15.1",
+    "productionIpa": {
+      "byteCount": 28505880,
+      "sha256": "249958e76edbe8d4c53a73a1610bce7e2b4c8bbb0cea99d31ff68a6cafcd57f6",
+      "bundleSha256": "4acefdef44b6d5972903560b7057864b41bb2b4e9a1f1e907fa9d9e335eb70f7",
+      "signatureValidation": "pass",
+      "distribution": "App Store",
+      "embeddedSceneAssets": "pass"
+    },
+    "appStoreConnect": {
+      "appId": "6796113966",
+      "submissionId": "dbc34fa2-a5eb-4024-86bd-8466a910585a",
+      "uploadStatus": "complete",
+      "processingStatus": "testflight_available"
+    },
+    "physicalDevice": {
+      "model": "iPhone 16 Pro",
+      "os": "iOS 26.6 beta",
+      "directXcodeSmoke": "pass",
+      "testflightBuildInstalled": 19,
+      "testflightLaunch": "pass",
+      "testflightDefaultRenderer": "r3f",
+      "testflightFullBoard": "pass"
+    },
+    "screenshots": {
+      "directXcodeDefaultR3fSha256": "c4b37e95c95f917e0d687253701d9e29947b7a85433aa3eeefa60992a69d7dbf",
+      "directXcodeFullBoardSha256": "dd6f1f136977c0ebd219461d821a31888580871f16bb801d1d6ebe3de84977d0",
+      "testflightInstalledSha256": "c65886746293cbfec7ea33ab47927a6a45c055d44160279a68171fe22626a875",
+      "testflightDefaultR3fSha256": "80928eeef1fa03dae3c8d013208a0d3966b25563ca5dbdc04bc59ac2706b734c",
+      "testflightFullBoardSha256": "fc50f57baabb1a7dd7a8d705d8c847c9a762ff1dcbc1c672f154c418c637e0bb"
+    }
+  },
+  "multiplayer": {
+    "result": "pass",
+    "store": "postgres",
+    "apiAuthentication": "bearer plus required trusted user identity",
+    "distinctTrustedIdentities": 2,
+    "claimedSeats": 2,
+    "restAndWebSocketConvergence": "pass",
+    "reducerOwnedDeploy": "pass",
+    "identityScopedLobby": "pass",
+    "tokenRedaction": "pass",
+    "tailnetHttpsHealth": "pass",
+    "proofSha256": "b768572c7828af1d74a1d44866711a24e73924ba50d12743a36e7fce2e1ce504",
+    "note": "Distinct identity assertions used loopback access to the same live process because Tailscale Serve injects the one connected account identity at tailnet ingress."
+  },
+  "releaseReadiness": {
+    "r3fProductionDefault": true,
+    "webBuild": "pass",
+    "androidBuildAndRuntime": "pass",
+    "iosBuildRuntimeAndTestflight": "pass",
+    "twoIdentityMultiplayer": "pass",
+    "remainingBlocker": "Google Play upload requires a service-account key or an authenticated manual Play Console upload."
+  }
+}
