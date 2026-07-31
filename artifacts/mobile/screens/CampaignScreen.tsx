@@ -686,8 +686,8 @@ export function CampaignScreen({
     });
   }, [shareablePerformanceEvidence]);
 
-  // The map stays full-bleed; HUD placement comes from the shared layout
-  // resolver so short landscape phones keep the command panel off the board.
+  // HUD placement comes from the shared layout resolver so landscape command
+  // rails reserve their lane instead of floating over the board.
   const { width: winW, height: winH } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const isLandscape = winW > winH;
@@ -701,8 +701,7 @@ export function CampaignScreen({
     [insets, winH, winW],
   );
   const commandDockOnRight = campaignHudLayout.commandPlacement === "right";
-  const compactLandscapeCommandDock =
-    isLandscape && campaignHudLayout.commandPlacement === "bottom";
+  const scrollCommandPanel = campaignHudLayout.commandScroll;
   const rosterDrawerLayout = useMemo(
     () =>
       resolveRosterDrawerLayout({
@@ -1161,8 +1160,16 @@ export function CampaignScreen({
 
   return (
     <View style={styles.container}>
-      {/* MAP — full bleed behind the floating chrome */}
-      <View style={StyleSheet.absoluteFillObject}>
+      {/* MAP — fills the playable lane behind the floating chrome */}
+      <View
+        testID="map-play-area"
+        style={[
+          StyleSheet.absoluteFillObject,
+          campaignHudLayout.mapRightInset !== null && {
+            right: campaignHudLayout.mapRightInset,
+          },
+        ]}
+      >
         <GameMap
           game={game}
           selected={selected}
@@ -1329,9 +1336,6 @@ export function CampaignScreen({
             paddingRight: campaignHudLayout.commandPaddingRight,
             paddingBottom: campaignHudLayout.commandPaddingBottom,
           },
-          compactLandscapeCommandDock && {
-            maxHeight: campaignHudLayout.commandMaxHeight,
-          },
         ]}
         pointerEvents="box-none"
       >
@@ -1357,13 +1361,13 @@ export function CampaignScreen({
             style={[
               styles.bottomBar,
               commandDockOnRight && styles.bottomBarLandscape,
-              compactLandscapeCommandDock && {
+              scrollCommandPanel && {
                 maxHeight: campaignHudLayout.commandMaxHeight,
                 overflow: "hidden",
               },
             ]}
           >
-            {compactLandscapeCommandDock ? (
+            {scrollCommandPanel ? (
               <ScrollView
                 style={[
                   styles.compactCommandScroll,

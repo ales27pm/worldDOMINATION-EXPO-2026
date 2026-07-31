@@ -21,26 +21,29 @@ test("campaign HUD uses a full-width bottom command strip on phone portrait", ()
   equal(layout.commandPlacement, "bottom");
   equal(layout.commandWidth, "100%");
   equal(layout.commandMaxHeight, 336);
+  equal(layout.mapRightInset, null);
   equal(layout.cameraControlsRightInset, null);
   equal(layout.legendBottom, 156);
   equal(layout.legendLeft, 10);
   equal(layout.tickerLines, 3);
 });
 
-test("campaign HUD keeps a shallow bottom command dock on short landscape phones", () => {
+test("campaign HUD docks a scrollable command rail on short landscape phones", () => {
   const layout = resolveCampaignHudLayout({
     width: 844,
     height: 390,
     insets: { top: 0, right: 21, bottom: 0, left: 21 },
   });
 
-  equal(layout.commandPlacement, "bottom");
-  equal(layout.commandWidth, "100%");
-  equal(layout.commandMaxHeight, 117);
-  equal(layout.commandPaddingRight, 21);
-  equal(layout.commandPaddingBottom, 0);
-  equal(layout.cameraControlsRightInset, null);
-  equal(layout.legendBottom, 127);
+  equal(layout.commandPlacement, "right");
+  equal(layout.commandWidth, 276);
+  equal(layout.commandMaxHeight, 390);
+  equal(layout.commandPaddingRight, 27);
+  equal(layout.commandPaddingBottom, 6);
+  equal(layout.commandScroll, true);
+  equal(layout.mapRightInset, 286);
+  equal(layout.cameraControlsRightInset, 286);
+  equal(layout.legendBottom, 10);
   equal(layout.legendLeft, 31);
   equal(layout.tickerLines, 1);
 });
@@ -57,6 +60,8 @@ test("campaign HUD widens the command rail on tablet landscape without taking th
   equal(layout.commandMaxHeight, 698);
   equal(layout.commandPaddingRight, 6);
   equal(layout.commandPaddingBottom, 26);
+  equal(layout.commandScroll, false);
+  equal(layout.mapRightInset, 376);
   equal(layout.cameraControlsRightInset, 376);
   equal(layout.legendBottom, 30);
   equal(layout.tickerLines, 3);
@@ -75,7 +80,7 @@ test("occupy toast stays above the portrait command area", () => {
   equal(layout.maxWidth, 366);
 });
 
-test("occupy toast uses the shallow command dock offset on short landscape phones", () => {
+test("occupy toast reserves the short landscape command rail", () => {
   const layout = resolveOccupyToastLayout({
     width: 844,
     height: 390,
@@ -83,9 +88,9 @@ test("occupy toast uses the shallow command dock offset on short landscape phone
   });
 
   equal(layout.left, 33);
-  equal(layout.right, 33);
-  equal(layout.bottom, 125);
-  equal(layout.maxWidth, 520);
+  equal(layout.right, 298);
+  equal(layout.bottom, 16);
+  equal(layout.maxWidth, 369);
 });
 
 test("occupy toast reserves the tablet command rail", () => {
@@ -96,7 +101,7 @@ test("occupy toast reserves the tablet command rail", () => {
   });
 
   equal(layout.left, 12);
-  equal(layout.right, 384);
+  equal(layout.right, 388);
   equal(layout.bottom, 48);
   equal(layout.maxWidth, 520);
 });

@@ -459,23 +459,37 @@ async function assertTransparentMapChrome(page, label) {
   );
 }
 
-async function assertLandscapeCommandPanelKeepsMapOpen(page, label) {
+async function assertLandscapeCommandPanelUsesEdgeRail(page, label) {
   const panel = page.getByTestId("map-command-panel");
+  const mapArea = page.getByTestId("map-play-area");
   await panel.waitFor({ state: "visible", timeout: 10000 });
+  await mapArea.waitFor({ state: "visible", timeout: 10000 });
   const box = await panel.boundingBox();
+  const mapBox = await mapArea.boundingBox();
   const viewport = page.viewportSize();
-  assert(box && viewport, `${label} command panel was not measurable`);
   assert(
-    box.y >= viewport.height * 0.56,
-    `${label} command panel was not docked low enough: y=${box.y}, viewport=${viewport.height}`,
+    box && mapBox && viewport,
+    `${label} command panel or map lane was not measurable`,
   );
   assert(
-    box.height <= viewport.height * 0.42,
-    `${label} command panel consumed too much map height: ${box.height}`,
+    box.x + box.width >= viewport.width - 8,
+    `${label} command panel was not docked to the right edge: x=${box.x}, width=${box.width}, viewport=${viewport.width}`,
   );
   assert(
-    box.x <= viewport.width * 0.08 && box.width >= viewport.width * 0.84,
-    `${label} command panel was still acting like a right rail: x=${box.x}, width=${box.width}, viewport=${viewport.width}`,
+    box.width <= viewport.width * 0.38,
+    `${label} command panel consumed too much map width: ${box.width}`,
+  );
+  assert(
+    box.x >= viewport.width * 0.58,
+    `${label} command panel still covered the center map: x=${box.x}, viewport=${viewport.width}`,
+  );
+  assert(
+    mapBox.x <= 1 && mapBox.x + mapBox.width <= box.x + 2,
+    `${label} map lane continued underneath the command rail: mapRight=${mapBox.x + mapBox.width}, panelLeft=${box.x}`,
+  );
+  assert(
+    mapBox.width >= viewport.width * 0.56,
+    `${label} map lane became too narrow: mapWidth=${mapBox.width}, viewport=${viewport.width}`,
   );
 }
 
@@ -1810,7 +1824,7 @@ async function assertRenderedPreview() {
       ],
       "rendered landscape Same Time game screen",
       async (page) => {
-        await assertLandscapeCommandPanelKeepsMapOpen(
+        await assertLandscapeCommandPanelUsesEdgeRail(
           page,
           "rendered landscape Same Time game screen",
         );
@@ -1852,7 +1866,7 @@ async function assertRenderedPreview() {
       ],
       "rendered landscape Same Time attack-order screen",
       async (page) => {
-        await assertLandscapeCommandPanelKeepsMapOpen(
+        await assertLandscapeCommandPanelUsesEdgeRail(
           page,
           "rendered landscape Same Time attack-order screen",
         );

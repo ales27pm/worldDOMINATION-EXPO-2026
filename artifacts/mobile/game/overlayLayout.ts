@@ -73,6 +73,8 @@ export interface CampaignHudLayout {
   commandMaxHeight: number;
   commandPaddingRight: number;
   commandPaddingBottom: number;
+  commandScroll: boolean;
+  mapRightInset: number | null;
   cameraControlsRightInset: number | null;
   legendBottom: number;
   legendLeft: number;
@@ -100,16 +102,18 @@ export function resolveCampaignHudLayout({
   const safeHeight = Math.max(320, height - insets.top - insets.bottom);
 
   if (isLandscape && safeHeight < 520) {
-    const commandAllowance = clamp(Math.round(safeHeight * 0.3), 112, 132);
+    const dockWidth = clamp(Math.round(safeWidth * 0.34), 276, 320);
 
     return {
-      commandPlacement: "bottom",
-      commandWidth: "100%",
-      commandMaxHeight: commandAllowance,
-      commandPaddingRight: insets.right,
-      commandPaddingBottom: insets.bottom,
-      cameraControlsRightInset: null,
-      legendBottom: insets.bottom + commandAllowance + 10,
+      commandPlacement: "right",
+      commandWidth: dockWidth,
+      commandMaxHeight: safeHeight,
+      commandPaddingRight: insets.right + 6,
+      commandPaddingBottom: insets.bottom + 6,
+      commandScroll: true,
+      mapRightInset: dockWidth + 10,
+      cameraControlsRightInset: dockWidth + 10,
+      legendBottom: insets.bottom + 10,
       legendLeft: insets.left + 10,
       tickerLines: 1,
     };
@@ -129,6 +133,8 @@ export function resolveCampaignHudLayout({
       commandMaxHeight: clamp(Math.round(safeHeight * 0.9), 260, safeHeight),
       commandPaddingRight: insets.right + 6,
       commandPaddingBottom: insets.bottom + 6,
+      commandScroll: false,
+      mapRightInset: dockWidth + 10,
       cameraControlsRightInset: dockWidth + 10,
       legendBottom: insets.bottom + 10,
       legendLeft: insets.left + 10,
@@ -143,6 +149,8 @@ export function resolveCampaignHudLayout({
     commandMaxHeight: commandAllowance,
     commandPaddingRight: insets.right,
     commandPaddingBottom: insets.bottom,
+    commandScroll: false,
+    mapRightInset: null,
     cameraControlsRightInset: null,
     legendBottom:
       insets.bottom + clamp(Math.round(safeHeight * 0.16), 118, 168),
@@ -166,7 +174,7 @@ export function resolveOccupyToastLayout({
   const edgeGap = safeWidth < 380 ? 8 : 12;
 
   if (hud.commandPlacement === "right" && typeof hud.commandWidth === "number") {
-    const rightRail = hud.commandWidth + hud.commandPaddingRight + edgeGap;
+    const rightRail = (hud.mapRightInset ?? hud.commandWidth) + edgeGap;
     const availableWidth = Math.max(280, width - insets.left - rightRail - edgeGap);
 
     return {
