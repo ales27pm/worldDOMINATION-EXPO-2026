@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -139,12 +140,14 @@ export default function MultiplayerGameScreen() {
         <SafeAreaView style={styles.emptyInner}>
           <Text style={styles.emptyTitle}>MULTIPLAYER BATTLEFIELD</Text>
           <Text style={styles.emptyBody}>{status}</Text>
-          {busy && <ActivityIndicator color={Colors.gold} />}
+          {busy && <ActivityIndicator color={Colors.gold} accessibilityLabel="Loading multiplayer battlefield" />}
           <Pressable
             accessibilityRole="button"
+            accessibilityLabel="Return to command"
             onPress={() => router.replace('/multiplayer')}
-            style={styles.emptyButton}
+            style={({ pressed }) => [styles.emptyButton, pressed && styles.emptyButtonPressed]}
           >
+            <Ionicons name="arrow-back-circle-outline" size={17} color={Colors.gold} />
             <Text style={styles.emptyButtonText}>Return to Command</Text>
           </Pressable>
         </SafeAreaView>
@@ -199,12 +202,18 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   emptyButton: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
     borderWidth: 1,
     borderColor: Colors.gold,
     paddingHorizontal: 16,
     paddingVertical: 10,
     backgroundColor: Colors.bgCard,
   },
+  emptyButtonPressed: { opacity: 0.72 },
   emptyButtonText: {
     color: Colors.gold,
     fontFamily: 'Alegreya_700Bold',

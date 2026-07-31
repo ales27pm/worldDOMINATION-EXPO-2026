@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { View, Text, StyleSheet, Pressable, type StyleProp, type ViewStyle } from "react-native";
 import { Colors } from "@/constants/colors";
 import { MAP_HUD_TEXT_SHADOW, MapHud } from "@/constants/mapHud";
@@ -120,7 +121,7 @@ export default function BattleReportCard({ battle, game }: Props) {
         </View>
 
         <View style={styles.vsCol}>
-          <Text style={styles.vs}>⚔</Text>
+          <Ionicons name="flash-outline" size={18} color={Colors.gold} />
           <Text style={styles.rounds}>{battle.rounds}r</Text>
         </View>
 
@@ -240,7 +241,6 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   vsCol: { alignItems: "center", gap: 2 },
-  vs: { ...MAP_HUD_TEXT_SHADOW, fontSize: 18, color: Colors.gold },
   rounds: {
     ...MAP_HUD_TEXT_SHADOW,
     color: Colors.textMuted,

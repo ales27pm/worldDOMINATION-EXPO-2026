@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import {
   Image,
   Modal,
@@ -374,7 +375,9 @@ export function BattleView({ game, dispatch }: Props) {
                       <Pressable
                         key={n}
                         onPress={() => dispatch({ type: "ATTACK", from: scene.from, to: scene.to, dice: n })}
-                        style={styles.diceMiniBtn}
+                        style={({ pressed }) => [styles.diceMiniBtn, pressed && styles.decisionBtnPressed]}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Attack again with ${n} ${n === 1 ? "die" : "dice"}`}
                       >
                         <Text style={styles.diceMiniBtnText}>{n} {n === 1 ? "DIE" : "DICE"}</Text>
                       </Pressable>
@@ -385,9 +388,12 @@ export function BattleView({ game, dispatch }: Props) {
                     dispatch({ type: "RETREAT" });
                     dismiss();
                   }}
-                  style={styles.retreatBtn}
+                  style={({ pressed }) => [styles.retreatBtn, pressed && styles.decisionBtnPressed]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Retreat from battle"
                 >
-                  <Text style={styles.retreatBtnText}>⚑ RETREAT</Text>
+                  <Ionicons name="flag-outline" size={16} color="#fff" />
+                  <Text style={styles.retreatBtnText}>RETREAT</Text>
                 </Pressable>
               </View>
             ) : (
@@ -414,6 +420,8 @@ export function BattleView({ game, dispatch }: Props) {
           <Pressable
             style={StyleSheet.absoluteFill}
             onPress={isDone ? dismiss : revealNext}
+            accessibilityRole="button"
+            accessibilityLabel={isDone ? "Dismiss battle scene" : revealed === 0 ? "Roll battle dice" : "Reveal next dice turn"}
           />
         )}
       </View>
@@ -687,12 +695,15 @@ const styles = StyleSheet.create({
   },
   diceMiniRow: { flexDirection: "row", gap: 8 },
   diceMiniBtn: {
+    minHeight: 44,
     backgroundColor: "rgba(28,44,102,0.9)",
     borderWidth: 1.5,
     borderColor: "rgba(255,255,255,0.4)",
     borderRadius: 5,
     paddingVertical: 8,
     paddingHorizontal: 14,
+    alignItems: "center",
+    justifyContent: "center",
   },
   diceMiniBtnText: {
     color: "#fff",
@@ -701,13 +712,19 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   retreatBtn: {
+    minHeight: 44,
     backgroundColor: "rgba(112,19,22,0.85)",
     borderWidth: 1.5,
     borderColor: "rgba(255,255,255,0.4)",
     borderRadius: 5,
     paddingVertical: 8,
     paddingHorizontal: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 7,
   },
+  decisionBtnPressed: { opacity: 0.78 },
   retreatBtnText: {
     color: "#fff",
     fontSize: 12,

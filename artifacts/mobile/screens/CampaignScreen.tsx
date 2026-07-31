@@ -1362,9 +1362,9 @@ export function CampaignScreen({
                 onPress={() => setRosterOpen(false)}
                 accessibilityRole="button"
                 accessibilityLabel="Close commander roster"
-                style={styles.rosterCloseBtn}
+                style={({ pressed }) => [styles.rosterCloseBtn, pressed && styles.rosterCloseBtnPressed]}
               >
-                <Text style={styles.rosterClose}>✕</Text>
+                <Ionicons name="close" size={20} color={Colors.textMuted} />
               </Pressable>
             </View>
             <ScrollView
@@ -1570,9 +1570,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  rosterClose: {
-    ...MAP_HUD_TEXT_SHADOW,
-    color: Colors.textMuted,
-    fontSize: 18,
-  },
+  rosterCloseBtnPressed: { opacity: 0.72 },
 });

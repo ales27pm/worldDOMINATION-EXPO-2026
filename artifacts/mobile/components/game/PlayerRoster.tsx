@@ -1,4 +1,5 @@
 import React from 'react';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { Colors } from '@/constants/colors';
 import { MAP_HUD_TEXT_SHADOW, MapHud } from '@/constants/mapHud';
@@ -70,9 +71,10 @@ export default function PlayerRoster({ game, compact, dispatch }: Props) {
                   {player.isHuman && <Text style={styles.humanBadge}>HUMAN</Text>}
                 </View>
                 {player.capital && (game.capitalsRevealed || player.id === human?.id) && (
-                  <Text style={styles.capitalText}>
-                    ⚑ {player.capital}
-                  </Text>
+                  <View style={styles.capitalRow}>
+                    <Ionicons name="flag-outline" size={12} color={Colors.textMuted} />
+                    <Text style={styles.capitalText}>{player.capital}</Text>
+                  </View>
                 )}
               </View>
             </View>
@@ -93,23 +95,32 @@ export default function PlayerRoster({ game, compact, dispatch }: Props) {
               </View>
             )}
             {pact && (
-              <Text style={styles.pactText}>🤝 {ALLIANCE_LEVEL_INFO[pact.level].name} in effect</Text>
+              <View style={styles.pactRow}>
+                <Ionicons name="people-outline" size={12} color={Colors.gold} />
+                <Text style={styles.pactText}>{ALLIANCE_LEVEL_INFO[pact.level].name} in effect</Text>
+              </View>
             )}
             {canApproach && dispatch && (
               <View style={styles.iComRow}>
                 <Pressable
-                  style={styles.iComBtn}
+                  style={({ pressed }) => [styles.iComBtn, styles.iComBtnDanger, pressed && styles.controlPressed]}
                   onPress={() => dispatch({ type: 'SEND_THREAT', target: player.id })}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Threaten ${player.name}`}
                 >
-                  <Text style={styles.iComBtnText}>😠 Threaten</Text>
+                  <Ionicons name="warning-outline" size={14} color={Colors.textCrimson} />
+                  <Text style={[styles.iComBtnText, styles.iComBtnTextDanger]}>Threaten</Text>
                 </Pressable>
                 {([1, 2, 3] as const).map((level) => (
                   <Pressable
                     key={level}
-                    style={styles.iComBtn}
+                    style={({ pressed }) => [styles.iComBtn, pressed && styles.controlPressed]}
                     onPress={() => dispatch({ type: 'PROPOSE_ALLIANCE', target: player.id, level })}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Offer pact level ${level} to ${player.name}`}
                   >
-                    <Text style={styles.iComBtnText}>🤝 Pact {level}</Text>
+                    <Ionicons name="people-outline" size={14} color={Colors.gold} />
+                    <Text style={styles.iComBtnText}>Pact {level}</Text>
                   </Pressable>
                 ))}
               </View>
@@ -157,7 +168,8 @@ const styles = StyleSheet.create({
   activeBadge: { ...MAP_HUD_TEXT_SHADOW, color: Colors.gold, fontFamily: 'Alegreya_600SemiBold', fontSize: 9, letterSpacing: 1 },
   deadBadge: { ...MAP_HUD_TEXT_SHADOW, color: Colors.textMuted, fontFamily: 'Alegreya_500Medium', fontSize: 9, letterSpacing: 1 },
   humanBadge: { ...MAP_HUD_TEXT_SHADOW, color: Colors.textMuted, fontFamily: 'Alegreya_400Regular', fontSize: 9, letterSpacing: 1 },
-  capitalText: { ...MAP_HUD_TEXT_SHADOW, color: Colors.textMuted, fontFamily: 'Alegreya_400Regular', fontSize: 11, marginTop: 1 },
+  capitalRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 1 },
+  capitalText: { ...MAP_HUD_TEXT_SHADOW, color: Colors.textMuted, fontFamily: 'Alegreya_400Regular', fontSize: 11 },
   statsRow: { flexDirection: 'row', gap: 16 },
   stat: { alignItems: 'center' },
   statValue: { ...MAP_HUD_TEXT_SHADOW, color: Colors.text, fontFamily: 'Alegreya_700Bold', fontSize: 15 },
@@ -165,11 +177,15 @@ const styles = StyleSheet.create({
   continentsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
   continentBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 2 },
   continentText: { ...MAP_HUD_TEXT_SHADOW, color: Colors.text, fontFamily: 'Alegreya_500Medium', fontSize: 10 },
+  pactRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   pactText: { ...MAP_HUD_TEXT_SHADOW, color: Colors.gold, fontFamily: 'Alegreya_500Medium', fontSize: 11 },
   iComRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 2 },
   iComBtn: {
-    borderWidth: 1, borderColor: Colors.border, paddingHorizontal: 8, paddingVertical: 4,
-    backgroundColor: MapHud.control,
+    minHeight: 44, borderWidth: 1, borderColor: Colors.border, paddingHorizontal: 10, paddingVertical: 8,
+    backgroundColor: MapHud.control, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
   },
+  iComBtnDanger: { borderColor: 'rgba(186,38,43,0.5)', backgroundColor: 'rgba(117,21,27,0.14)' },
   iComBtnText: { ...MAP_HUD_TEXT_SHADOW, color: Colors.textMuted, fontFamily: 'Alegreya_500Medium', fontSize: 10 },
+  iComBtnTextDanger: { color: Colors.textCrimson },
+  controlPressed: { opacity: 0.72 },
 });

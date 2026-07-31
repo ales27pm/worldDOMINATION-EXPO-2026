@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { View, Text, StyleSheet, Pressable, ScrollView, Modal, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/colors';
@@ -109,11 +110,11 @@ export default function CardHand({ game, dispatch, open, onClose }: Props) {
               {game.mustTrade && <Text style={styles.mustTrade}>Must trade (5+ cards)</Text>}
               <Pressable
                 onPress={onClose}
-                style={styles.closeBtn}
+                style={({ pressed }) => [styles.closeBtn, pressed && styles.controlPressed]}
                 accessibilityRole="button"
                 accessibilityLabel="Close card hand"
               >
-                <Text style={styles.closeText}>✕</Text>
+                <Ionicons name="close" size={20} color={Colors.textMuted} />
               </Pressable>
             </View>
           </View>
@@ -257,7 +258,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     backgroundColor: MapHud.control,
   },
-  closeText: { ...MAP_HUD_TEXT_SHADOW, color: Colors.textMuted, fontSize: 18 },
+  controlPressed: { opacity: 0.72 },
   statusRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   statusChip: {
     flexGrow: 1,

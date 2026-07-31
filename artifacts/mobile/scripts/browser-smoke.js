@@ -374,6 +374,14 @@ async function assertLabeledControl(page, label, screenLabel) {
   return locator;
 }
 
+async function assertMinTouchTarget(locator, minSize, label) {
+  const box = await locator.boundingBox();
+  assert(
+    box && box.width >= minSize && box.height >= minSize,
+    `${label} was smaller than ${minSize}px: ${box ? `${box.width}x${box.height}` : "missing box"}`,
+  );
+}
+
 async function assertBackgroundAlpha(locator, expected, label) {
   await locator.waitFor({ state: "visible", timeout: 10000 });
   const color = await locator.evaluate(
@@ -759,6 +767,12 @@ async function assertR3FVerticalSlice(page) {
     selected.targetIds.includes("northAfrica"),
     "R3F Brazil selection did not target North Africa",
   );
+  const diceThree = await assertLabeledControl(
+    page,
+    "Attack with 3 dice",
+    "R3F attack dice control",
+  );
+  await assertMinTouchTarget(diceThree, 44, "R3F attack dice control");
 
   const northAfrica = selected.projected.northAfrica;
   assert(
@@ -797,23 +811,29 @@ async function assertR3FVerticalSlice(page) {
     "R3F battle effect or profiler advanced behind the battle scene",
   );
   await page.getByText("TAP TO ROLL").waitFor({ timeout: 10000 });
-  const viewport = page.viewportSize();
-  assert(viewport, "R3F battle scene viewport was unavailable");
-  await page.mouse.click(viewport.width / 2, viewport.height / 2);
-  const retreat = page.getByText(/RETREAT/).last();
-  const continuePrompt = page.getByText("TAP TO CONTINUE").last();
+  const rollSurface = await assertLabeledControl(
+    page,
+    "Roll battle dice",
+    "R3F battle roll surface",
+  );
+  await assertMinTouchTarget(rollSurface, 44, "R3F battle roll surface");
+  await rollSurface.click({ timeout: 10000 });
+  const retreat = page.getByLabel("Retreat from battle").last();
+  const dismissBattle = page.getByLabel("Dismiss battle scene").last();
   const battleDecision = await Promise.race([
     retreat
       .waitFor({ state: "visible", timeout: 10000 })
       .then(() => "retreat"),
-    continuePrompt
+    dismissBattle
       .waitFor({ state: "visible", timeout: 10000 })
-      .then(() => "continue"),
+      .then(() => "dismiss"),
   ]);
   if (battleDecision === "retreat") {
+    await assertMinTouchTarget(retreat, 44, "R3F battle retreat control");
     await retreat.click();
   } else {
-    await continuePrompt.click({ force: true });
+    await assertMinTouchTarget(dismissBattle, 44, "R3F battle dismiss surface");
+    await dismissBattle.click({ timeout: 10000 });
   }
   await page.waitForFunction(
     () =>
@@ -1387,6 +1407,22 @@ async function assertRenderedPreview() {
           "Refresh Lobby",
           "rendered multiplayer command screen",
         );
+        for (const [label, controlLabel] of [
+          ["Quick Match", "rendered multiplayer quick-match control"],
+          ["Create Host Seat", "rendered multiplayer host-seat control"],
+          ["Show joinable lobby matches", "rendered multiplayer joinable filter"],
+          ["Show public lobby scope", "rendered multiplayer public scope filter"],
+          ["Refresh Lobby", "rendered multiplayer refresh-lobby control"],
+          ["Watch Invitations", "rendered multiplayer watch-invitations control"],
+          ["Invite Seat", "rendered multiplayer invite-seat control"],
+          ["Join Seat", "rendered multiplayer join-seat control"],
+        ]) {
+          await assertMinTouchTarget(
+            await assertLabeledControl(page, label, controlLabel),
+            44,
+            controlLabel,
+          );
+        }
       },
     );
     await withFreshPage(
@@ -1411,6 +1447,15 @@ async function assertRenderedPreview() {
           page,
           "Return to Command",
           "rendered multiplayer battlefield no-session screen",
+        );
+        await assertMinTouchTarget(
+          await assertLabeledControl(
+            page,
+            "Return to command",
+            "rendered multiplayer battlefield return control",
+          ),
+          44,
+          "rendered multiplayer battlefield return control",
         );
       },
     );
@@ -1539,13 +1584,17 @@ async function assertRenderedPreview() {
           0.4,
           "rendered field dispatch overlay",
         );
-        await (
-          await assertLabeledControl(
-            page,
-            "Close field dispatch",
-            "rendered field dispatch close control",
-          )
-        ).click();
+        const dispatchClose = await assertLabeledControl(
+          page,
+          "Close field dispatch",
+          "rendered field dispatch close control",
+        );
+        await assertMinTouchTarget(
+          dispatchClose,
+          44,
+          "rendered field dispatch close control",
+        );
+        await dispatchClose.click();
       },
     );
     await withFreshPage(
@@ -1680,6 +1729,15 @@ async function assertRenderedPreview() {
           "Seal Reinforcements",
           "rendered landscape Same Time game screen",
         );
+        await assertMinTouchTarget(
+          await assertLabeledControl(
+            page,
+            "Seal Reinforcements",
+            "rendered Same Time reinforcement seal control",
+          ),
+          44,
+          "rendered Same Time reinforcement seal control",
+        );
       },
       VIEWPORTS.landscape,
     );
@@ -1708,6 +1766,15 @@ async function assertRenderedPreview() {
           "Seal Attack Orders",
           "rendered landscape Same Time attack-order screen",
         );
+        await assertMinTouchTarget(
+          await assertLabeledControl(
+            page,
+            "Seal Attack Orders",
+            "rendered Same Time attack-order seal control",
+          ),
+          44,
+          "rendered Same Time attack-order seal control",
+        );
       },
       VIEWPORTS.landscape,
     );
@@ -1723,7 +1790,17 @@ async function assertRenderedPreview() {
       ],
       "rendered Same Time battle playback screen",
       async (page) => {
-        await page.getByText(/PROCEED TO MOVEMENT/).click({ timeout: 10000 });
+        const proceed = await assertLabeledControl(
+          page,
+          "Proceed to tactical movement",
+          "rendered Same Time playback proceed control",
+        );
+        await assertMinTouchTarget(
+          proceed,
+          44,
+          "rendered Same Time playback proceed control",
+        );
+        await proceed.click({ timeout: 10000 });
         const bodyText = await page
           .locator("body")
           .innerText({ timeout: 10000 });
@@ -1736,6 +1813,15 @@ async function assertRenderedPreview() {
           bodyText,
           "Confirm Movement",
           "rendered Same Time movement after playback",
+        );
+        await assertMinTouchTarget(
+          await assertLabeledControl(
+            page,
+            "Confirm Movement",
+            "rendered Same Time movement confirm control",
+          ),
+          44,
+          "rendered Same Time movement confirm control",
         );
       },
     );
@@ -1767,9 +1853,26 @@ async function assertRenderedPreview() {
             victoryBox.x + victoryBox.width <= viewport.width + 1,
           "victory sheet was not docked to the right edge",
         );
-        await page
-          .getByText("CAMPAIGN STATISTICS", { exact: true })
-          .click({ timeout: 10000 });
+        const statsControl = await assertLabeledControl(
+          page,
+          "Open campaign statistics",
+          "rendered victory statistics control",
+        );
+        await assertMinTouchTarget(
+          statsControl,
+          44,
+          "rendered victory statistics control",
+        );
+        await assertMinTouchTarget(
+          await assertLabeledControl(
+            page,
+            "Return to main menu",
+            "rendered victory return control",
+          ),
+          44,
+          "rendered victory return control",
+        );
+        await statsControl.click({ timeout: 10000 });
         const statsSheet = page.getByTestId("map-stats-sheet");
         await statsSheet.waitFor({ state: "visible", timeout: 10000 });
         const statsBox = await statsSheet.boundingBox();

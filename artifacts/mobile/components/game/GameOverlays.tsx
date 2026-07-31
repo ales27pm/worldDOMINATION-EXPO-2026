@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import {
   Animated,
   View,
@@ -43,9 +44,12 @@ export function HandoffOverlay({ game, dispatch }: { game: GameState; dispatch: 
       )}
       <Pressable
         onPress={() => dispatch({ type: 'ACKNOWLEDGE_HANDOFF' })}
-        style={styles.primaryBtn}
+        style={({ pressed }) => [styles.primaryBtn, pressed && styles.controlPressed]}
+        accessibilityRole="button"
+        accessibilityLabel="Take command"
       >
-        <Text style={styles.primaryBtnText}>⚔ TAKE COMMAND</Text>
+        <Ionicons name="shield-outline" size={17} color={Colors.bg} />
+        <Text style={styles.primaryBtnText}>TAKE COMMAND</Text>
       </Pressable>
     </DecisionModal>
   );
@@ -134,7 +138,8 @@ function OccupyFlow({
         </View>
         <Pressable
           onPress={() => setAdjusting(true)}
-          style={styles.toastBtn}
+          style={({ pressed }) => [styles.toastBtn, pressed && styles.controlPressed]}
+          accessibilityRole="button"
           accessibilityLabel="Adjust advancing armies"
         >
           <Text style={styles.toastBtnText}>ADJUST</Text>
@@ -176,6 +181,8 @@ function OccupySheet({
   const fromArmies = game.territories[pending.from]?.armies ?? 0;
   const decrement = () => setCount((c) => Math.max(pending.min, c - 1));
   const increment = () => setCount((c) => Math.min(pending.max, c + 1));
+  const decrementDisabled = count <= pending.min;
+  const incrementDisabled = count >= pending.max;
   return (
     <DecisionModal>
       <Text style={styles.occupyTitle}>OCCUPY TERRITORY</Text>
@@ -186,24 +193,32 @@ function OccupySheet({
       <View style={styles.stepperRow}>
         <Pressable
           onPress={decrement}
-          disabled={count <= pending.min}
-          style={styles.stepBtn}
+          disabled={decrementDisabled}
+          style={({ pressed }) => [
+            styles.stepBtn,
+            decrementDisabled && styles.stepBtnDisabled,
+            pressed && !decrementDisabled && styles.controlPressed,
+          ]}
           accessibilityRole="button"
-          accessibilityState={{ disabled: count <= pending.min }}
+          accessibilityState={{ disabled: decrementDisabled }}
           accessibilityLabel="Reduce advancing armies"
         >
-          <Text style={styles.stepBtnText}>−</Text>
+          <Ionicons name="remove" size={22} color={decrementDisabled ? Colors.disabledText : Colors.text} />
         </Pressable>
         <Text style={styles.stepCount}>{count}</Text>
         <Pressable
           onPress={increment}
-          disabled={count >= pending.max}
-          style={styles.stepBtn}
+          disabled={incrementDisabled}
+          style={({ pressed }) => [
+            styles.stepBtn,
+            incrementDisabled && styles.stepBtnDisabled,
+            pressed && !incrementDisabled && styles.controlPressed,
+          ]}
           accessibilityRole="button"
-          accessibilityState={{ disabled: count >= pending.max }}
+          accessibilityState={{ disabled: incrementDisabled }}
           accessibilityLabel="Increase advancing armies"
         >
-          <Text style={styles.stepBtnText}>+</Text>
+          <Ionicons name="add" size={22} color={incrementDisabled ? Colors.disabledText : Colors.text} />
         </Pressable>
         <Text style={styles.stepRange}>of {pending.min}–{pending.max}</Text>
       </View>
@@ -212,9 +227,11 @@ function OccupySheet({
       </Text>
       <Pressable
         onPress={() => onAdvance(count)}
-        style={styles.primaryBtn}
+        style={({ pressed }) => [styles.primaryBtn, pressed && styles.controlPressed]}
         accessibilityRole="button"
+        accessibilityLabel="Advance armies"
       >
+        <Ionicons name="arrow-forward-circle-outline" size={17} color={Colors.bg} />
         <Text style={styles.primaryBtnText}>ADVANCE</Text>
       </Pressable>
     </DecisionModal>
@@ -243,16 +260,20 @@ export function ProposalOverlay({ game, dispatch }: { game: GameState; dispatch:
       <View style={styles.proposalBtns}>
         <Pressable
           onPress={() => dispatch({ type: 'RESPOND_PROPOSAL', accept: false })}
-          style={styles.refuseBtn}
+          style={({ pressed }) => [styles.refuseBtn, pressed && styles.controlPressed]}
           accessibilityRole="button"
+          accessibilityLabel="Refuse alliance"
         >
+          <Ionicons name="close-circle-outline" size={16} color={Colors.textCrimson} />
           <Text style={styles.refuseBtnText}>REFUSE</Text>
         </Pressable>
         <Pressable
           onPress={() => dispatch({ type: 'RESPOND_PROPOSAL', accept: true })}
-          style={styles.acceptBtn}
+          style={({ pressed }) => [styles.acceptBtn, pressed && styles.controlPressed]}
           accessibilityRole="button"
+          accessibilityLabel="Accept alliance"
         >
+          <Ionicons name="checkmark-circle-outline" size={16} color={Colors.bg} />
           <Text style={styles.acceptBtnText}>ACCEPT</Text>
         </Pressable>
       </View>
@@ -297,9 +318,16 @@ export function VictoryOverlay({
         contentStyle={styles.victorySheet}
         behindSheet={playerWon ? <Fireworks /> : null}
       >
-        <Text style={[styles.victoryResult, playerWon ? styles.victory : styles.defeat]}>
-          {isSharedWin ? (playerWon ? '⚔ SHARED VICTORY' : '⚔ SHARED WIN') : playerWon ? '⚔ VICTORY' : '✕ DEFEAT'}
-        </Text>
+        <View style={styles.victoryResultRow}>
+          <Ionicons
+            name={playerWon ? "trophy-outline" : "close-circle-outline"}
+            size={30}
+            color={playerWon ? Colors.gold : Colors.textMuted}
+          />
+          <Text style={[styles.victoryResult, playerWon ? styles.victory : styles.defeat]}>
+            {isSharedWin ? (playerWon ? 'SHARED VICTORY' : 'SHARED WIN') : playerWon ? 'VICTORY' : 'DEFEAT'}
+          </Text>
+        </View>
         <View style={[styles.colorBar, { backgroundColor: displayColor }]} />
         <Text style={styles.victoryName}>{displayName}</Text>
         <Text style={styles.victoryReason}>{game.winReason}</Text>
@@ -312,12 +340,20 @@ export function VictoryOverlay({
 
         <Pressable
           onPress={() => setShowStats(true)}
-          style={styles.statsBtn}
+          style={({ pressed }) => [styles.statsBtn, pressed && styles.controlPressed]}
           accessibilityRole="button"
+          accessibilityLabel="Open campaign statistics"
         >
+          <Ionicons name="bar-chart-outline" size={16} color={Colors.gold} />
           <Text style={styles.statsBtnText}>CAMPAIGN STATISTICS</Text>
         </Pressable>
-        <Pressable onPress={onExit} style={styles.primaryBtn} accessibilityRole="button">
+        <Pressable
+          onPress={onExit}
+          style={({ pressed }) => [styles.primaryBtn, pressed && styles.controlPressed]}
+          accessibilityRole="button"
+          accessibilityLabel="Return to main menu"
+        >
+          <Ionicons name="home-outline" size={17} color={Colors.bg} />
           <Text style={styles.primaryBtnText}>RETURN TO MAIN MENU</Text>
         </Pressable>
       </DecisionModal>
@@ -347,10 +383,12 @@ export function SameTimeBattlePlayback({ game, dispatch }: { game: GameState; di
       )}
       <Pressable
         onPress={() => dispatch({ type: 'ST_ACK_PLAYBACK' })}
-        style={styles.primaryBtn}
+        style={({ pressed }) => [styles.primaryBtn, pressed && styles.controlPressed]}
         accessibilityRole="button"
+        accessibilityLabel={remaining > 0 ? "Continue battle report playback" : "Proceed to tactical movement"}
       >
-        <Text style={styles.primaryBtnText}>{remaining > 0 ? 'CONTINUE →' : 'PROCEED TO MOVEMENT →'}</Text>
+        <Ionicons name="arrow-forward-circle-outline" size={17} color={Colors.bg} />
+        <Text style={styles.primaryBtnText}>{remaining > 0 ? 'CONTINUE' : 'PROCEED TO MOVEMENT'}</Text>
       </Pressable>
     </DecisionModal>
   );
@@ -408,9 +446,9 @@ export function DispatchLog({ game, visible, onClose }: { game: GameState; visib
               onPress={onClose}
               accessibilityRole="button"
               accessibilityLabel="Close field dispatch"
-              style={styles.dispatchCloseBtn}
+              style={({ pressed }) => [styles.dispatchCloseBtn, pressed && styles.controlPressed]}
             >
-              <Text style={styles.closeText}>✕</Text>
+              <Ionicons name="close" size={20} color={Colors.textMuted} />
             </Pressable>
           </View>
           <ScrollView contentContainerStyle={styles.logContent}>
@@ -511,6 +549,7 @@ const styles = StyleSheet.create({
   victorySheet: { gap: 16 },
   colorBar: { height: 3, borderRadius: 2, width: '100%' },
   bold: { ...MAP_HUD_TEXT_SHADOW, fontFamily: 'Alegreya_700Bold', color: Colors.text },
+  controlPressed: { opacity: 0.78 },
   decisionBackdrop: { flex: 1, backgroundColor: MapHud.scrim },
   decisionBackdropBottom: { justifyContent: 'flex-end' },
   decisionBackdropRight: { alignItems: 'flex-end', justifyContent: 'flex-start' },
@@ -545,7 +584,7 @@ const styles = StyleSheet.create({
     width: 44, height: 44, justifyContent: 'center', alignItems: 'center',
     borderWidth: 1, borderColor: Colors.border, backgroundColor: MapHud.control,
   },
-  stepBtnText: { ...MAP_HUD_TEXT_SHADOW, color: Colors.text, fontFamily: 'Alegreya_700Bold', fontSize: 22 },
+  stepBtnDisabled: { borderColor: Colors.disabled, opacity: 0.55 },
   stepCount: { ...MAP_HUD_TEXT_SHADOW, color: Colors.gold, fontFamily: 'Alegreya_700Bold', fontSize: 36, minWidth: 56, textAlign: 'center' },
   stepRange: { ...MAP_HUD_TEXT_SHADOW, color: Colors.textMuted, fontFamily: 'Alegreya_400Regular', fontSize: 12 },
 
@@ -560,7 +599,7 @@ const styles = StyleSheet.create({
   toastTitle: { ...MAP_HUD_TEXT_SHADOW, color: Colors.text, fontFamily: 'Alegreya_500Medium', fontSize: 13 },
   countdownTrack: { height: 3, backgroundColor: 'rgba(222,190,115,0.18)', overflow: 'hidden', borderRadius: 2 },
   countdownFill: { height: 3, backgroundColor: Colors.gold, borderRadius: 2 },
-  toastBtn: { borderWidth: 1, borderColor: Colors.gold, paddingVertical: 8, paddingHorizontal: 12 },
+  toastBtn: { minHeight: 44, borderWidth: 1, borderColor: Colors.gold, paddingVertical: 8, paddingHorizontal: 12, justifyContent: 'center' },
   toastBtnText: { ...MAP_HUD_TEXT_SHADOW, color: Colors.gold, fontFamily: 'Alegreya_700Bold', fontSize: 12, letterSpacing: 2 },
 
   // Proposal
@@ -569,12 +608,13 @@ const styles = StyleSheet.create({
   proposalText: { ...MAP_HUD_TEXT_SHADOW, color: Colors.text, fontFamily: 'Alegreya_400Regular', fontSize: 15 },
   proposalDesc: { ...MAP_HUD_TEXT_SHADOW, color: Colors.textMuted, fontFamily: 'Alegreya_400Regular', fontSize: 13 },
   proposalBtns: { flexDirection: 'row', gap: 12 },
-  refuseBtn: { flex: 1, borderWidth: 1, borderColor: Colors.crimson, paddingVertical: 12, alignItems: 'center' },
+  refuseBtn: { flex: 1, minHeight: 44, borderWidth: 1, borderColor: Colors.crimson, paddingVertical: 12, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 7 },
   refuseBtnText: { color: Colors.textCrimson, fontFamily: 'Alegreya_700Bold', fontSize: 13, letterSpacing: 2 },
-  acceptBtn: { flex: 1, backgroundColor: Colors.gold, paddingVertical: 12, alignItems: 'center' },
+  acceptBtn: { flex: 1, minHeight: 44, backgroundColor: Colors.gold, paddingVertical: 12, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 7 },
   acceptBtnText: { color: Colors.bg, fontFamily: 'Alegreya_700Bold', fontSize: 13, letterSpacing: 2 },
 
   // Victory
+  victoryResultRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
   victoryResult: { ...MAP_HUD_TEXT_SHADOW, fontFamily: 'Alegreya_700Bold', fontSize: 32, textAlign: 'center', letterSpacing: 4 },
   victory: { color: Colors.gold },
   defeat: { color: Colors.textMuted },
@@ -586,9 +626,9 @@ const styles = StyleSheet.create({
   statLabel: { ...MAP_HUD_TEXT_SHADOW, color: Colors.textMuted, fontFamily: 'Alegreya_400Regular', fontSize: 10, letterSpacing: 1 },
 
   // Common buttons
-  statsBtn: { borderWidth: 1, borderColor: Colors.gold, paddingVertical: 12, alignItems: 'center' },
+  statsBtn: { minHeight: 44, borderWidth: 1, borderColor: Colors.gold, paddingVertical: 12, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 7 },
   statsBtnText: { color: Colors.gold, fontFamily: 'Alegreya_700Bold', fontSize: 13, letterSpacing: 2 },
-  primaryBtn: { backgroundColor: Colors.gold, paddingVertical: 14, alignItems: 'center' },
+  primaryBtn: { minHeight: 48, backgroundColor: Colors.gold, paddingVertical: 14, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8, paddingHorizontal: 14 },
   primaryBtnText: { color: Colors.bg, fontFamily: 'Alegreya_700Bold', fontSize: 14, letterSpacing: 3 },
 
   // Dispatch log
@@ -611,7 +651,6 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     backgroundColor: MapHud.control,
   },
-  closeText: { ...MAP_HUD_TEXT_SHADOW, color: Colors.textMuted, fontSize: 18 },
   logContent: { gap: 8, paddingBottom: 2 },
   logEntry: { flexDirection: 'row', gap: 8 },
   logTurn: { ...MAP_HUD_TEXT_SHADOW, color: Colors.textMuted, fontFamily: 'Alegreya_400Regular', fontSize: 10, minWidth: 24, paddingTop: 2 },

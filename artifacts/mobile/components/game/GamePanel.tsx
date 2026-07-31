@@ -13,6 +13,8 @@ import { TERRITORY_MAP } from '@/game/mapData';
 import { ALLIANCE_LEVEL_INFO } from '@/game/types';
 import type { GameAction, GameState, TerritoryId } from '@/game/types';
 
+type IconName = React.ComponentProps<typeof Ionicons>['name'];
+
 /** A fortify move staged on the map, awaiting the MARCH confirmation. */
 export interface StagedMove {
   from: TerritoryId;
@@ -98,7 +100,12 @@ export default function GamePanel({
         <Text style={styles.hint}>Territory already claimed.</Text>
       );
       return (
-        <ActionBtn label={`Claim ${TERRITORY_MAP[selected]?.name ?? selected}`} gold onPress={() => dispatch({ type: 'CLAIM_TERRITORY', territory: selected })} />
+        <ActionBtn
+          label={`Claim ${TERRITORY_MAP[selected]?.name ?? selected}`}
+          icon="flag-outline"
+          gold
+          onPress={() => dispatch({ type: 'CLAIM_TERRITORY', territory: selected })}
+        />
       );
     }
 
@@ -106,7 +113,12 @@ export default function GamePanel({
       if (!selected || !selectedOwned) return null;
       if (player.capital) return <Text style={styles.hint}>Capital already chosen.</Text>;
       return (
-        <ActionBtn label={`Set Capital: ${TERRITORY_MAP[selected]?.name ?? selected}`} gold onPress={() => dispatch({ type: 'CHOOSE_CAPITAL', territory: selected })} />
+        <ActionBtn
+          label={`Set Capital: ${TERRITORY_MAP[selected]?.name ?? selected}`}
+          icon="business-outline"
+          gold
+          onPress={() => dispatch({ type: 'CHOOSE_CAPITAL', territory: selected })}
+        />
       );
     }
 
@@ -115,7 +127,12 @@ export default function GamePanel({
       const remaining = game.initialRemaining[player.id] ?? 0;
       if (remaining === 0) return <Text style={styles.hint}>All armies placed. Awaiting others.</Text>;
       return (
-        <ActionBtn label={`Place armies here (${remaining} left)`} gold onPress={() => dispatch({ type: 'PLACE_INITIAL', territory: selected })} />
+        <ActionBtn
+          label={`Place armies here (${remaining} left)`}
+          icon="add-circle-outline"
+          gold
+          onPress={() => dispatch({ type: 'PLACE_INITIAL', territory: selected })}
+        />
       );
     }
 
@@ -125,7 +142,7 @@ export default function GamePanel({
       return (
         <View style={styles.actionGroup}>
           {game.mustTrade ? (
-            <ActionBtn label="Open Cards (must trade)" gold onPress={onOpenCards} />
+            <ActionBtn label="Open Cards (must trade)" icon="albums-outline" gold onPress={onOpenCards} />
           ) : (
             <>
               {selected && selectedOwned && remaining > 1 && (
@@ -138,10 +155,10 @@ export default function GamePanel({
               {(canUndo || player.cards.length > 0) && (
                 <View style={styles.deployRow}>
                   {canUndo && (
-                    <ActionBtn label="↶ Undo" flex onPress={() => dispatch({ type: 'UNDO_DEPLOY' })} />
+                    <ActionBtn label="Undo" icon="return-up-back-outline" flex onPress={() => dispatch({ type: 'UNDO_DEPLOY' })} />
                   )}
                   {player.cards.length > 0 && (
-                    <ActionBtn label={`Cards (${player.cards.length})`} flex onPress={onOpenCards} />
+                    <ActionBtn label={`Cards (${player.cards.length})`} icon="albums-outline" flex onPress={onOpenCards} />
                   )}
                 </View>
               )}
@@ -166,7 +183,15 @@ export default function GamePanel({
                     key={n}
                     disabled={disabled}
                     onPress={() => setDiceCount(n)}
-                    style={[styles.diceBtn, active && styles.diceBtnActive, disabled && styles.diceBtnDisabled]}
+                    style={({ pressed }) => [
+                      styles.diceBtn,
+                      active && styles.diceBtnActive,
+                      disabled && styles.diceBtnDisabled,
+                      pressed && !disabled && styles.controlPressed,
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Attack with ${n} ${n === 1 ? 'die' : 'dice'}`}
+                    accessibilityState={{ selected: active, disabled }}
                   >
                     <Text style={[styles.diceBtnText, active && styles.diceBtnTextActive, disabled && styles.diceBtnTextDisabled]}>
                       {n}
@@ -179,7 +204,7 @@ export default function GamePanel({
           {selected && selectedOwned && targets.size > 0 && (
             <Text style={styles.attackHint}>Tap a red territory to attack</Text>
           )}
-          <ActionBtn label="End Attack →" onPress={() => dispatch({ type: 'END_ATTACK' })} />
+          <ActionBtn label="End Attack" icon="arrow-forward-circle-outline" onPress={() => dispatch({ type: 'END_ATTACK' })} />
         </View>
       );
     }
@@ -189,7 +214,7 @@ export default function GamePanel({
         return (
           <View style={styles.actionGroup}>
             <Text style={styles.hint}>Tactical move complete.</Text>
-            <ActionBtn label="End Turn →" gold onPress={() => dispatch({ type: 'END_TURN' })} />
+            <ActionBtn label="End Turn" icon="flag-outline" gold onPress={() => dispatch({ type: 'END_TURN' })} />
           </View>
         );
       }
@@ -212,7 +237,8 @@ export default function GamePanel({
                 onChange={(n) => setStagedMove({ ...stagedMove, count: n })}
               />
               <ActionBtn
-                label={`March ${count} →`}
+                label={`March ${count}`}
+                icon="arrow-forward-circle-outline"
                 gold
                 flex
                 onPress={() => {
@@ -221,7 +247,7 @@ export default function GamePanel({
                 }}
               />
             </View>
-            <ActionBtn label="Cancel" onPress={() => setStagedMove(null)} />
+            <ActionBtn label="Cancel" icon="close-circle-outline" onPress={() => setStagedMove(null)} />
           </View>
         );
       }
@@ -230,7 +256,7 @@ export default function GamePanel({
           {selected && selectedOwned && targets.size > 0 && (
             <Text style={styles.attackHint}>Tap a green territory to stage the march</Text>
           )}
-          <ActionBtn label="End Turn →" gold onPress={() => dispatch({ type: 'END_TURN' })} />
+          <ActionBtn label="End Turn" icon="flag-outline" gold onPress={() => dispatch({ type: 'END_TURN' })} />
         </View>
       );
     }
@@ -243,7 +269,7 @@ export default function GamePanel({
       return (
         <View style={styles.actionGroup}>
           {mustTrade ? (
-            <ActionBtn label="Open Cards (must trade)" gold onPress={onOpenCards} />
+            <ActionBtn label="Open Cards (must trade)" icon="albums-outline" gold onPress={onOpenCards} />
           ) : (
             <>
               {selected && selectedOwned && remaining > 1 && (
@@ -255,16 +281,17 @@ export default function GamePanel({
               )}
               {(canUndo || player.cards.length > 0) && (
                 <View style={styles.deployRow}>
-                  {canUndo && <ActionBtn label="↶ Undo" flex onPress={() => dispatch({ type: 'UNDO_DEPLOY' })} />}
+                  {canUndo && <ActionBtn label="Undo" icon="return-up-back-outline" flex onPress={() => dispatch({ type: 'UNDO_DEPLOY' })} />}
                   {player.cards.length > 0 && (
-                    <ActionBtn label={`Cards (${player.cards.length})`} flex onPress={onOpenCards} />
+                    <ActionBtn label={`Cards (${player.cards.length})`} icon="albums-outline" flex onPress={onOpenCards} />
                   )}
                 </View>
               )}
             </>
           )}
           <ActionBtn
-            label="Seal Reinforcements →"
+            label="Seal Reinforcements"
+            icon="lock-closed-outline"
             gold
             disabled={mustTrade || remaining > 0}
             onPress={() => dispatch({ type: 'ST_READY_REINFORCE' })}
@@ -290,7 +317,8 @@ export default function GamePanel({
             <View style={styles.deployRow}>
               <Stepper value={count} min={1} max={maxCount} onChange={(n) => setStagedMove({ ...stagedMove, count: n })} />
               <ActionBtn
-                label={`Queue ${count} →`}
+                label={`Queue ${count}`}
+                icon="add-circle-outline"
                 gold
                 flex
                 onPress={() => {
@@ -299,7 +327,7 @@ export default function GamePanel({
                 }}
               />
             </View>
-            <ActionBtn label="Cancel" onPress={() => setStagedMove(null)} />
+            <ActionBtn label="Cancel" icon="close-circle-outline" onPress={() => setStagedMove(null)} />
           </View>
         );
       }
@@ -314,16 +342,19 @@ export default function GamePanel({
                 <Pressable
                   key={o.id}
                   onPress={() => dispatch({ type: 'ST_CANCEL_ATTACK', orderId: o.id })}
-                  style={styles.orderChip}
+                  style={({ pressed }) => [styles.orderChip, pressed && styles.controlPressed]}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Cancel attack order from ${TERRITORY_MAP[o.from]?.name ?? o.from} to ${TERRITORY_MAP[o.to]?.name ?? o.to}`}
                 >
-                  <Text style={styles.orderChipText}>
-                    {o.count} · {TERRITORY_MAP[o.from]?.name ?? o.from} → {TERRITORY_MAP[o.to]?.name ?? o.to} ✕
+                  <Text style={styles.orderChipText} numberOfLines={1}>
+                    {o.count} · {TERRITORY_MAP[o.from]?.name ?? o.from} → {TERRITORY_MAP[o.to]?.name ?? o.to}
                   </Text>
+                  <Ionicons name="close-circle-outline" size={14} color={Colors.textMuted} />
                 </Pressable>
               ))}
             </ScrollView>
           )}
-          <ActionBtn label="Seal Attack Orders →" gold onPress={() => dispatch({ type: 'ST_READY_BATTLE' })} />
+          <ActionBtn label="Seal Attack Orders" icon="lock-closed-outline" gold onPress={() => dispatch({ type: 'ST_READY_BATTLE' })} />
         </View>
       );
     }
@@ -345,7 +376,8 @@ export default function GamePanel({
             <View style={styles.deployRow}>
               <Stepper value={count} min={1} max={maxCount} onChange={(n) => setStagedMove({ ...stagedMove, count: n })} />
               <ActionBtn
-                label={`Queue ${count} →`}
+                label={`Queue ${count}`}
+                icon="add-circle-outline"
                 gold
                 flex
                 onPress={() => {
@@ -354,7 +386,7 @@ export default function GamePanel({
                 }}
               />
             </View>
-            <ActionBtn label="Cancel" onPress={() => setStagedMove(null)} />
+            <ActionBtn label="Cancel" icon="close-circle-outline" onPress={() => setStagedMove(null)} />
           </View>
         );
       }
@@ -369,16 +401,19 @@ export default function GamePanel({
                 <Pressable
                   key={m.id}
                   onPress={() => dispatch({ type: 'ST_CANCEL_MOVE', orderId: m.id })}
-                  style={styles.orderChip}
+                  style={({ pressed }) => [styles.orderChip, pressed && styles.controlPressed]}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Cancel march order from ${TERRITORY_MAP[m.from]?.name ?? m.from} to ${TERRITORY_MAP[m.to]?.name ?? m.to}`}
                 >
-                  <Text style={styles.orderChipText}>
-                    {m.count} · {TERRITORY_MAP[m.from]?.name ?? m.from} → {TERRITORY_MAP[m.to]?.name ?? m.to} ✕
+                  <Text style={styles.orderChipText} numberOfLines={1}>
+                    {m.count} · {TERRITORY_MAP[m.from]?.name ?? m.from} → {TERRITORY_MAP[m.to]?.name ?? m.to}
                   </Text>
+                  <Ionicons name="close-circle-outline" size={14} color={Colors.textMuted} />
                 </Pressable>
               ))}
             </ScrollView>
           )}
-          <ActionBtn label="Confirm Movement →" gold onPress={() => dispatch({ type: 'ST_READY_MOVE' })} />
+          <ActionBtn label="Confirm Movement" icon="checkmark-circle-outline" gold onPress={() => dispatch({ type: 'ST_READY_MOVE' })} />
         </View>
       );
     }
@@ -533,24 +568,40 @@ function toneStyle(
   return { borderColor: values.border };
 }
 
-function ActionBtn({ label, onPress, gold, flex, disabled }: {
-  label: string; onPress: () => void; gold?: boolean; flex?: boolean; disabled?: boolean;
+function ActionBtn({ label, onPress, gold, flex, disabled, icon }: {
+  label: string;
+  onPress: () => void;
+  gold?: boolean;
+  flex?: boolean;
+  disabled?: boolean;
+  icon?: IconName;
 }) {
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
       accessibilityRole="button"
+      accessibilityLabel={label}
       accessibilityState={{ disabled: Boolean(disabled) }}
       style={({ pressed }) => [
         styles.btn,
         gold && styles.btnGold,
         flex && { flex: 1 },
         disabled && styles.btnDisabled,
-        pressed && { opacity: 0.7 },
+        pressed && !disabled && styles.controlPressed,
       ]}
     >
-      <Text style={[styles.btnText, gold && styles.btnTextGold, disabled && styles.btnTextDisabled]}>
+      {icon && (
+        <Ionicons
+          name={icon}
+          size={15}
+          color={disabled ? Colors.disabledText : gold ? Colors.gold : Colors.text}
+        />
+      )}
+      <Text
+        style={[styles.btnText, gold && styles.btnTextGold, disabled && styles.btnTextDisabled]}
+        numberOfLines={2}
+      >
         {label}
       </Text>
     </Pressable>
@@ -560,28 +611,38 @@ function ActionBtn({ label, onPress, gold, flex, disabled }: {
 function Stepper({ value, min, max, onChange }: {
   value: number; min: number; max: number; onChange: (n: number) => void;
 }) {
+  const decreaseDisabled = value <= min;
+  const increaseDisabled = value >= max;
   return (
     <View style={styles.stepper}>
       <Pressable
         onPress={() => onChange(Math.max(min, value - 1))}
-        style={styles.stepBtn}
-        disabled={value <= min}
+        style={({ pressed }) => [
+          styles.stepBtn,
+          decreaseDisabled && styles.stepBtnDisabled,
+          pressed && !decreaseDisabled && styles.controlPressed,
+        ]}
+        disabled={decreaseDisabled}
         accessibilityRole="button"
         accessibilityLabel="Decrease armies"
-        accessibilityState={{ disabled: value <= min }}
+        accessibilityState={{ disabled: decreaseDisabled }}
       >
-        <Text style={styles.stepBtnText}>−</Text>
+        <Ionicons name="remove" size={20} color={decreaseDisabled ? Colors.disabledText : Colors.text} />
       </Pressable>
       <Text style={styles.stepValue}>{value}</Text>
       <Pressable
         onPress={() => onChange(Math.min(max, value + 1))}
-        style={styles.stepBtn}
-        disabled={value >= max}
+        style={({ pressed }) => [
+          styles.stepBtn,
+          increaseDisabled && styles.stepBtnDisabled,
+          pressed && !increaseDisabled && styles.controlPressed,
+        ]}
+        disabled={increaseDisabled}
         accessibilityRole="button"
         accessibilityLabel="Increase armies"
-        accessibilityState={{ disabled: value >= max }}
+        accessibilityState={{ disabled: increaseDisabled }}
       >
-        <Text style={styles.stepBtnText}>+</Text>
+        <Ionicons name="add" size={20} color={increaseDisabled ? Colors.disabledText : Colors.text} />
       </Pressable>
     </View>
   );
@@ -691,12 +752,12 @@ const styles = StyleSheet.create({
   },
   actions: { gap: 6 },
   actionGroup: { gap: 6 },
-  deployRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  deployRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 },
   fortifyHint: { ...MAP_HUD_TEXT_SHADOW, flex: 1, color: Colors.textMuted, fontFamily: 'Alegreya_400Regular', fontSize: 12 },
   diceRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   diceLabel: { ...MAP_HUD_TEXT_SHADOW, color: Colors.text, fontFamily: 'Alegreya_500Medium', fontSize: 13 },
   diceBtn: {
-    width: 30, height: 30, borderWidth: 1, borderColor: Colors.border,
+    width: 44, height: 44, borderWidth: 1, borderColor: Colors.border,
     backgroundColor: MapHud.control, justifyContent: 'center', alignItems: 'center', borderRadius: 4,
   },
   diceBtnActive: { borderColor: Colors.gold, backgroundColor: MapHud.focused },
@@ -706,26 +767,29 @@ const styles = StyleSheet.create({
   diceBtnTextDisabled: { color: Colors.disabledText },
   attackHint: { ...MAP_HUD_TEXT_SHADOW, color: Colors.textMuted, fontFamily: 'Alegreya_400Regular', fontSize: 12 },
   stagedLabel: { ...MAP_HUD_TEXT_SHADOW, color: Colors.text, fontFamily: 'Alegreya_600SemiBold', fontSize: 13 },
-  ordersList: { maxHeight: 32 },
+  ordersList: { maxHeight: 48 },
   orderChip: {
     borderWidth: 1, borderColor: Colors.border, backgroundColor: MapHud.control,
-    paddingVertical: 6, paddingHorizontal: 10, marginRight: 6, justifyContent: 'center',
+    minHeight: 44, paddingVertical: 8, paddingHorizontal: 10, marginRight: 6,
+    justifyContent: 'center', alignItems: 'center', flexDirection: 'row', gap: 7,
   },
-  orderChipText: { ...MAP_HUD_TEXT_SHADOW, color: Colors.textMuted, fontFamily: 'Alegreya_500Medium', fontSize: 11 },
+  orderChipText: { ...MAP_HUD_TEXT_SHADOW, color: Colors.textMuted, fontFamily: 'Alegreya_500Medium', fontSize: 11, maxWidth: 240 },
+  controlPressed: { opacity: 0.72 },
   btn: {
     borderWidth: 1, borderColor: Colors.border, backgroundColor: MapHud.control,
-    paddingVertical: 10, paddingHorizontal: 14, alignItems: 'center',
+    minHeight: 44, paddingVertical: 10, paddingHorizontal: 14, alignItems: 'center',
+    justifyContent: 'center', flexDirection: 'row', gap: 7,
   },
   btnGold: { borderColor: Colors.gold, backgroundColor: MapHud.focused },
   btnDisabled: { borderColor: Colors.disabled, backgroundColor: MapHud.control },
-  btnText: { ...MAP_HUD_TEXT_SHADOW, color: Colors.text, fontFamily: 'Alegreya_600SemiBold', fontSize: 13, letterSpacing: 1 },
+  btnText: { ...MAP_HUD_TEXT_SHADOW, color: Colors.text, fontFamily: 'Alegreya_600SemiBold', fontSize: 13, letterSpacing: 1, textAlign: 'center', flexShrink: 1 },
   btnTextGold: { color: Colors.gold },
   btnTextDisabled: { color: Colors.disabledText },
   stepper: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   stepBtn: {
-    width: 32, height: 32, justifyContent: 'center', alignItems: 'center',
+    width: 44, height: 44, justifyContent: 'center', alignItems: 'center',
     borderWidth: 1, borderColor: Colors.border, backgroundColor: MapHud.control,
   },
-  stepBtnText: { ...MAP_HUD_TEXT_SHADOW, color: Colors.text, fontFamily: 'Alegreya_700Bold', fontSize: 18 },
+  stepBtnDisabled: { borderColor: Colors.disabled, opacity: 0.55 },
   stepValue: { ...MAP_HUD_TEXT_SHADOW, color: Colors.gold, fontFamily: 'Alegreya_700Bold', fontSize: 20, minWidth: 36, textAlign: 'center' },
 });

@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -45,6 +46,7 @@ import type { GameSetup } from '@/game/types';
 const COMMAND_TABLE_TEXTURE = require('../assets/ui/command-table-walnut.webp') as number;
 const PARCHMENT_PANEL_TEXTURE = require('../assets/ui/parchment-panel.webp') as number;
 const IMPERIAL_COMMAND_SEAL = require('../assets/ui/imperial-command-seal.png') as number;
+type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
 function defaultSetup(name: string): GameSetup {
   return {
@@ -532,8 +534,14 @@ export default function MultiplayerScreen() {
             },
           ]}
         >
-          <Pressable onPress={() => router.back()} style={styles.backBtn} accessibilityRole="button">
-            <Text style={styles.backText}>{'< Back'}</Text>
+          <Pressable
+            onPress={() => router.back()}
+            style={({ pressed }) => [styles.backBtn, pressed && styles.controlPressed]}
+            accessibilityRole="button"
+            accessibilityLabel="Back"
+          >
+            <Ionicons name="chevron-back" size={18} color={Colors.gold} />
+            <Text style={styles.backText}>Back</Text>
           </Pressable>
           <View style={styles.titleBlock}>
             <Image
@@ -610,8 +618,8 @@ export default function MultiplayerScreen() {
             <Text style={styles.body}>
               Find a public Same Time RISK seat or create a server-owned match. Manual host claims player 0.
             </Text>
-            <CommandButton label="Quick Match" onPress={quickMatch} disabled={busy} primary />
-            <CommandButton label="Create Host Seat" onPress={createHostMatch} disabled={busy} />
+            <CommandButton label="Quick Match" icon="flash-outline" onPress={quickMatch} disabled={busy} primary />
+            <CommandButton label="Create Host Seat" icon="flag-outline" onPress={createHostMatch} disabled={busy} />
           </Section>
 
           <Section title="LOBBY" style={wideSectionStyle}>
@@ -620,12 +628,17 @@ export default function MultiplayerScreen() {
                 <Pressable
                   key={option.value}
                   accessibilityRole="button"
+                  accessibilityLabel={`Show ${option.label.toLowerCase()} lobby matches`}
                   accessibilityState={{ selected: lobbyStatus === option.value }}
                   onPress={() => {
                     setLobbyStatus(option.value);
                     setLobbyMatches([]);
                   }}
-                  style={[styles.filterButton, lobbyStatus === option.value && styles.filterButtonActive]}
+                  style={({ pressed }) => [
+                    styles.filterButton,
+                    lobbyStatus === option.value && styles.filterButtonActive,
+                    pressed && styles.controlPressed,
+                  ]}
                 >
                   <Text
                     style={[styles.filterText, lobbyStatus === option.value && styles.filterTextActive]}
@@ -642,12 +655,17 @@ export default function MultiplayerScreen() {
                 <Pressable
                   key={option.value}
                   accessibilityRole="button"
+                  accessibilityLabel={`Show ${option.label.toLowerCase()} lobby scope`}
                   accessibilityState={{ selected: lobbyScope === option.value }}
                   onPress={() => {
                     setLobbyScope(option.value);
                     setLobbyMatches([]);
                   }}
-                  style={[styles.filterButton, lobbyScope === option.value && styles.filterButtonActive]}
+                  style={({ pressed }) => [
+                    styles.filterButton,
+                    lobbyScope === option.value && styles.filterButtonActive,
+                    pressed && styles.controlPressed,
+                  ]}
                 >
                   <Text
                     style={[styles.filterText, lobbyScope === option.value && styles.filterTextActive]}
@@ -659,9 +677,15 @@ export default function MultiplayerScreen() {
                 </Pressable>
               ))}
             </View>
-            <CommandButton label="Refresh Lobby" onPress={refreshLobby} disabled={busy} />
+            <CommandButton label="Refresh Lobby" icon="refresh-outline" onPress={refreshLobby} disabled={busy} />
             {lobbyMatches.map((match) => (
-              <Pressable key={match.id} onPress={() => useLobbyMatch(match)} style={styles.lobbyRow}>
+              <Pressable
+                key={match.id}
+                onPress={() => useLobbyMatch(match)}
+                style={({ pressed }) => [styles.lobbyRow, pressed && styles.controlPressed]}
+                accessibilityRole="button"
+                accessibilityLabel={`Select match ${match.id}`}
+              >
                 <Text style={styles.lobbyTitle} numberOfLines={1}>Match {match.id}</Text>
                 <Text style={styles.meta}>
                   {match.lobbyStatus} - v{match.version} - {match.phase} - {match.openSeatCount} open - turn {match.turn}
@@ -675,9 +699,10 @@ export default function MultiplayerScreen() {
 
           <Section title="PENDING INVITATIONS" style={sectionStyle}>
             <Text style={styles.meta}>Invitation alerts {invitationLiveMode}</Text>
-            <CommandButton label="Refresh Invitations" onPress={refreshInvitations} disabled={busy} />
+            <CommandButton label="Refresh Invitations" icon="refresh-outline" onPress={refreshInvitations} disabled={busy} />
             <CommandButton
               label={invitationLiveMode === 'off' ? 'Watch Invitations' : 'Stop Alerts'}
+              icon={invitationLiveMode === 'off' ? 'radio-outline' : 'pause-circle-outline'}
               onPress={toggleInvitationWatch}
               disabled={busy}
             />
@@ -685,7 +710,9 @@ export default function MultiplayerScreen() {
               <Pressable
                 key={`${invitation.matchId}:${invitation.playerId}`}
                 onPress={() => useInvitation(invitation)}
-                style={styles.lobbyRow}
+                style={({ pressed }) => [styles.lobbyRow, pressed && styles.controlPressed]}
+                accessibilityRole="button"
+                accessibilityLabel={`Select invitation for player ${invitation.playerId} in match ${invitation.matchId}`}
               >
                 <Text style={styles.lobbyTitle} numberOfLines={1}>Match {invitation.matchId}</Text>
                 <Text style={styles.meta}>
@@ -699,12 +726,14 @@ export default function MultiplayerScreen() {
           </Section>
 
           <Section title="CONTACTS" style={sectionStyle}>
-            <CommandButton label="Refresh Contacts" onPress={refreshContacts} disabled={busy} />
+            <CommandButton label="Refresh Contacts" icon="refresh-outline" onPress={refreshContacts} disabled={busy} />
             {contacts.map((contact) => (
               <Pressable
                 key={contact.userId}
                 onPress={() => useContact(contact)}
-                style={styles.lobbyRow}
+                style={({ pressed }) => [styles.lobbyRow, pressed && styles.controlPressed]}
+                accessibilityRole="button"
+                accessibilityLabel={`Select contact ${contact.displayName ?? contact.userId}`}
               >
                 <Text style={styles.lobbyTitle} numberOfLines={1}>{contact.displayName ?? contact.userId}</Text>
                 <Text style={styles.meta} numberOfLines={1}>{contact.userId}</Text>
@@ -734,7 +763,7 @@ export default function MultiplayerScreen() {
               autoCorrect={false}
               style={styles.input}
             />
-            <CommandButton label="Invite Seat" onPress={inviteSeat} disabled={busy || !session} />
+            <CommandButton label="Invite Seat" icon="send-outline" onPress={inviteSeat} disabled={busy || !session} />
           </Section>
 
           <Section title="JOIN" style={sectionStyle}>
@@ -759,13 +788,13 @@ export default function MultiplayerScreen() {
               keyboardType="number-pad"
               style={styles.input}
             />
-            <CommandButton label="Join Seat" onPress={joinSeat} disabled={busy} />
+            <CommandButton label="Join Seat" icon="enter-outline" onPress={joinSeat} disabled={busy} />
           </Section>
 
           <Section title="LINKED MATCH" style={wideSectionStyle}>
             <View style={styles.statusRow}>
               <Text style={styles.body}>{status}</Text>
-              {busy && <ActivityIndicator color={Colors.gold} />}
+              {busy && <ActivityIndicator color={Colors.gold} accessibilityLabel="Multiplayer request pending" />}
             </View>
             {session && (
               <>
@@ -776,13 +805,14 @@ export default function MultiplayerScreen() {
                   {snapshot && (
                     <CommandButton
                       label="Open Battle Map"
+                      icon="map-outline"
                       onPress={() => router.push('/multiplayer-game' as Href)}
                       disabled={busy}
                       primary
                     />
                   )}
-                  <CommandButton label="Refresh Snapshot" onPress={() => void refreshSnapshot()} disabled={busy} />
-                  <CommandButton label="Clear Token" onPress={clearSession} disabled={busy} danger />
+                  <CommandButton label="Refresh Snapshot" icon="sync-outline" onPress={() => void refreshSnapshot()} disabled={busy} />
+                  <CommandButton label="Clear Token" icon="trash-outline" onPress={clearSession} disabled={busy} danger />
                 </View>
               </>
             )}
@@ -861,12 +891,14 @@ function StatusPill({
 
 function CommandButton({
   label,
+  icon,
   onPress,
   disabled,
   primary,
   danger,
 }: {
   label: string;
+  icon?: IconName;
   onPress: () => void;
   disabled?: boolean;
   primary?: boolean;
@@ -875,6 +907,7 @@ function CommandButton({
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={label}
       accessibilityState={{ disabled: Boolean(disabled) }}
       onPress={onPress}
       disabled={disabled}
@@ -886,6 +919,13 @@ function CommandButton({
         pressed && !disabled && styles.buttonPressed,
       ]}
     >
+      {icon && (
+        <Ionicons
+          name={icon}
+          size={16}
+          color={disabled ? Colors.disabledText : primary ? Colors.bg : danger ? Colors.crimson : Colors.text}
+        />
+      )}
       <Text
         style={[styles.buttonText, primary && styles.buttonTextPrimary, danger && styles.buttonTextDanger]}
         numberOfLines={1}
@@ -915,6 +955,9 @@ const styles = StyleSheet.create({
   },
   backBtn: {
     minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: 'rgba(222,190,115,0.32)',
@@ -982,6 +1025,8 @@ const styles = StyleSheet.create({
     minHeight: 44,
     justifyContent: 'center',
     alignItems: 'center',
+    flexDirection: 'row',
+    gap: 7,
     borderWidth: 1,
     borderColor: 'rgba(222,190,115,0.34)',
     backgroundColor: 'rgba(21,13,9,0.56)',
@@ -991,14 +1036,14 @@ const styles = StyleSheet.create({
   buttonDanger: { borderColor: Colors.crimson },
   buttonDisabled: { opacity: 0.5 },
   buttonPressed: { transform: [{ scale: 0.99 }] },
-  buttonText: { ...MAP_HUD_TEXT_SHADOW, color: Colors.text, fontFamily: 'Alegreya_700Bold', fontSize: 13, letterSpacing: 1 },
+  buttonText: { ...MAP_HUD_TEXT_SHADOW, color: Colors.text, fontFamily: 'Alegreya_700Bold', fontSize: 13, letterSpacing: 1, flexShrink: 1, textAlign: 'center' },
   buttonTextPrimary: { color: Colors.bg },
   buttonTextDanger: { color: Colors.crimson },
   statusRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   filterButton: {
-    minHeight: 34,
+    minHeight: 44,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
@@ -1018,11 +1063,13 @@ const styles = StyleSheet.create({
   },
   lobbyRow: {
     gap: 4,
+    minHeight: 44,
     borderWidth: 1,
     borderColor: 'rgba(222,190,115,0.28)',
     backgroundColor: 'rgba(8,5,2,0.42)',
     padding: 12,
   },
+  controlPressed: { opacity: 0.72 },
   lobbyTitle: { ...MAP_HUD_TEXT_SHADOW, color: Colors.gold, fontFamily: 'Alegreya_700Bold', fontSize: 13 },
   snapshotTitle: { ...MAP_HUD_TEXT_SHADOW, color: Colors.gold, fontFamily: 'Alegreya_700Bold', fontSize: 14 },
   seatList: { gap: 4, marginTop: 4 },
