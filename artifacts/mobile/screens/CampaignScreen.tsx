@@ -1209,11 +1209,16 @@ export function CampaignScreen({
         <View style={styles.viewRail} pointerEvents="box-none">
           <Pressable
             testID="map-renderer-toggle"
-            accessibilityLabel={`Use ${rendererMode === "r3f" ? "2D" : "3D"} map renderer`}
+            accessibilityLabel={`Map renderer: ${rendererMode === "r3f" ? "3D" : "2D"}. Use ${rendererMode === "r3f" ? "2D" : "3D"} map renderer`}
+            accessibilityRole="button"
+            accessibilityState={{ selected: rendererMode === "r3f" }}
             onPress={() =>
               setRendererMode((mode) => (mode === "r3f" ? "svg" : "r3f"))
             }
-            style={styles.viewModeBtn}
+            style={({ pressed }) => [
+              styles.viewModeBtn,
+              pressed && styles.viewModeBtnPressed,
+            ]}
           >
             <Ionicons
               name={rendererMode === "r3f" ? "cube-outline" : "map-outline"}
@@ -1226,9 +1231,15 @@ export function CampaignScreen({
           </Pressable>
           <Pressable
             testID="map-view-mode-button"
+            accessibilityRole="button"
+            accessibilityLabel={`Map overlay: ${MAP_VIEW_LABELS[viewMode]}. Tap to cycle overlays`}
             onPress={cycleViewMode}
-            style={styles.viewModeBtn}
+            style={({ pressed }) => [
+              styles.viewModeBtn,
+              pressed && styles.viewModeBtnPressed,
+            ]}
           >
+            <Ionicons name="layers-outline" size={14} color="#ead69d" />
             <Text style={styles.viewModeText}>
               {MAP_VIEW_LABELS[viewMode].toUpperCase()}
             </Text>
@@ -1258,10 +1269,16 @@ export function CampaignScreen({
             </Pressable>
           ) : null}
           <Pressable
+            testID="map-battle-scene-pacing"
             onPress={cycleBattleSceneMode}
-            style={styles.viewModeBtn}
-            accessibilityLabel="Battle scene pacing"
+            style={({ pressed }) => [
+              styles.viewModeBtn,
+              pressed && styles.viewModeBtnPressed,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel={`Battle scene pacing: ${BATTLE_SCENE_LABELS[sceneMode]}. Tap to cycle pacing`}
           >
+            <Ionicons name="flash-outline" size={14} color="#ead69d" />
             <Text style={styles.viewModeText}>
               BATTLES: {BATTLE_SCENE_LABELS[sceneMode]}
             </Text>
@@ -1428,15 +1445,19 @@ const styles = StyleSheet.create({
   topBar: { position: "absolute", top: 0, left: 0, right: 0, zIndex: 10 },
   viewRail: { alignItems: "flex-start", paddingLeft: 8, paddingTop: 8, gap: 6 },
   viewModeBtn: {
+    minHeight: 44,
+    minWidth: 44,
     borderWidth: 1,
     borderColor: "rgba(222,190,115,0.4)",
     paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingVertical: 6,
     backgroundColor: MapHud.control,
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     gap: 5,
   },
+  viewModeBtnPressed: { opacity: 0.72 },
   viewModeText: {
     ...MAP_HUD_TEXT_SHADOW,
     color: Colors.gold,
@@ -1445,8 +1466,8 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
   },
   performanceEvidenceBtn: {
-    width: 30,
-    height: 28,
+    width: 44,
+    height: 44,
     borderWidth: 1,
     backgroundColor: MapHud.control,
     alignItems: "center",

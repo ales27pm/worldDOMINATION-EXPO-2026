@@ -7,6 +7,16 @@ export interface SetupOption<T extends string> {
   tableCue: string;
 }
 
+export interface TurnStyleDoctrineStep {
+  label: string;
+  detail: string;
+}
+
+export interface TurnStyleDoctrine {
+  callsign: string;
+  steps: TurnStyleDoctrineStep[];
+}
+
 export const OBJECTIVE_OPTIONS: SetupOption<Objective>[] = [
   {
     value: "domination60",
@@ -98,6 +108,55 @@ export const TURN_STYLE_OPTIONS: SetupOption<TurnStyle>[] = [
   },
 ];
 
+export const TURN_STYLE_DOCTRINES: Record<TurnStyle, TurnStyleDoctrine> = {
+  classic: {
+    callsign: "Sequential command",
+    steps: [
+      {
+        label: "Open muster",
+        detail: "Owned territories show where reinforcements can land; mandatory card trades block deployment until resolved.",
+      },
+      {
+        label: "Attack line",
+        detail: "Legal origins, targets and red dice stay visible before each roll.",
+      },
+      {
+        label: "Occupation",
+        detail: "Conquered ground opens an occupation order before the commander may keep attacking.",
+      },
+      {
+        label: "One march",
+        detail: "Fortification is a single linked tactical move before handoff or end turn.",
+      },
+    ],
+  },
+  sameTime: {
+    callsign: "Sealed simultaneous command",
+    steps: [
+      {
+        label: "Secret muster",
+        detail: "Each commander places reinforcements privately; restricted mode marks capped territories as blocked.",
+      },
+      {
+        label: "Sealed attacks",
+        detail: "Staged routes show queued armies until sealed, then committed armies wait on every commander.",
+      },
+      {
+        label: "Resolution",
+        detail: "Dice tiers, border clashes, surges and spoils resolve together before anyone moves again.",
+      },
+      {
+        label: "Acknowledge and march",
+        detail: "Playback must be acknowledged, then surviving commanders seal tactical movement.",
+      },
+    ],
+  },
+};
+
+export function turnStyleDoctrine(turnStyle: TurnStyle): TurnStyleDoctrine {
+  return TURN_STYLE_DOCTRINES[turnStyle];
+}
+
 export interface MapSetupBriefing {
   label: string;
   desc: string;
@@ -147,9 +206,11 @@ export function setupBriefingLines({
 }): string[] {
   const map = mapSetupBriefing(useExtraTerritories);
   const turn = optionByValue(TURN_STYLE_OPTIONS, turnStyle);
+  const doctrine = turnStyleDoctrine(turnStyle);
   const lines = [
     `${map.territoryCount} territories: ${map.desc}`,
     `${turn.label}: ${turn.tableCue}`,
+    `${doctrine.callsign}: ${doctrine.steps.map((step) => step.label).join(", ")}.`,
     `${optionByValue(ALLOCATION_OPTIONS, allocation).label}: ${optionByValue(ALLOCATION_OPTIONS, allocation).desc}`,
     `${optionByValue(CARD_RULE_OPTIONS, cardRule).label}: ${optionByValue(CARD_RULE_OPTIONS, cardRule).desc}`,
     `${optionByValue(OBJECTIVE_OPTIONS, objective).label}: ${optionByValue(OBJECTIVE_OPTIONS, objective).desc}`,

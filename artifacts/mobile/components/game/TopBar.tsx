@@ -6,6 +6,7 @@ import { MAP_HUD_TEXT_SHADOW, MapHud } from '@/constants/mapHud';
 import { Fonts } from '@/constants/typography';
 import { toggleSfxMuted, useSfxMuted } from '@/lib/sfx';
 import { missionText } from '@/game/missions';
+import { commandPhasePips } from '@/game/phasePips';
 import { OBJECTIVE_INFO } from '@/game/types';
 import type { GameState } from '@/game/types';
 
@@ -15,25 +16,12 @@ import type { GameState } from '@/game/types';
  * (I. DEP / II. ENG / III. MAN), mute toggle and Hall (exit) button.
  */
 
-const PHASE_PIPS: { key: string; label: string; phases: string[] }[] = [
-  { key: 'dep', label: 'I. DEP', phases: ['reinforcement'] },
-  { key: 'eng', label: 'II. ENG', phases: ['attack'] },
-  { key: 'man', label: 'III. MAN', phases: ['fortify'] },
-];
-
-const SETUP_PHASES: Record<string, string> = {
-  territoryGrab: 'CLAIMING',
-  election: 'ELECTION',
-  initialDeploy: 'DEPLOYING',
-  chooseCapital: 'CAPITAL',
-};
-
 export function TopBar({ game, onExit }: { game: GameState; onExit: () => void }) {
   const sfxMuted = useSfxMuted();
   const player = game.players[game.currentPlayer];
   if (!player) return null;
 
-  const setupChip = SETUP_PHASES[game.phase];
+  const phasePips = commandPhasePips(game);
   const objective = OBJECTIVE_INFO[game.setup.objective]?.name ?? 'Campaign';
   const mission =
     game.setup.objective === 'mission' && player.isHuman && player.mission
@@ -67,21 +55,19 @@ export function TopBar({ game, onExit }: { game: GameState; onExit: () => void }
         </View>
 
         {/* Phase pips */}
-        <View style={styles.pips}>
-          {setupChip ? (
-            <View style={[styles.pip, styles.pipActive]}>
-              <Text style={[styles.pipText, styles.pipTextActive]}>{setupChip}</Text>
+        <View style={[styles.pips, phasePips.length > 3 && styles.pipsDense]}>
+          {phasePips.map((pip) => (
+            <View
+              key={pip.key}
+              accessible
+              accessibilityLabel={`${pip.accessibilityLabel}${pip.active ? ', active' : ''}`}
+              style={[styles.pip, phasePips.length > 3 && styles.pipDense, pip.active && styles.pipActive]}
+            >
+              <Text style={[styles.pipText, phasePips.length > 3 && styles.pipTextDense, pip.active && styles.pipTextActive]}>
+                {pip.label}
+              </Text>
             </View>
-          ) : (
-            PHASE_PIPS.map((pip) => {
-              const active = pip.phases.includes(game.phase);
-              return (
-                <View key={pip.key} style={[styles.pip, active && styles.pipActive]}>
-                  <Text style={[styles.pipText, active && styles.pipTextActive]}>{pip.label}</Text>
-                </View>
-              );
-            })
-          )}
+          ))}
         </View>
 
         <Pressable
@@ -159,13 +145,17 @@ const styles = StyleSheet.create({
     fontSize: 10.5,
     lineHeight: 13,
   },
-  pips: { flexDirection: 'row', gap: 4 },
+  pips: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 4, maxWidth: 178 },
+  pipsDense: { maxWidth: 188 },
   pip: {
     borderWidth: 1,
     borderColor: 'rgba(155,118,70,0.5)',
     paddingHorizontal: 5,
     paddingVertical: 2.5,
+    minHeight: 24,
+    justifyContent: 'center',
   },
+  pipDense: { paddingHorizontal: 4 },
   pipActive: {
     borderColor: Colors.gold,
     backgroundColor: 'rgba(222,190,115,0.14)',
@@ -177,6 +167,7 @@ const styles = StyleSheet.create({
     fontSize: 8.5,
     letterSpacing: 1.5,
   },
+  pipTextDense: { fontSize: 8, letterSpacing: 1.1 },
   pipTextActive: { color: Colors.gold },
   muteBtn: {
     width: 44,

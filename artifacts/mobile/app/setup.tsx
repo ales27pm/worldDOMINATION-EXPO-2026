@@ -17,6 +17,7 @@ import {
   mapSetupBriefing,
   optionByValue,
   setupBriefingLines,
+  turnStyleDoctrine,
 } from '@/game/setupBriefing';
 import { PLAYER_COLORS, TURN_STYLE_INFO } from '@/game/types';
 import type { Allocation, CardRule, GeneralId, Objective, TurnStyle } from '@/game/types';
@@ -51,7 +52,10 @@ export default function SetupScreen() {
   const allocationBriefing = optionByValue(ALLOCATION_OPTIONS, allocation);
   const cardRuleBriefing = optionByValue(CARD_RULE_OPTIONS, cardRule);
   const turnStyleBriefing = optionByValue(TURN_STYLE_OPTIONS, turnStyle);
+  const turnDoctrine = turnStyleDoctrine(turnStyle);
   const mapBriefing = mapSetupBriefing(extraTerritories);
+  const humanCount = players.filter((player) => player.isHuman).length;
+  const aiCount = players.length - humanCount;
   const launchBriefing = setupBriefingLines({
     objective,
     allocation,
@@ -208,6 +212,7 @@ export default function SetupScreen() {
                 turnStyleBriefing.tableCue,
               ]}
             />
+            <DoctrineBriefing doctrine={turnDoctrine} />
             {turnStyle === 'sameTime' && (
               <View style={styles.switchRow}>
                 <View style={{ flex: 1 }}>
@@ -249,6 +254,9 @@ export default function SetupScreen() {
 
           <Section title="CAMPAIGN ORDER">
             <View style={styles.summaryPanel}>
+              <Text style={styles.summaryLine}>
+                {players.length} commanders: {humanCount} local, {aiCount} AI at the table.
+              </Text>
               {launchBriefing.map((line) => (
                 <Text key={line} style={styles.summaryLine}>
                   {line}
@@ -290,6 +298,32 @@ function BriefingNote({ title, lines }: { title: string; lines: string[] }) {
         <Text key={line} style={styles.briefingText}>
           {line}
         </Text>
+      ))}
+    </View>
+  );
+}
+
+function DoctrineBriefing({
+  doctrine,
+}: {
+  doctrine: ReturnType<typeof turnStyleDoctrine>;
+}) {
+  return (
+    <View style={styles.doctrinePanel}>
+      <View style={styles.doctrineHeader}>
+        <Ionicons name="compass-outline" size={16} color={Colors.gold} />
+        <Text style={styles.doctrineTitle}>{doctrine.callsign}</Text>
+      </View>
+      {doctrine.steps.map((step, index) => (
+        <View key={step.label} style={styles.doctrineRow}>
+          <View style={styles.doctrineBadge}>
+            <Text style={styles.doctrineBadgeText}>{index + 1}</Text>
+          </View>
+          <View style={styles.doctrineCopy}>
+            <Text style={styles.doctrineStep}>{step.label}</Text>
+            <Text style={styles.doctrineDetail}>{step.detail}</Text>
+          </View>
+        </View>
       ))}
     </View>
   );
@@ -427,6 +461,56 @@ const styles = StyleSheet.create({
     fontFamily: 'Alegreya_400Regular',
     fontSize: 12,
     lineHeight: 17,
+  },
+  doctrinePanel: {
+    borderWidth: 1,
+    borderColor: 'rgba(222,190,115,0.28)',
+    backgroundColor: 'rgba(21,13,9,0.24)',
+    padding: 10,
+    gap: 9,
+  },
+  doctrineHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+  },
+  doctrineTitle: {
+    color: Colors.gold,
+    fontFamily: 'Alegreya_600SemiBold',
+    fontSize: 13,
+  },
+  doctrineRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 9,
+  },
+  doctrineBadge: {
+    width: 24,
+    minWidth: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: Colors.goldDim,
+    backgroundColor: 'rgba(222,190,115,0.12)',
+  },
+  doctrineBadgeText: {
+    color: Colors.gold,
+    fontFamily: 'Alegreya_700Bold',
+    fontSize: 11,
+  },
+  doctrineCopy: { flex: 1, minWidth: 0 },
+  doctrineStep: {
+    color: Colors.text,
+    fontFamily: 'Alegreya_600SemiBold',
+    fontSize: 12,
+  },
+  doctrineDetail: {
+    color: Colors.textMuted,
+    fontFamily: 'Alegreya_400Regular',
+    fontSize: 12,
+    lineHeight: 16,
+    marginTop: 1,
   },
   playerCard: {
     backgroundColor: Colors.bgCard,

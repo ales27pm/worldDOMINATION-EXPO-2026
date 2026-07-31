@@ -125,6 +125,11 @@ function assertExportShape() {
     "Classic RISK",
     "Same Time RISK",
     "Extended Map",
+    "COMMAND DISPATCH",
+    "Open muster",
+    "Sealed attacks",
+    "I. MUSTER",
+    "II. SEAL",
     "HALL OF RECORDS",
     "Tournament High Scores",
     "MULTIPLAYER COMMAND",
@@ -436,6 +441,21 @@ async function assertTransparentMapChrome(page, label) {
     page.getByLabel("Focus action"),
     0.22,
     `${label} focus control`,
+  );
+  await assertMinTouchTarget(
+    page.getByTestId("map-renderer-toggle"),
+    44,
+    `${label} renderer control`,
+  );
+  await assertMinTouchTarget(
+    page.getByTestId("map-view-mode-button"),
+    44,
+    `${label} view-mode control`,
+  );
+  await assertMinTouchTarget(
+    page.getByTestId("map-battle-scene-pacing"),
+    44,
+    `${label} battle pacing control`,
   );
 }
 
@@ -1289,6 +1309,30 @@ async function assertRenderedPreview() {
         "HALL OF RECORDS",
       ],
       "rendered home screen",
+      async (page) => {
+        const bodyText = await page.locator("body").innerText({ timeout: 10000 });
+        assertIncludes(bodyText, "COMMAND DISPATCH", "rendered home screen");
+        const newCampaign = await assertLabeledControl(
+          page,
+          "New Campaign",
+          "rendered home screen",
+        );
+        await assertMinTouchTarget(
+          newCampaign,
+          44,
+          "rendered home New Campaign control",
+        );
+        const multiplayer = await assertLabeledControl(
+          page,
+          "Multiplayer Command",
+          "rendered home screen",
+        );
+        await assertMinTouchTarget(
+          multiplayer,
+          44,
+          "rendered home Multiplayer Command control",
+        );
+      },
     );
     await withFreshPage(
       "/setup",
@@ -1298,6 +1342,8 @@ async function assertRenderedPreview() {
         "TURN STYLE",
         "Same Time RISK",
         "Extended Map",
+        "Open muster",
+        "Attack line",
         "LAUNCH CAMPAIGN",
       ],
       "rendered setup screen",
@@ -1306,6 +1352,16 @@ async function assertRenderedPreview() {
         assert(
           !bodyText.includes("Restricted Reinforcement"),
           "rendered setup screen showed restricted reinforcement before Same Time selection",
+        );
+        assertIncludes(
+          bodyText,
+          "Open muster",
+          "rendered setup Classic doctrine",
+        );
+        assertIncludes(
+          bodyText,
+          "Occupation",
+          "rendered setup Classic doctrine",
         );
         await page
           .getByText("Same Time RISK", { exact: true })
@@ -1320,6 +1376,21 @@ async function assertRenderedPreview() {
           bodyText,
           "Cap each turn's reinforcements",
           "rendered setup Same Time controls",
+        );
+        assertIncludes(
+          bodyText,
+          "Sealed attacks",
+          "rendered setup Same Time doctrine",
+        );
+        assertIncludes(
+          bodyText,
+          "committed armies",
+          "rendered setup Same Time doctrine",
+        );
+        assertIncludes(
+          bodyText,
+          "border clashes",
+          "rendered setup Same Time doctrine",
         );
       },
     );
@@ -1696,6 +1767,8 @@ async function assertRenderedPreview() {
       [
         "Napoleon",
         "REINFORCE (SIM)",
+        "I. MUSTER",
+        "II. SEAL",
         "Deploy",
         "in secret",
         "Seal Reinforcements",
@@ -1708,6 +1781,8 @@ async function assertRenderedPreview() {
       [
         "Napoleon",
         "REINFORCE (SIM)",
+        "I. MUSTER",
+        "II. SEAL",
         "Deploy",
         "in secret",
         "Seal Reinforcements",
@@ -1746,6 +1821,7 @@ async function assertRenderedPreview() {
       [
         "Napoleon",
         "ORDERS (SIM)",
+        "II. SEAL",
         "Stage attack orders in secret",
         "Seal Attack Orders",
         "Alaska",
@@ -1783,6 +1859,8 @@ async function assertRenderedPreview() {
       [
         "Napoleon",
         "ROUND 1",
+        "III. REVIEW",
+        "IV. MARCH",
         "BATTLE REPORT",
         "LAST BATTLE",
         "CONQUERED",
