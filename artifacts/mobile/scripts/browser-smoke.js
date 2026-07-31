@@ -855,6 +855,30 @@ async function assertR3FVerticalSlice(page) {
     attacked.canonicalBattleId === battleId,
     "R3F presentation did not match the canonical battle",
   );
+  await page.waitForFunction(
+    () => {
+      const impact = globalThis.__WORLD_DOMINATION_R3F__?.battleImpact;
+      return (
+        impact?.mode === "instanced" &&
+        impact.instanceMeshCount === 1 &&
+        impact.instanceCount === 8 &&
+        impact.fallbackMeshCount === 0
+      );
+    },
+    null,
+    { timeout: 10000 },
+  );
+  const battleImpact = await page.evaluate(
+    () => globalThis.__WORLD_DOMINATION_R3F__.battleImpact,
+  );
+  assert(
+    battleImpact.mode === "instanced" &&
+      battleImpact.instanceMeshCount === 1 &&
+      battleImpact.instanceCount === 8 &&
+      battleImpact.fallbackMeshCount === 0,
+    `R3F battle impact did not use one 8-instance mesh: ${JSON.stringify(battleImpact)}`,
+  );
+  console.log("ok - R3F instanced battle impact");
   await page.waitForTimeout(2300);
   const suspendedBattle = await page.evaluate(
     () => globalThis.__WORLD_DOMINATION_R3F__,

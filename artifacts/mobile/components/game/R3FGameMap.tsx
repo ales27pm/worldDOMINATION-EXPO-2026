@@ -36,6 +36,7 @@ import {
 } from "three";
 
 import { R3FArmyLayer } from "@/components/game/R3FArmyLayer";
+import { R3FBattleImpactInstances } from "@/components/game/R3FBattleImpactInstances";
 import R3FCommandRoom from "@/components/game/R3FCommandRoom";
 import { R3FGestureSurface } from "@/components/game/R3FGestureSurface";
 import R3FTable from "@/components/game/R3FTable";
@@ -102,6 +103,11 @@ import {
   type MapPerformancePlatform,
 } from "@/game/mapPerformanceEvidence";
 import {
+  BATTLE_IMPACT_INSTANCE_COUNT,
+  battleImpactColor,
+} from "@/game/r3fBattleImpactGeometry";
+import { R3F_FEATURE_FLAGS } from "@/game/r3fFeatureFlags";
+import {
   advanceMapCameraIdleSettle,
   resolveMapCanvasFrameloop,
 } from "@/game/mapRenderLoop";
@@ -153,6 +159,9 @@ interface SceneBridgeState extends PickerState {
   texturedRoomMeshCount: number;
   texturedTableMeshCount: number;
   territoryLabelCount: number;
+  battleImpactInstanceMeshCount: number;
+  battleImpactInstanceCount: number;
+  battleImpactFallbackMeshCount: number;
 }
 
 const BUTTON_ZOOM = 1.45;
@@ -163,7 +172,7 @@ const R3F_DEBUG_ENABLED =
   process.env.EXPO_PUBLIC_BROWSER_SMOKE === "1";
 const R3F_QUALIFICATION_ENABLED =
   R3F_DEBUG_ENABLED ||
-  process.env.EXPO_PUBLIC_R3F_QUALIFICATION === "1";
+  R3F_FEATURE_FLAGS.qualification;
 const ENABLE_SCENE_PROJECTION =
   Platform.OS === "web" ||
   R3F_DEBUG_ENABLED;
@@ -233,6 +242,26 @@ function updateR3FDebug(values: Record<string, unknown>): void {
   };
 }
 
+function BattleImpactFallbackMeshes({ color }: { color: string }) {
+  return (
+    <>
+      {Array.from({ length: BATTLE_IMPACT_INSTANCE_COUNT }, (_, index) => {
+        const angle = (index / BATTLE_IMPACT_INSTANCE_COUNT) * Math.PI * 2;
+        return (
+          <mesh
+            key={index}
+            name="battle_impact_fallback_particle"
+            position={[Math.cos(angle) * 0.18, 0.14, Math.sin(angle) * 0.18]}
+          >
+            <sphereGeometry args={[0.035, 8, 6]} />
+            <meshBasicMaterial color={color} toneMapped={false} />
+          </mesh>
+        );
+      })}
+    </>
+  );
+}
+
 function BattleEffect({
   battle,
   onComplete,
@@ -282,6 +311,11 @@ function BattleEffect({
   const line = useMemo(
     () => new ThreeLine(lineGeometry, lineMaterial),
     [lineGeometry, lineMaterial],
+  );
+  const impactColor = battleImpactColor(
+    battle.attackerColor,
+    battle.defenderColor,
+    battle.conquered,
   );
 
   useEffect(() => {
@@ -389,33 +423,13 @@ function BattleEffect({
         <meshBasicMaterial color={battle.attackerColor} toneMapped={false} />
       </mesh>
       <group ref={impact} position={end}>
-        {Array.from({ length: 8 }, (_, index) => {
-          const angle = (index / 8) * Math.PI * 2;
-          return (
-            <mesh
-              key={index}
-              position={[Math.cos(angle) * 0.18, 0.14, Math.sin(angle) * 0.18]}
-            >
-              <sphereGeometry args={[0.035, 8, 6]} />
-              <meshBasicMaterial
-                color={
-                  battle.conquered ? battle.attackerColor : battle.defenderColor
-                }
-                toneMapped={false}
-              />
-            </mesh>
-          );
-        })}
+        {R3F_FEATURE_FLAGS.battleInstancing ? (
+          <R3FBattleImpactInstances color={impactColor} />
+        ) : (
+          <BattleImpactFallbackMeshes color={impactColor} />
+        )}
         {Platform.OS === "web" ? (
-          <pointLight
-            color={
-              battle.conquered
-                ? battle.attackerColor
-                : battle.defenderColor
-            }
-            intensity={2.4}
-            distance={2.2}
-          />
+          <pointLight color={impactColor} intensity={2.4} distance={2.2} />
         ) : null}
       </group>
     </group>
@@ -531,10 +545,12 @@ function meshUsesTexture(mesh: Mesh): boolean {
 
 function SceneBridge({
   model,
+  battle,
   layout,
   onBridge,
 }: {
   model: MapSceneModel;
+  battle: MapSceneBattleEffect | null;
   layout: LayoutSize;
   onBridge: (bridge: SceneBridgeState) => void;
 }) {
@@ -570,6 +586,9 @@ function SceneBridge({
     let roomMeshCount = 0;
     let texturedRoomMeshCount = 0;
     let texturedTableMeshCount = 0;
+    let battleImpactInstanceMeshCount = 0;
+    let battleImpactInstanceCount = 0;
+    let battleImpactFallbackMeshCount = 0;
     scene.traverse((object) => {
       const mesh = object as Mesh;
       if (mesh.isMesh && mesh.name.startsWith("pick__")) {
@@ -584,6 +603,15 @@ function SceneBridge({
       }
       if (mesh.name.startsWith("tabletop_") && usesTexture) {
         texturedTableMeshCount += 1;
+      }
+      if (mesh.name === "battle_impact_instances") {
+        battleImpactInstanceMeshCount += 1;
+        battleImpactInstanceCount += Number(
+          mesh.userData.instanceCount ?? 0,
+        );
+      }
+      if (mesh.name === "battle_impact_fallback_particle") {
+        battleImpactFallbackMeshCount += 1;
       }
     });
     const labelLayer = scene.getObjectByName("territory_labels");
@@ -600,13 +628,16 @@ function SceneBridge({
       texturedRoomMeshCount,
       texturedTableMeshCount,
       territoryLabelCount,
+      battleImpactInstanceMeshCount,
+      battleImpactInstanceCount,
+      battleImpactFallbackMeshCount,
     });
   }, [camera, invalidate, onBridge, projected, scene]);
 
   useEffect(() => {
     publishedMeshCount.current = -1;
     publishBridge();
-  }, [publishBridge]);
+  }, [battle?.id, publishBridge]);
 
   useFrame(() => {
     if (publishedMeshCount.current !== model.territories.length) {
@@ -900,7 +931,12 @@ function TabletopScene({
             suspended={battleSceneVisible}
           />
         ) : null}
-        <SceneBridge model={model} layout={layout} onBridge={onBridge} />
+        <SceneBridge
+          model={model}
+          battle={battle}
+          layout={layout}
+          onBridge={onBridge}
+        />
       </Suspense>
       <CameraRig
         runtime={runtime}
@@ -1286,6 +1322,15 @@ export default function R3FGameMap({
       texturedRoomMeshCount: bridge.texturedRoomMeshCount,
       texturedTableMeshCount: bridge.texturedTableMeshCount,
       territoryLabelCount: bridge.territoryLabelCount,
+      r3fFeatureFlags: R3F_FEATURE_FLAGS,
+      battleImpact: {
+        mode: R3F_FEATURE_FLAGS.battleInstancing
+          ? "instanced"
+          : "fallback",
+        instanceMeshCount: bridge.battleImpactInstanceMeshCount,
+        instanceCount: bridge.battleImpactInstanceCount,
+        fallbackMeshCount: bridge.battleImpactFallbackMeshCount,
+      },
       camera: runtime.current.current,
     });
     if (Platform.OS !== "web") bridge.invalidate();
@@ -1667,6 +1712,7 @@ export default function R3FGameMap({
       canonicalBattleId: model.battle?.id ?? null,
       battleId: presentedBattle?.id ?? null,
       battleActive: Boolean(presentedBattle),
+      r3fFeatureFlags: R3F_FEATURE_FLAGS,
       projected: projectedRef.current,
       pickerMeshCount: pickerRef.current?.meshes.length ?? 0,
       camera: runtime.current.current,
