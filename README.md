@@ -5,6 +5,11 @@ variants. The production application lives in `artifacts/mobile`; the
 monorepo also contains the server-authoritative multiplayer API and shared
 database packages.
 
+Canonical repository:
+[ales27pm/worldDOMINATION-EXPO-2026](https://github.com/ales27pm/worldDOMINATION-EXPO-2026).
+`main` is the production source branch. Older worldDOMINATION repositories are
+historical donors only and are not alternate runtimes.
+
 ## Current Capabilities
 
 - Classic 42-territory and expanded 48-territory boards
@@ -38,8 +43,7 @@ pnpm install --frozen-lockfile
 ## Run Locally
 
 ```bash
-EXPO_PUBLIC_DOMAIN=localhost \
-  pnpm --filter @workspace/mobile exec expo start --web --localhost
+pnpm --filter @workspace/mobile run dev -- --web
 ```
 
 The API can be built and started separately:
@@ -65,7 +69,16 @@ pnpm run release:readiness:static
 Local environment files, signing credentials, native build directories,
 browser output, and APK/AAB/IPA artifacts are intentionally excluded from Git.
 
-See
+## Repository Layout
+
+- `artifacts/mobile`: Expo application and canonical TypeScript game engine.
+- `artifacts/api-server`: multiplayer/account API.
+- `lib`: database and generated API contracts.
+- `scripts/release-readiness.cjs`: fail-closed release checks.
+- `docs`: donor provenance and sanitized physical-device evidence.
+
+See [docs/CONSOLIDATION.md](./docs/CONSOLIDATION.md) for the retired donor
+matrix and
 [WORLDDOMINATION_EXPO_BASE_IMPLEMENTATION_REPORT.md](./WORLDDOMINATION_EXPO_BASE_IMPLEMENTATION_REPORT.md)
 for architecture, implementation history, validation evidence, and remaining
 release gates.

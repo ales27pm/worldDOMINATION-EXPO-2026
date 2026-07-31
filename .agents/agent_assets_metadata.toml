@@ -1,8 +1,0 @@
-uploads = []
-generated = []
-
-[[outputs]]
-id = "59w8FqQME0XzZpK5tt1Jn"
-uri = "file://attached_assets/dice_preview_sheet.png"
-type = "image"
-title = "New dice — all five colors"

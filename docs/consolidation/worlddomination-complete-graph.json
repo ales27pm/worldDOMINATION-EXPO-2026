@@ -1,0 +1,846 @@
+{
+  "title": "WorldDOMINATION Risk Complete Best-Of Graph",
+  "description": "Complete graph data from the multi-agent code crawl.",
+  "generated_at": "2026-07-29T08:36:07.871951+00:00",
+  "nodes": [
+    {
+      "id": "repo-worlddomination-expo",
+      "label": "worldDOMINATION_EXPO",
+      "type": "project",
+      "description": "Latest and strongest repository in the scan. Primary source for the mobile app, Same Time RISK rules, Expo architecture, bundled assets, and persistence.",
+      "metadata": {
+        "path": "/home/ales27pm/worlddomination-risk-scan/worldDOMINATION_EXPO",
+        "head": "ee5a904",
+        "role": "primary-source"
+      }
+    },
+    {
+      "id": "app-expo-mobile",
+      "label": "Expo Mobile App",
+      "type": "project",
+      "description": "Primary app implementation under worldDOMINATION_EXPO/artifacts/mobile. It integrates setup, gameplay, records, tournament flows, native storage, map rendering, and the best rules engine.",
+      "metadata": {
+        "path": "worldDOMINATION_EXPO/artifacts/mobile",
+        "role": "use-as-base"
+      }
+    },
+    {
+      "id": "runtime-same-time-risk",
+      "label": "Same Time RISK Runtime",
+      "type": "solution",
+      "description": "The most advanced rules/runtime surface in the crawl. It supports simultaneous reinforcement, secret attack orders, battle playback, simultaneous tactical movement, and round resolution.",
+      "metadata": {
+        "path": "worldDOMINATION_EXPO/artifacts/mobile/game"
+      }
+    },
+    {
+      "id": "module-same-time-resolver",
+      "label": "sameTime.ts Resolver",
+      "type": "solution",
+      "description": "Pure simultaneous-round resolver for reinforcements, border clashes, mass invasions, surge attacks, tactical moves, and territory state updates.",
+      "metadata": {
+        "path": "worldDOMINATION_EXPO/artifacts/mobile/game/sameTime.ts",
+        "evidence": "lines 1-29, 36-58, 139-209"
+      }
+    },
+    {
+      "id": "module-engine-reducer",
+      "label": "engine.ts Reducer",
+      "type": "solution",
+      "description": "Central game reducer and phase machine. It wires classic turns and Same Time RISK into state transitions, logging, cards, elimination, and victory resolution.",
+      "metadata": {
+        "path": "worldDOMINATION_EXPO/artifacts/mobile/game/engine.ts",
+        "evidence": "lines 788-999 and 1367-1490"
+      }
+    },
+    {
+      "id": "module-types-model",
+      "label": "Expanded Game Types",
+      "type": "concept",
+      "description": "State and action model including turn style, Same Time phases, alliances, missions, dice tiers, setup options, battle reports, and tournament data.",
+      "metadata": {
+        "path": "worldDOMINATION_EXPO/artifacts/mobile/game/types.ts",
+        "evidence": "lines 99-210, 234-257, 399-429"
+      }
+    },
+    {
+      "id": "module-ai-generals",
+      "label": "AI Generals",
+      "type": "solution",
+      "description": "Bot decision logic for setup, reinforcement, attack, Same Time orders, movement, and general personality behavior.",
+      "metadata": {
+        "path": "worldDOMINATION_EXPO/artifacts/mobile/game/ai.ts"
+      }
+    },
+    {
+      "id": "module-map-model",
+      "label": "48-Territory Map Model",
+      "type": "concept",
+      "description": "Territory and continent data for standard and extended maps, including extra territories and Same Time continent bonuses.",
+      "metadata": {
+        "path": "worldDOMINATION_EXPO/artifacts/mobile/game/mapData.ts"
+      }
+    },
+    {
+      "id": "module-map-shapes",
+      "label": "Traced Map Shapes",
+      "type": "concept",
+      "description": "High precision territory outlines used by map rendering and hit testing. Critical for reliable board interaction on mobile and web.",
+      "metadata": {
+        "path": "worldDOMINATION_EXPO/artifacts/mobile/game/mapShapes.ts"
+      }
+    },
+    {
+      "id": "module-dice-system",
+      "label": "Tiered Dice System",
+      "type": "solution",
+      "description": "RISK II dice model, including classic battle dice and Same Time army-size tiers with rank-scaled casualties.",
+      "metadata": {
+        "path": "worldDOMINATION_EXPO/artifacts/mobile/game/dice.ts"
+      }
+    },
+    {
+      "id": "module-missions-tournament",
+      "label": "Missions and Tournament",
+      "type": "solution",
+      "description": "Mission deck, objective checks, tournament battle definitions, and scoring helpers for long-form play.",
+      "metadata": {
+        "path": "worldDOMINATION_EXPO/artifacts/mobile/game/missions.ts and game/tournament.ts"
+      }
+    },
+    {
+      "id": "ui-mobile-game-screen",
+      "label": "Mobile Game Screen",
+      "type": "solution",
+      "description": "Full-bleed mobile gameplay screen with map interaction, AI loop, battle scenes, overlays, bottom command panel, rosters, logs, and Same Time playback.",
+      "metadata": {
+        "path": "worldDOMINATION_EXPO/artifacts/mobile/app/game.tsx",
+        "evidence": "lines 37-65, 157-295, 455-565"
+      }
+    },
+    {
+      "id": "ui-mobile-setup-screen",
+      "label": "Mobile Setup Screen",
+      "type": "solution",
+      "description": "Campaign setup UI for players, objectives, allocation, card rules, extended map, turn style, and restricted Same Time reinforcement.",
+      "metadata": {
+        "path": "worldDOMINATION_EXPO/artifacts/mobile/app/setup.tsx",
+        "evidence": "lines 43-100, 163-187"
+      }
+    },
+    {
+      "id": "ui-game-panel",
+      "label": "Mobile Command Panel",
+      "type": "solution",
+      "description": "Phase-aware action panel for deploying, attacking, fortifying, sealing Same Time reinforcements, queuing attack orders, and confirming movement.",
+      "metadata": {
+        "path": "worldDOMINATION_EXPO/artifacts/mobile/components/game/GamePanel.tsx",
+        "evidence": "lines 42-68, 217-360"
+      }
+    },
+    {
+      "id": "ui-world-board",
+      "label": "Mobile Traced World Board",
+      "type": "solution",
+      "description": "React Native board renderer combining bundled map art, SVG overlays, shape-based hit testing, sea routes, ownership/threat/strength/empire views, and piece sprites.",
+      "metadata": {
+        "path": "worldDOMINATION_EXPO/artifacts/mobile/components/game/WorldBoard.tsx",
+        "evidence": "lines 141-221, 245-320"
+      }
+    },
+    {
+      "id": "ui-battle-overlays",
+      "label": "Battle and Result Overlays",
+      "type": "solution",
+      "description": "Handoff, occupy, proposal, victory, dispatch log, stats, and Same Time battle playback overlays.",
+      "metadata": {
+        "path": "worldDOMINATION_EXPO/artifacts/mobile/components/game/GameOverlays.tsx",
+        "evidence": "lines 292-320"
+      }
+    },
+    {
+      "id": "assets-mobile-bundled",
+      "label": "Bundled Mobile Assets",
+      "type": "project",
+      "description": "World map, territory battle views, dice, pieces, fireworks, sound effects, and campaign art bundled for mobile reliability.",
+      "metadata": {
+        "path": "worldDOMINATION_EXPO/artifacts/mobile/assets"
+      }
+    },
+    {
+      "id": "persistence-native-sqlite",
+      "label": "Native SQLite Persistence",
+      "type": "solution",
+      "description": "On-device SQLite repository for autosaves, campaign archive, commander stats, tournament progress, and high scores.",
+      "metadata": {
+        "path": "worldDOMINATION_EXPO/artifacts/mobile/db/repository.native.ts",
+        "evidence": "lines 1-16, 28-73, 102-161"
+      }
+    },
+    {
+      "id": "persistence-web-fallback",
+      "label": "Web Storage Fallback",
+      "type": "solution",
+      "description": "Expo web fallback repository with the same mobile storage API shape, used when native SQLite is unavailable.",
+      "metadata": {
+        "path": "worldDOMINATION_EXPO/artifacts/mobile/db/repository.ts"
+      }
+    },
+    {
+      "id": "context-game-provider",
+      "label": "Game Provider Autosave",
+      "type": "solution",
+      "description": "React context that restores saves, dispatches reducer actions, debounces autosaves, archives completed campaigns, and abandons saves.",
+      "metadata": {
+        "path": "worldDOMINATION_EXPO/artifacts/mobile/context/GameContext.tsx",
+        "evidence": "lines 22-80"
+      }
+    },
+    {
+      "id": "api-storage-scaffold",
+      "label": "Storage API Scaffold",
+      "type": "project",
+      "description": "Replit-style API server and object storage scaffold. Useful for future backend storage, but not yet a server-side game engine.",
+      "metadata": {
+        "path": "worldDOMINATION_EXPO/artifacts/api-server"
+      }
+    },
+    {
+      "id": "repo-worlddomination-2026-web",
+      "label": "worldDOMINATION_2026 Web",
+      "type": "project",
+      "description": "Best web presentation and test-runner donor. It has Vite, React Router, React Query, sql.js/IndexedDB storage, map tests, and browser/unit test scripts, but lacks Same Time runtime integration.",
+      "metadata": {
+        "path": "/home/ales27pm/worlddomination-risk-scan/worldDOMINATION_2026/web",
+        "role": "web-donor-and-test-lane"
+      }
+    },
+    {
+      "id": "ui-web-presentation",
+      "label": "Best Web Presentation",
+      "type": "solution",
+      "description": "Strongest browser UI reference: full-bleed board, overlays, routes, records, tournament screens, map viewport, and battle presentation.",
+      "metadata": {
+        "path": "worldDOMINATION_2026/web/src"
+      }
+    },
+    {
+      "id": "tests-vitest-browser",
+      "label": "Vitest Browser Lane",
+      "type": "skill",
+      "description": "Runnable web testing lane for unit and browser tests in the Vite app. It should receive ported game-rule tests from older sources.",
+      "metadata": {
+        "path": "worldDOMINATION_2026/web/package.json and web/src/test"
+      }
+    },
+    {
+      "id": "test-map-asset-alignment",
+      "label": "Map Alignment Tests",
+      "type": "metric",
+      "description": "Existing tests that lock territory anchors to the painted map and verify normalized board coordinates.",
+      "metadata": {
+        "path": "worldDOMINATION_2026/web/src/test/mapAsset.test.ts",
+        "evidence": "lines 50-75"
+      }
+    },
+    {
+      "id": "repo-worlddominationweb",
+      "label": "worldDOMINATIONweb",
+      "type": "project",
+      "description": "Older mixed Expo web plus Swift repository. It is not the best runtime, but it has valuable portable domain tests and historical deployment notes.",
+      "metadata": {
+        "path": "/home/ales27pm/worlddomination-risk-scan/worldDOMINATIONweb",
+        "role": "legacy-domain-test-donor"
+      }
+    },
+    {
+      "id": "tests-jest-domain",
+      "label": "Jest Domain Tests",
+      "type": "skill",
+      "description": "Portable TypeScript domain tests covering setup, allocation, reinforcement, battles, domination, and mission victories.",
+      "metadata": {
+        "path": "worldDOMINATIONweb/__tests__/domain/game-engine.test.ts",
+        "evidence": "lines 29-166"
+      }
+    },
+    {
+      "id": "module-legacy-same-time-engine",
+      "label": "Legacy SameTimeEngine",
+      "type": "solution",
+      "description": "Older class-style TypeScript Same Time engine with battle, spoils, and border clash helpers. Useful as a test oracle and historical reference.",
+      "metadata": {
+        "path": "worldDOMINATIONweb/src/domain/SameTimeEngine.ts",
+        "evidence": "lines 27-173"
+      }
+    },
+    {
+      "id": "repo-worlddomination-swift",
+      "label": "Swift RiskConquest Repos",
+      "type": "project",
+      "description": "Swift/Xcode-native reference from worldDOMINATION and worldDOMINATION-808. Useful as original behavior provenance and prototype source, not the primary implementation.",
+      "metadata": {
+        "path": "worldDOMINATION and worldDOMINATION-808",
+        "role": "native-reference"
+      }
+    },
+    {
+      "id": "swift-same-time-reference",
+      "label": "Swift Same Time Reference",
+      "type": "solution",
+      "description": "Original Swift implementation of Same Time planning and battle resolution, including AI order generation and grouped battle resolution.",
+      "metadata": {
+        "path": "worldDOMINATION/RiskConquest/ViewModels/GameViewModel+SameTime.swift",
+        "evidence": "lines 124-139 and 192-360"
+      }
+    },
+    {
+      "id": "tests-swift-rules",
+      "label": "Swift Rules Tests",
+      "type": "skill",
+      "description": "Swift rule tests with valuable dice, Same Time, map, mission, card, and campaign feed invariants that should be translated into TypeScript tests.",
+      "metadata": {
+        "path": "worldDOMINATION/RiskConquestTests"
+      }
+    },
+    {
+      "id": "prototype-scenekit-battle",
+      "label": "SceneKit Battle Prototype",
+      "type": "solution",
+      "description": "Native 3D/prototype battle scene and campaign view code from the Swift repos. Useful for future cinematic ideas, but currently disconnected from the Expo runtime.",
+      "metadata": {
+        "path": "worldDOMINATION-808/RiskConquest/Prototype"
+      }
+    },
+    {
+      "id": "repo-worlddomination-react-native",
+      "label": "worldDOMINATION-React-Native",
+      "type": "project",
+      "description": "Private older Expo mobile workspace. Same runtime family as EXPO, but superseded by the newer EXPO repo and missing Same Time TypeScript integration.",
+      "metadata": {
+        "path": "/home/ales27pm/worlddomination-risk-scan/worldDOMINATION-React-Native",
+        "head": "714f33a"
+      }
+    },
+    {
+      "id": "repo-wd-google",
+      "label": "wD_google",
+      "type": "issue",
+      "description": "Private repository that currently contains only the default AI Studio README. It is not a reusable game code source.",
+      "metadata": {
+        "path": "/home/ales27pm/worlddomination-risk-scan/wD_google/README.md"
+      }
+    },
+    {
+      "id": "empty-repos",
+      "label": "Empty Repositories",
+      "type": "issue",
+      "description": "worldDOMINATION_reactNATIVE and worldDOMINATION_reactnative2026 are cloned but contain no commits or useful source files.",
+      "metadata": {
+        "repos": "worldDOMINATION_reactNATIVE, worldDOMINATION_reactnative2026"
+      }
+    },
+    {
+      "id": "coverage-gap-expo-tests",
+      "label": "Expo Test Coverage Gap",
+      "type": "issue",
+      "description": "The strongest Expo mobile repo exposes build/typecheck scripts, but no meaningful automated game-rule test suite yet.",
+      "metadata": {
+        "source": "sub-agent test audit"
+      }
+    },
+    {
+      "id": "integration-gap-server-backend",
+      "label": "No Server Game Backend",
+      "type": "issue",
+      "description": "The strongest repo has health/storage API scaffolding only. Multiplayer/auth/server-authoritative game logic is not implemented there.",
+      "metadata": {
+        "path": "worldDOMINATION_EXPO/artifacts/api-server and lib/db"
+      }
+    },
+    {
+      "id": "best-of-plan",
+      "label": "Best-Of Consolidation Plan",
+      "type": "solution",
+      "description": "Use EXPO mobile as the source of truth, port web/test assets from worldDOMINATION_2026 and worldDOMINATIONweb, translate Swift tests, and treat old repos as references or retired snapshots.",
+      "metadata": {
+        "priority": "primary-base-then-donors"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-expo-contains-mobile",
+      "source": "repo-worlddomination-expo",
+      "target": "app-expo-mobile",
+      "type": "dependency",
+      "description": "worldDOMINATION_EXPO contains the primary mobile app workspace."
+    },
+    {
+      "id": "edge-mobile-runs-runtime",
+      "source": "app-expo-mobile",
+      "target": "runtime-same-time-risk",
+      "type": "dependency",
+      "description": "The mobile app runs the advanced rules runtime."
+    },
+    {
+      "id": "edge-runtime-orchestrated-by-engine",
+      "source": "runtime-same-time-risk",
+      "target": "module-engine-reducer",
+      "type": "dependency",
+      "description": "The reducer orchestrates the game and Same Time phase machines."
+    },
+    {
+      "id": "edge-engine-uses-resolver",
+      "source": "module-engine-reducer",
+      "target": "module-same-time-resolver",
+      "type": "dependency",
+      "description": "engine.ts calls the pure Same Time round resolver to settle simultaneous orders."
+    },
+    {
+      "id": "edge-resolver-uses-dice",
+      "source": "module-same-time-resolver",
+      "target": "module-dice-system",
+      "type": "dependency",
+      "description": "Same Time battles use tiered dice rolls and rank-scaled casualties."
+    },
+    {
+      "id": "edge-resolver-uses-map",
+      "source": "module-same-time-resolver",
+      "target": "module-map-model",
+      "type": "dependency",
+      "description": "Reinforcement and movement rules depend on territory ownership, continents, and adjacency."
+    },
+    {
+      "id": "edge-engine-uses-types",
+      "source": "module-engine-reducer",
+      "target": "module-types-model",
+      "type": "dependency",
+      "description": "Reducer actions and state transitions are defined by the expanded game type model."
+    },
+    {
+      "id": "edge-ai-drives-engine",
+      "source": "module-ai-generals",
+      "target": "module-engine-reducer",
+      "type": "dependency",
+      "description": "AI produces actions consumed by the reducer."
+    },
+    {
+      "id": "edge-ai-uses-same-time",
+      "source": "module-ai-generals",
+      "target": "runtime-same-time-risk",
+      "type": "dependency",
+      "description": "AI participates in Same Time reinforcement, attack order, and movement phases."
+    },
+    {
+      "id": "edge-missions-plug-runtime",
+      "source": "module-missions-tournament",
+      "target": "runtime-same-time-risk",
+      "type": "related",
+      "description": "Missions and tournament logic are part of the advanced game modes."
+    },
+    {
+      "id": "edge-setup-enables-runtime",
+      "source": "ui-mobile-setup-screen",
+      "target": "runtime-same-time-risk",
+      "type": "dependency",
+      "description": "Setup exposes turn style and restricted reinforcement options that activate Same Time play."
+    },
+    {
+      "id": "edge-game-screen-renders-runtime",
+      "source": "ui-mobile-game-screen",
+      "target": "runtime-same-time-risk",
+      "type": "dependency",
+      "description": "The mobile game screen exposes Same Time phases, staged orders, playback, and movement."
+    },
+    {
+      "id": "edge-game-screen-uses-panel",
+      "source": "ui-mobile-game-screen",
+      "target": "ui-game-panel",
+      "type": "dependency",
+      "description": "The game screen delegates phase commands to the command panel."
+    },
+    {
+      "id": "edge-panel-dispatches-engine",
+      "source": "ui-game-panel",
+      "target": "module-engine-reducer",
+      "type": "dependency",
+      "description": "Panel actions dispatch classic and Same Time reducer commands."
+    },
+    {
+      "id": "edge-game-screen-uses-board",
+      "source": "ui-mobile-game-screen",
+      "target": "ui-world-board",
+      "type": "dependency",
+      "description": "The game screen renders the interactive world board through the mobile map stack."
+    },
+    {
+      "id": "edge-board-uses-map-shapes",
+      "source": "ui-world-board",
+      "target": "module-map-shapes",
+      "type": "dependency",
+      "description": "Traced SVG paths power accurate territory overlays and hit testing."
+    },
+    {
+      "id": "edge-board-uses-map-model",
+      "source": "ui-world-board",
+      "target": "module-map-model",
+      "type": "dependency",
+      "description": "Territory positions, continents, neighbors, and extended map flags drive board rendering."
+    },
+    {
+      "id": "edge-board-uses-assets",
+      "source": "ui-world-board",
+      "target": "assets-mobile-bundled",
+      "type": "dependency",
+      "description": "The board uses bundled painted map and piece assets."
+    },
+    {
+      "id": "edge-overlays-present-runtime",
+      "source": "ui-battle-overlays",
+      "target": "runtime-same-time-risk",
+      "type": "dependency",
+      "description": "Overlays present battle playback, handoff, victory, stats, proposals, and dispatches."
+    },
+    {
+      "id": "edge-mobile-uses-overlays",
+      "source": "ui-mobile-game-screen",
+      "target": "ui-battle-overlays",
+      "type": "dependency",
+      "description": "The game screen composes battle/result overlays over the board."
+    },
+    {
+      "id": "edge-provider-autosaves-engine",
+      "source": "context-game-provider",
+      "target": "module-engine-reducer",
+      "type": "dependency",
+      "description": "GameProvider dispatches reducer actions and autosaves the resulting state."
+    },
+    {
+      "id": "edge-provider-uses-native-sqlite",
+      "source": "context-game-provider",
+      "target": "persistence-native-sqlite",
+      "type": "dependency",
+      "description": "Native builds persist campaign and records through SQLite."
+    },
+    {
+      "id": "edge-provider-uses-web-fallback",
+      "source": "context-game-provider",
+      "target": "persistence-web-fallback",
+      "type": "dependency",
+      "description": "Expo web preview can fall back to compatible non-native storage."
+    },
+    {
+      "id": "edge-native-sqlite-supports-records",
+      "source": "persistence-native-sqlite",
+      "target": "module-missions-tournament",
+      "type": "related",
+      "description": "Tournament progress and campaign history persist through the native repository."
+    },
+    {
+      "id": "edge-api-storage-future",
+      "source": "api-storage-scaffold",
+      "target": "integration-gap-server-backend",
+      "type": "related",
+      "description": "The API scaffold is storage-focused and does not yet host game authority."
+    },
+    {
+      "id": "edge-expo-has-server-gap",
+      "source": "repo-worlddomination-expo",
+      "target": "integration-gap-server-backend",
+      "type": "related",
+      "description": "The primary repo still lacks auth and server-side game backend implementation."
+    },
+    {
+      "id": "edge-expo-has-coverage-gap",
+      "source": "repo-worlddomination-expo",
+      "target": "coverage-gap-expo-tests",
+      "type": "related",
+      "description": "The best runtime needs a proper automated rule test suite."
+    },
+    {
+      "id": "edge-web2026-donates-ui",
+      "source": "repo-worlddomination-2026-web",
+      "target": "ui-web-presentation",
+      "type": "dependency",
+      "description": "The 2026 web repo contains the strongest browser UI reference."
+    },
+    {
+      "id": "edge-web2026-donates-tests",
+      "source": "repo-worlddomination-2026-web",
+      "target": "tests-vitest-browser",
+      "type": "dependency",
+      "description": "The 2026 web repo supplies the most useful runnable test lane."
+    },
+    {
+      "id": "edge-web-tests-include-map",
+      "source": "tests-vitest-browser",
+      "target": "test-map-asset-alignment",
+      "type": "dependency",
+      "description": "Current Vitest coverage includes map alignment checks."
+    },
+    {
+      "id": "edge-web-ui-lacks-sametime",
+      "source": "ui-web-presentation",
+      "target": "runtime-same-time-risk",
+      "type": "related",
+      "description": "The web presentation is strong, but lacks the EXPO Same Time runtime."
+    },
+    {
+      "id": "edge-web-ui-should-port-runtime",
+      "source": "runtime-same-time-risk",
+      "target": "ui-web-presentation",
+      "type": "related",
+      "description": "Same Time runtime should be ported into the web presentation if browser delivery becomes primary."
+    },
+    {
+      "id": "edge-web-tests-close-expo-gap",
+      "source": "tests-vitest-browser",
+      "target": "coverage-gap-expo-tests",
+      "type": "related",
+      "description": "The web test lane is the best target for porting rule tests and closing the Expo coverage gap."
+    },
+    {
+      "id": "edge-legacy-web-donates-domain-tests",
+      "source": "repo-worlddominationweb",
+      "target": "tests-jest-domain",
+      "type": "dependency",
+      "description": "The legacy web repo has valuable portable domain tests."
+    },
+    {
+      "id": "edge-legacy-web-has-sametime-oracle",
+      "source": "repo-worlddominationweb",
+      "target": "module-legacy-same-time-engine",
+      "type": "dependency",
+      "description": "The legacy web repo contains an older Same Time engine useful as an oracle."
+    },
+    {
+      "id": "edge-jest-tests-port-to-vitest",
+      "source": "tests-jest-domain",
+      "target": "tests-vitest-browser",
+      "type": "related",
+      "description": "Jest domain tests should be translated into the 2026 web Vitest suite or equivalent Expo tests."
+    },
+    {
+      "id": "edge-legacy-sametime-compares-expo",
+      "source": "module-legacy-same-time-engine",
+      "target": "module-same-time-resolver",
+      "type": "related",
+      "description": "Legacy SameTimeEngine is useful for comparing spoils and border clash behavior against the newer resolver."
+    },
+    {
+      "id": "edge-swift-provides-reference",
+      "source": "repo-worlddomination-swift",
+      "target": "swift-same-time-reference",
+      "type": "dependency",
+      "description": "The Swift repos provide original Same Time behavior provenance."
+    },
+    {
+      "id": "edge-swift-reference-validates-resolver",
+      "source": "swift-same-time-reference",
+      "target": "module-same-time-resolver",
+      "type": "related",
+      "description": "Swift Same Time behavior can validate or explain resolver decisions."
+    },
+    {
+      "id": "edge-swift-tests-translate",
+      "source": "tests-swift-rules",
+      "target": "tests-vitest-browser",
+      "type": "related",
+      "description": "Swift rules tests should be translated into TypeScript tests for dice, Same Time, maps, missions, cards, and campaign feed invariants."
+    },
+    {
+      "id": "edge-swift-tests-close-gap",
+      "source": "tests-swift-rules",
+      "target": "coverage-gap-expo-tests",
+      "type": "related",
+      "description": "Swift tests cover the rules gap missing from the primary Expo repo."
+    },
+    {
+      "id": "edge-swift-prototype-donor",
+      "source": "repo-worlddomination-swift",
+      "target": "prototype-scenekit-battle",
+      "type": "dependency",
+      "description": "Swift repos include SceneKit/campaign prototypes useful as future cinematic references."
+    },
+    {
+      "id": "edge-prototype-not-integrated",
+      "source": "prototype-scenekit-battle",
+      "target": "app-expo-mobile",
+      "type": "related",
+      "description": "SceneKit battle prototype ideas are not directly integrated into the Expo mobile runtime."
+    },
+    {
+      "id": "edge-rn-predecessor-superseded",
+      "source": "repo-worlddomination-react-native",
+      "target": "repo-worlddomination-expo",
+      "type": "related",
+      "description": "The private RN repo is a predecessor and is superseded by worldDOMINATION_EXPO."
+    },
+    {
+      "id": "edge-rn-shares-assets",
+      "source": "repo-worlddomination-react-native",
+      "target": "assets-mobile-bundled",
+      "type": "related",
+      "description": "The older RN repo has overlapping bundled assets, but EXPO is newer and richer."
+    },
+    {
+      "id": "edge-wd-google-retire",
+      "source": "repo-wd-google",
+      "target": "best-of-plan",
+      "type": "related",
+      "description": "wD_google should be ignored for code consolidation."
+    },
+    {
+      "id": "edge-empty-retire",
+      "source": "empty-repos",
+      "target": "best-of-plan",
+      "type": "related",
+      "description": "Empty repos should be ignored or archived rather than used as donors."
+    },
+    {
+      "id": "edge-best-plan-primary",
+      "source": "best-of-plan",
+      "target": "app-expo-mobile",
+      "type": "dependency",
+      "description": "Best-of plan starts from the Expo mobile app."
+    },
+    {
+      "id": "edge-best-plan-runtime",
+      "source": "best-of-plan",
+      "target": "runtime-same-time-risk",
+      "type": "dependency",
+      "description": "Best-of plan preserves the advanced Same Time runtime."
+    },
+    {
+      "id": "edge-best-plan-web-donor",
+      "source": "best-of-plan",
+      "target": "repo-worlddomination-2026-web",
+      "type": "related",
+      "description": "Best-of plan pulls browser UI, persistence, and test-runner ideas from the 2026 web repo."
+    },
+    {
+      "id": "edge-best-plan-legacy-tests",
+      "source": "best-of-plan",
+      "target": "repo-worlddominationweb",
+      "type": "related",
+      "description": "Best-of plan ports legacy portable domain tests where useful."
+    },
+    {
+      "id": "edge-best-plan-swift-tests",
+      "source": "best-of-plan",
+      "target": "repo-worlddomination-swift",
+      "type": "related",
+      "description": "Best-of plan treats Swift as reference and test-oracle material."
+    },
+    {
+      "id": "edge-map-tests-protect-board",
+      "source": "test-map-asset-alignment",
+      "target": "ui-world-board",
+      "type": "related",
+      "description": "Map alignment tests should protect the traced board and territory coordinate model."
+    },
+    {
+      "id": "edge-mobile-assets-vs-web-assets",
+      "source": "assets-mobile-bundled",
+      "target": "ui-web-presentation",
+      "type": "related",
+      "description": "Mobile and web share battle/map asset concepts, with platform-specific paths and bundling."
+    },
+    {
+      "id": "edge-persistence-patterns-merge",
+      "source": "persistence-native-sqlite",
+      "target": "repo-worlddomination-2026-web",
+      "type": "related",
+      "description": "Native SQLite and web sql.js/IndexedDB patterns should be reconciled if maintaining both platforms."
+    }
+  ],
+  "reuse_map": [
+    [
+      "Use as primary base",
+      "worldDOMINATION_EXPO/artifacts/mobile",
+      "Keep app shell, game runtime, UI, assets, and native persistence together."
+    ],
+    [
+      "Preserve runtime",
+      "worldDOMINATION_EXPO/artifacts/mobile/game",
+      "Same Time RISK, expanded types, reducer, AI, map, dice, missions, tournament."
+    ],
+    [
+      "Use as web donor",
+      "worldDOMINATION_2026/web",
+      "Port browser UI patterns, Vite/Vitest test lane, React Query/Router/persistence ideas."
+    ],
+    [
+      "Use as domain-test donor",
+      "worldDOMINATIONweb",
+      "Port Jest domain tests and use legacy SameTimeEngine as behavior oracle."
+    ],
+    [
+      "Use as reference/test oracle",
+      "worldDOMINATION and worldDOMINATION-808",
+      "Translate Swift dice, Same Time, map, mission, card, and feed tests; inspect SceneKit ideas only if needed."
+    ],
+    [
+      "Treat as predecessor",
+      "worldDOMINATION-React-Native",
+      "Superseded by EXPO; only compare overlapping assets/modules if regressions appear."
+    ],
+    [
+      "Ignore for consolidation",
+      "wD_google; worldDOMINATION_reactNATIVE; worldDOMINATION_reactnative2026",
+      "README-only or empty repositories."
+    ]
+  ],
+  "evidence": [
+    [
+      "Strongest base",
+      "worldDOMINATION_EXPO/artifacts/mobile",
+      "Latest complete Expo mobile app with integrated Same Time runtime and persistence."
+    ],
+    [
+      "Same Time resolver",
+      "worldDOMINATION_EXPO/artifacts/mobile/game/sameTime.ts",
+      "Pure resolver for simultaneous rounds, border clashes, mass invasions, surges, and tactical moves."
+    ],
+    [
+      "Reducer phase machine",
+      "worldDOMINATION_EXPO/artifacts/mobile/game/engine.ts",
+      "Same Time phase machine around lines 788-999 and actions around 1367-1490."
+    ],
+    [
+      "Expanded game state",
+      "worldDOMINATION_EXPO/artifacts/mobile/game/types.ts",
+      "TurnStyle, Same Time phases/state/actions, alliances, dice tiers, missions, tournament setup."
+    ],
+    [
+      "Mobile setup integration",
+      "worldDOMINATION_EXPO/artifacts/mobile/app/setup.tsx",
+      "Turn style and restricted reinforcement options are user-facing setup controls."
+    ],
+    [
+      "Mobile runtime integration",
+      "worldDOMINATION_EXPO/artifacts/mobile/app/game.tsx",
+      "Map interaction, Same Time staging/playback, AI loop, overlays, and responsive layout."
+    ],
+    [
+      "Native persistence",
+      "worldDOMINATION_EXPO/artifacts/mobile/db/repository.native.ts",
+      "SQLite autosave, campaign archive, commander stats, tournament, high scores."
+    ],
+    [
+      "Best web donor",
+      "worldDOMINATION_2026/web",
+      "Browser UI, sql.js/IndexedDB persistence, Vite/Vitest scripts, map asset tests."
+    ],
+    [
+      "Portable tests",
+      "worldDOMINATIONweb/__tests__/domain/game-engine.test.ts",
+      "Setup, allocation, reinforcement, battle, domination, mission victory tests."
+    ],
+    [
+      "Swift tests",
+      "worldDOMINATION/RiskConquestTests",
+      "Dice, Same Time, map, mission, card, campaign feed invariants."
+    ]
+  ]
+}

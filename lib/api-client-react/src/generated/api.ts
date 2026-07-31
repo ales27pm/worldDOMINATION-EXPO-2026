@@ -16,7 +16,6 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
-  ErrorEnvelope,
   HealthStatus
 } from './api.schemas';
 
@@ -46,85 +45,6 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
-
-export const getGetPublicObjectUrl = (filePath: string,) => {
-
-
-
-
-  return `/api/storage/public-objects/${filePath}`
-}
-
-/**
- * Unconditionally public — no authentication or ACL checks.
- * Searches PUBLIC_OBJECT_SEARCH_PATHS for the given file path.
- * @summary Serve a public asset from PUBLIC_OBJECT_SEARCH_PATHS
- */
-export const getPublicObject = async (filePath: string, options?: RequestInit): Promise<Blob> => {
-
-  return customFetch<Blob>(getGetPublicObjectUrl(filePath),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getGetPublicObjectQueryKey = (filePath: string,) => {
-    return [
-    `/api/storage/public-objects/${filePath}`
-    ] as const;
-    }
-
-
-export const getGetPublicObjectQueryOptions = <TData = Awaited<ReturnType<typeof getPublicObject>>, TError = ErrorType<ErrorEnvelope>>(filePath: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPublicObject>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getGetPublicObjectQueryKey(filePath);
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPublicObject>>> = ({ signal }) => getPublicObject(filePath, { signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, enabled: filePath !== null && filePath !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPublicObject>>, TError, TData> & { queryKey: QueryKey }
-}
-
-export type GetPublicObjectQueryResult = NonNullable<Awaited<ReturnType<typeof getPublicObject>>>
-export type GetPublicObjectQueryError = ErrorType<ErrorEnvelope>
-
-
-/**
- * @summary Serve a public asset from PUBLIC_OBJECT_SEARCH_PATHS
- */
-
-export function useGetPublicObject<TData = Awaited<ReturnType<typeof getPublicObject>>, TError = ErrorType<ErrorEnvelope>>(
- filePath: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPublicObject>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-
- ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-
-  const queryOptions = getGetPublicObjectQueryOptions(filePath,options)
-
-  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
-
-  return withQueryKey(query, queryOptions.queryKey);
-}
-
-
-
-
-
-
 
 export const getHealthCheckUrl = () => {
 

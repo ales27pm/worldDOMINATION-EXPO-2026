@@ -7,25 +7,15 @@ import { logger } from "./lib/logger";
 
 const app: Express = express();
 
-// Trust the first proxy hop (Replit's reverse proxy) so that req.ip is the
-// real client IP from X-Forwarded-For rather than the proxy's address.
-// This is required for per-IP rate limiting to work correctly.
+// Production runs behind one trusted reverse-proxy hop. This lets req.ip use
+// the sanitized X-Forwarded-For value for per-client rate limiting.
 app.set("trust proxy", 1);
 
 // ---------------------------------------------------------------------------
 // Allowed CORS origins
 // ---------------------------------------------------------------------------
-// Build the allowlist from:
-//   1. ALLOWED_ORIGINS env var — comma-separated list of additional origins
-//      (e.g. a production domain like https://myapp.replit.app).
-//   2. REPLIT_DOMAINS env var  — the proxied Replit dev/preview domain(s).
-// In development we also accept localhost on common ports.
-const replitDomainOrigins: string[] = (process.env.REPLIT_DOMAINS ?? "")
-  .split(",")
-  .map((d) => d.trim())
-  .filter(Boolean)
-  .map((d) => `https://${d}`);
-
+// ALLOWED_ORIGINS is a comma-separated production allowlist. Development also
+// accepts localhost on the common Expo/web ports.
 const extraOrigins: string[] = (process.env.ALLOWED_ORIGINS ?? "")
   .split(",")
   .map((o) => o.trim())
@@ -37,7 +27,6 @@ const devOrigins: string[] =
     : [];
 
 const allowedOrigins = new Set<string>([
-  ...replitDomainOrigins,
   ...extraOrigins,
   ...devOrigins,
 ]);
@@ -55,21 +44,6 @@ const clientIpKey = (req: express.Request): string =>
 const globalLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
   max: 120,
-  standardHeaders: true,
-  legacyHeaders: false,
-  keyGenerator: clientIpKey,
-  message: { error: "Too many requests, please try again later." },
-});
-
-// Limiter for the public-object storage endpoint. The ceiling is high on
-// purpose: these are immutable static game assets, and a single game screen
-// legitimately fires dozens of image/audio requests in one burst (mobile
-// clients never retry a failed image, so a 429 leaves a permanent hole).
-// Long-lived Cache-Control headers (see routes/storage.ts) keep repeat
-// traffic off this endpoint entirely.
-const storageLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
-  max: 600,
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: clientIpKey,
@@ -118,26 +92,9 @@ app.use(
   }),
 );
 
-// Static asset serving is governed solely by its own (higher) limiter below —
-// stacking the global limiter on top would re-throttle legitimate asset bursts.
-const STORAGE_PATH_PREFIX = "/api/storage/public-objects";
-// Exact segment-boundary match, mirroring how app.use() mounts the storage
-// limiter below — a prefix-like path such as "/api/storage/public-objectsX"
-// must NOT slip past the global limiter unthrottled.
-const isStoragePath = (path: string) =>
-  path === STORAGE_PATH_PREFIX || path.startsWith(STORAGE_PATH_PREFIX + "/");
-app.use((req, res, next) => {
-  if (isStoragePath(req.path)) {
-    next();
-    return;
-  }
-  globalLimiter(req, res, next);
-});
+app.use(globalLimiter);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-// Rate limiting for the storage serving endpoint.
-app.use(STORAGE_PATH_PREFIX, storageLimiter);
 
 app.use("/api", router);
 

@@ -9,18 +9,6 @@ import * as zod from 'zod';
 
 
 /**
- * Unconditionally public — no authentication or ACL checks.
- * Searches PUBLIC_OBJECT_SEARCH_PATHS for the given file path.
- * @summary Serve a public asset from PUBLIC_OBJECT_SEARCH_PATHS
- */
-export const GetPublicObjectParams = zod.object({
-  "filePath": zod.coerce.string().describe('Relative file path within the public search paths.')
-})
-
-export const GetPublicObjectResponse = zod.unknown()
-
-
-/**
  * Returns server health status
  * @summary Health check
  */

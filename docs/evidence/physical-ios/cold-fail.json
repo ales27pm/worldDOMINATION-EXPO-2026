@@ -1,0 +1,111 @@
+{
+  "evidenceVersion": 1,
+  "capturedAt": "2026-07-31T02:29:02.273Z",
+  "platform": "ios",
+  "application": {
+    "version": "1.0.0",
+    "nativeBuildVersion": "15",
+    "sourceRevision": "0c136a5c57e5fd0d9bd68946fbf2244da29622ce",
+    "sessionId": "80865332-B704-4782-ABE6-B9186641DB08"
+  },
+  "device": {
+    "modelName": "iPhone 16 Pro",
+    "modelId": "iPhone17,1",
+    "osName": "iOS",
+    "osVersion": "26.6",
+    "deviceYearClass": 2024
+  },
+  "scene": {
+    "contractVersion": 1,
+    "variant": "classic",
+    "viewMode": "board",
+    "revision": "{\"contractVersion\":1,\"variant\":\"classic\",\"viewMode\":\"board\",\"territories\":[{\"id\":\"alaska\",\"meshName\":\"territory__alaska\",\"pickMeshName\":\"pick__alaska\",\"displayName\":\"Alaska\",\"stableIndex\":0,\"ownerId\":0,\"ownerColor\":\"#e63333\",\"armies\":4,\"pieceType\":\"infantry\",\"anchor\":[-6.280704000000001,0.08,-3.349504],\"interaction\":\"interactive\",\"surfaceTint\":null,\"isCapital\":false},{\"id\":\"northwestTerritory\",\"meshName\":\"territory__northwestTerritory\",\"pickMeshName\":\"pick__northwestTerritory\",\"displayName\":\"NW Territory\",\"stableIndex\":1,\"ownerId\":1,\"ownerColor\":\"#3366e6\",\"armies\":2,\"pieceType\":\"infantry\",\"anchor\":[-5.0304,0.08,-3.2798720000000006],\"interaction\":\"idle\",\"surfaceTint\":null,\"isCapital\":false},{\"id\":\"greenland\",\"meshName\":\"territory__greenland\",\"pickMeshName\":\"pick__greenland\",\"displayName\":\"Greenland\",\"stableIndex\":2,\"ownerId\":0,\"ownerColor\":\"#e63333\",\"armies\":2,\"pieceType\":\"infantry\",\"anchor\":[-1.4392319999999996,0.08,-3.8901760000000003],\"interaction\":\"interactive\",\"surfaceTint\":null,\"isCapital\":false},{\"id\":\"alberta\",\"meshName\":\"territory__alberta\",\"pickMeshName\":\"pick__alberta\",\"displayName\":\"Alberta\",\"stableIndex\":3,\"ownerId\":2,\"ownerColor\":\"#33bf4d\",\"armies\":2,\"pieceType\":\"infantry\",\"anchor\":[-5.110272,0.08,-2.4698880000000005],\"interaction\":\"idle\",\"surfaceTint\":null,\"isCapital\":false},{\"id\":\"ontario\",\"meshName\":\"territory__ontario\",\"pickMeshName\":\"pick__ontario\",\"displayName\":\"Ontario\",\"stableIndex\":4,\"ownerId\":0,\"ownerColor\":\"#e63333\",\"armies\":2,\"pieceType\":\"infantry\",\"anchor\":[-3.850752,0.08,-2.310144],\"interaction\":\"interactive\",\"surfaceTint\":null,\"isCapital\":false},{\"id\":\"quebec\",\"meshName\":\"territory__quebec\",\"pickMeshName\":\"pick__quebec\",\"displayName\":\"Quebec\",\"stableIndex\":5,\"ownerId\":1,\"ownerColor\":\"#3366e6\",\"armies\":3,\"pieceType\":\"infantry\",\"anchor\":[-2.760192000000001,0.08,-2.3203840000000002],\"interaction\":\"idle\",\"surfaceTint\":null,\"isCapital\":false},{\"id\":\"westernUS\",\"meshName\":\"territory__westernUS\",\"pickMeshName\":\"pick__westernUS\",\"displayName\":\"W. United States\",\"stableIndex\":6,\"ownerId\":0,\"ownerColor\":\"#e63333\",\"armies\":1,\"pieceType\":\"infantry\",\"anchor\":[-4.959744,0.08,-1.540096],\"interaction\":\"idle\",\"surfaceTint\":null,\"isCapital\":false},{\"id\":\"easternUS\",\"meshName\":\"territory__easternUS\",\"pickMeshName\":\"pick__easternUS\",\"displayName\":\"E. United States\",\"stableIndex\":7,\"ownerId\":0,\"ownerColor\":\"#e63333\",\"armies\":1,\"pieceType\":\"infantry\",\"anchor\":[-3.850752,0.08,-1.3803519999999998],\"interaction\":\"idle\",\"surfaceTint\":null,\"isCapital\":false},{\"id\":\"centralAmerica\",\"meshName\":\"territory__centralAmerica\",\"pickMeshName\":\"pick__centralAmerica\",\"displayName\":\"Central America\",\"stableIndex\":8,\"ownerId\":2,\"ownerColor\":\"#33bf4d\",\"armies\":2,\"pieceType\":\"infantry\",\"anchor\":[-4.729344,0.08,-0.8704000000000002],\"interaction\":\"idle\",\"surfaceTint\":null,\"isCapital\":false},{\"id\":\"venezuela\",\"meshName\":\"territory__venezuela\",\"pickMeshName\":\"pick__venezuela\",\"displayName\":\"Venezuela\",\"stableIndex\":10,\"ownerId\":1,\"ownerColor\":\"#3366e6\",\"armies\":1,\"pieceType\":\"infantry\",\"anchor\":[-4.050432,0.08,0.49049600000000054],\"interaction\":\"idle\",\"surfaceTint\":null,\"isCapital\":false},{\"id\":\"peru\",\"meshName\":\"territory__peru\",\"pickMeshName\":\"pick__peru\",\"displayName\":\"Peru\",\"stableIndex\":11,\"ownerId\":1,\"ownerColor\":\"#3366e6\",\"armies\":2,\"pieceType\":\"infantry\",\"anchor\":[-3.7401599999999995,0.08,1.7100800000000005],\"interaction\":\"idle\",\"surfaceTint\":null,\"isCapital\":false},{\"id\":\"brazil\",\"meshName\":\"territory__brazil\",\"pickMeshName\":\"pick__brazil\",\"displayName\":\"Brazil\",\"stableIndex\":12,\"ownerId\":2,\"ownerColor\":\"#33bf4d\",\"armies\":2,\"pieceType\":\"infantry\",\"anchor\":[-2.84928,0.08,1.5103999999999997],\"interaction\":\"idle\",\"surfaceTint\":null,\"isCapital\":false},{\"id\":\"argentina\",\"meshName\":\"territory__argentina\",\"pickMeshName\":\"pick__argentina\",\"displayName\":\"Argentina\",\"stableIndex\":13,\"ownerId\":0,\"ownerColor\":\"#e63333\",\"armies\":2,\"pieceType\":\"infantry\",\"anchor\":[-3.6495359999999994,0.08,2.839552],\"interaction\":\"interactive\",\"surfaceTint\":null,\"isCapital\":false},{\"id\":\"iceland\",\"meshName\":\"territory__iceland\",\"pickMeshName\":\"pick__iceland\",\"displayName\":\"Iceland\",\"stableIndex\":15,\"ownerId\":1,\"ownerColor\":\"#3366e6\",\"armies\":4,\"pieceType\":\"infantry\",\"anchor\":[-0.96,0.08,-3.0699520000000002],\"interaction\":\"idle\",\"surfaceTint\":null,\"isCapital\":false},{\"id\":\"scandinavia\",\"meshName\":\"territory__scandinavia\",\"pickMeshName\":\"pick__scandinavia\",\"displayName\":\"Scandinavia\",\"stableIndex\":16,\"ownerId\":0,\"ownerColor\":\"#e63333\",\"armies\":3,\"pieceType\":\"infantry\",\"anchor\":[0.15052800000000047,0.08,-3.5799040000000004],\"interaction\":\"interactive\",\"surfaceTint\":null,\"isCapital\":false},{\"id\":\"greatBritain\",\"meshName\":\"territory__greatBritain\",\"pickMeshName\":\"pick__greatBritain\",\"displayName\":\"Great Britain\",\"stableIndex\":17,\"ownerId\":1,\"ownerColor\":\"#3366e6\",\"armies\":3,\"pieceType\":\"infantry\",\"anchor\":[-0.9200639999999999,0.08,-2.029568],\"interaction\":\"idle\",\"surfaceTint\":null,\"isCapital\":false},{\"id\":\"northernEurope\",\"meshName\":\"territory__northernEurope\",\"pickMeshName\":\"pick__northernEurope\",\"displayName\":\"N. Europe\",\"stableIndex\":18,\"ownerId\":0,\"ownerColor\":\"#e63333\",\"armies\":1,\"pieceType\":\"infantry\",\"anchor\":[-0.0506880000000001,0.08,-1.94048],\"interaction\":\"idle\",\"surfaceTint\":null,\"isCapital\":false},{\"id\":\"westernEurope\",\"meshName\":\"territory__westernEurope\",\"pickMeshName\":\"pick__westernEurope\",\"displayName\":\"W. Europe\",\"stableIndex\":19,\"ownerId\":1,\"ownerColor\":\"#3366e6\",\"armies\":2,\"pieceType\":\"infantry\",\"anchor\":[-1.0905600000000004,0.08,-1.0096640000000003],\"interaction\":\"idle\",\"surfaceTint\":null,\"isCapital\":false},{\"id\":\"southernEurope\",\"meshName\":\"territory__southernEurope\",\"pickMeshName\":\"pick__southernEurope\",\"displayName\":\"S. Europe\",\"stableIndex\":20,\"ownerId\":0,\"ownerColor\":\"#e63333\",\"armies\":5,\"pieceType\":\"cavalry\",\"anchor\":[0.15052800000000047,0.08,-1.28],\"interaction\":\"interactive\",\"surfaceTint\":null,\"isCapital\":false},{\"id\":\"ukraine\",\"meshName\":\"territory__ukraine\",\"pickMeshName\":\"pick__ukraine\",\"displayName\":\"Ukraine\",\"stableIndex\":21,\"ownerId\":2,\"ownerColor\":\"#33bf4d\",\"armies\":2,\"pieceType\":\"infantry\",\"anchor\":[0.9400320000000011,0.08,-2.3398399999999997],\"interaction\":\"idle\",\"surfaceTint\":null,\"isCapital\":false},{\"id\":\"northAfrica\",\"meshName\":\"territory__northAfrica\",\"pickMeshName\":\"pick__northAfrica\",\"displayName\":\"N. Africa\",\"stableIndex\":23,\"ownerId\":1,\"ownerColor\":\"#3366e6\",\"armies\":2,\"pieceType\":\"infantry\",\"anchor\":[-0.9999360000000002,0.08,0.13004800000000047],\"interaction\":\"idle\",\"surfaceTint\":null,\"isCapital\":false},{\"id\":\"egypt\",\"meshName\":\"territory__egypt\",\"pickMeshName\":\"pick__egypt\",\"displayName\":\"Egypt\",\"stableIndex\":24,\"ownerId\":2,\"ownerColor\":\"#33bf4d\",\"armies\":4,\"pieceType\":\"infantry\",\"anchor\":[0.15052800000000047,0.08,0.06963200000000029],\"interaction\":\"idle\",\"surfaceTint\":null,\"isCapital\":false},{\"id\":\"eastAfrica\",\"meshName\":\"territory__eastAfrica\",\"pickMeshName\":\"pick__eastAfrica\",\"displayName\":\"E. Africa\",\"stableIndex\":25,\"ownerId\":2,\"ownerColor\":\"#33bf4d\",\"armies\":2,\"pieceType\":\"infantry\",\"anchor\":[0.5898239999999999,0.08,1.0403840000000002],\"interaction\":\"idle\",\"surfaceTint\":null,\"isCapital\":false},{\"id\":\"congo\",\"meshName\":\"territory__congo\",\"pickMeshName\":\"pick__congo\",\"displayName\":\"Congo\",\"stableIndex\":26,\"ownerId\":0,\"ownerColor\":\"#e63333\",\"armies\":2,\"pieceType\":\"infantry\",\"anchor\":[0.0798720000000003,0.08,1.7602560000000005],\"interaction\":\"interactive\",\"surfaceTint\":null,\"isCapital\":false},{\"id\":\"southAfrica\",\"meshName\":\"territory__southAfrica\",\"pickMeshName\":\"pick__southAfrica\",\"displayName\":\"S. Africa\",\"stableIndex\":27,\"ownerId\":1,\"ownerColor\":\"#3366e6\",\"armies\":4,\"pieceType\":\"infantry\",\"anchor\":[0,0.08,2.9900800000000003],\"interaction\":\"idle\",\"surfaceTint\":null,\"isCapital\":false},{\"id\":\"madagascar\",\"meshName\":\"territory__madagascar\",\"pickMeshName\":\"pick__madagascar\",\"displayName\":\"Madagascar\",\"stableIndex\":28,\"ownerId\":2,\"ownerColor\":\"#33bf4d\",\"armies\":1,\"pieceType\":\"infantry\",\"anchor\":[1.1704320000000008,0.08,2.6695680000000004],\"interaction\":\"idle\",\"surfaceTint\":null,\"isCapital\":false},{\"id\":\"ural\",\"meshName\":\"territory__ural\",\"pickMeshName\":\"pick__ural\",\"displayName\":\"Ural\",\"stableIndex\":30,\"ownerId\":2,\"ownerColor\":\"#33bf4d\",\"armies\":4,\"pieceType\":\"infantry\",\"anchor\":[2.4099840000000006,0.08,-2.669568],\"interaction\":\"idle\",\"surfaceTint\":null,\"isCapital\":false},{\"id\":\"siberia\",\"meshName\":\"territory__siberia\",\"pickMeshName\":\"pick__siberia\",\"displayName\":\"Siberia\",\"stableIndex\":31,\"ownerId\":1,\"ownerColor\":\"#3366e6\",\"armies\":1,\"pieceType\":\"infantry\",\"anchor\":[3.3607680000000006,0.08,-3.0801920000000003],\"interaction\":\"idle\",\"surfaceTint\":null,\"isCapital\":false},{\"id\":\"yakutsk\",\"meshName\":\"territory__yakutsk\",\"pickMeshName\":\"pick__yakutsk\",\"displayName\":\"Yakutsk\",\"stableIndex\":32,\"ownerId\":0,\"ownerColor\":\"#e63333\",\"armies\":2,\"pieceType\":\"infantry\",\"anchor\":[4.899839999999999,0.08,-3.17952],\"interaction\":\"interactive\",\"surfaceTint\":null,\"isCapital\":false},{\"id\":\"kamchatka\",\"meshName\":\"territory__kamchatka\",\"pickMeshName\":\"pick__kamchatka\",\"displayName\":\"Kamchatka\",\"stableIndex\":33,\"ownerId\":2,\"ownerColor\":\"#33bf4d\",\"armies\":1,\"pieceType\":\"infantry\",\"anchor\":[6.030336,0.08,-3.239936],\"interaction\":\"idle\",\"surfaceTint\":null,\"isCapital\":false},{\"id\":\"irkutsk\",\"meshName\":\"territory__irkutsk\",\"pickMeshName\":\"pick__irkutsk\",\"displayName\":\"Irkutsk\",\"stableIndex\":34,\"ownerId\":1,\"ownerColor\":\"#3366e6\",\"armies\":2,\"pieceType\":\"infantry\",\"anchor\":[4.349952000000001,0.08,-2.3398399999999997],\"interaction\":\"idle\",\"surfaceTint\":null,\"isCapital\":false},{\"id\":\"mongolia\",\"meshName\":\"territory__mongolia\",\"pickMeshName\":\"pick__mongolia\",\"displayName\":\"Mongolia\",\"stableIndex\":35,\"ownerId\":1,\"ownerColor\":\"#3366e6\",\"armies\":1,\"pieceType\":\"infantry\",\"anchor\":[4.8,0.08,-1.760256],\"interaction\":\"idle\",\"surfaceTint\":null,\"isCapital\":false},{\"id\":\"japan\",\"meshName\":\"territory__japan\",\"pickMeshName\":\"pick__japan\",\"displayName\":\"Japan\",\"stableIndex\":36,\"ownerId\":2,\"ownerColor\":\"#33bf4d\",\"armies\":2,\"pieceType\":\"infantry\",\"anchor\":[5.300736,0.08,-1.559552],\"interaction\":\"idle\",\"surfaceTint\":null,\"isCapital\":false},{\"id\":\"afghanistan\",\"meshName\":\"territory__afghanistan\",\"pickMeshName\":\"pick__afghanistan\",\"displayName\":\"Afghanistan\",\"stableIndex\":37,\"ownerId\":2,\"ownerColor\":\"#33bf4d\",\"armies\":3,\"pieceType\":\"infantry\",\"anchor\":[2.170368,0.08,-1.5196159999999999],\"interaction\":\"idle\",\"surfaceTint\":null,\"isCapital\":false},{\"id\":\"china\",\"meshName\":\"territory__china\",\"pickMeshName\":\"pick__china\",\"displayName\":\"China\",\"stableIndex\":38,\"ownerId\":0,\"ownerColor\":\"#e63333\",\"armies\":8,\"pieceType\":\"cavalry\",\"anchor\":[3.2501760000000015,0.08,-0.8304640000000001],\"interaction\":\"interactive\",\"surfaceTint\":null,\"isCapital\":false},{\"id\":\"middleEast\",\"meshName\":\"territory__middleEast\",\"pickMeshName\":\"pick__middleEast\",\"displayName\":\"Middle East\",\"stableIndex\":39,\"ownerId\":0,\"ownerColor\":\"#e63333\",\"armies\":3,\"pieceType\":\"infantry\",\"anchor\":[1.1796479999999998,0.08,-0.45977599999999996],\"interaction\":\"interactive\",\"surfaceTint\":null,\"isCapital\":false},{\"id\":\"india\",\"meshName\":\"territory__india\",\"pickMeshName\":\"pick__india\",\"displayName\":\"India\",\"stableIndex\":40,\"ownerId\":2,\"ownerColor\":\"#33bf4d\",\"armies\":3,\"pieceType\":\"infantry\",\"anchor\":[2.7494399999999994,0.08,0.14028800000000047],\"interaction\":\"idle\",\"surfaceTint\":null,\"isCapital\":false},{\"id\":\"siam\",\"meshName\":\"territory__siam\",\"pickMeshName\":\"pick__siam\",\"displayName\":\"Siam\",\"stableIndex\":41,\"ownerId\":2,\"ownerColor\":\"#33bf4d\",\"armies\":5,\"pieceType\":\"cavalry\",\"anchor\":[3.6894720000000008,0.08,0.10956800000000044],\"interaction\":\"idle\",\"surfaceTint\":null,\"isCapital\":false},{\"id\":\"indonesia\",\"meshName\":\"territory__indonesia\",\"pickMeshName\":\"pick__indonesia\",\"displayName\":\"Indonesia\",\"stableIndex\":43,\"ownerId\":0,\"ownerColor\":\"#e63333\",\"armies\":3,\"pieceType\":\"infantry\",\"anchor\":[4.320768,0.08,1.1100160000000006],\"interaction\":\"interactive\",\"surfaceTint\":null,\"isCapital\":false},{\"id\":\"newGuinea\",\"meshName\":\"territory__newGuinea\",\"pickMeshName\":\"pick__newGuinea\",\"displayName\":\"New Guinea\",\"stableIndex\":44,\"ownerId\":1,\"ownerColor\":\"#3366e6\",\"armies\":3,\"pieceType\":\"infantry\",\"anchor\":[5.819904000000001,0.08,1.3998080000000004],\"interaction\":\"idle\",\"surfaceTint\":null,\"isCapital\":false},{\"id\":\"westernAustralia\",\"meshName\":\"territory__westernAustralia\",\"pickMeshName\":\"pick__westernAustralia\",\"displayName\":\"W. Australia\",\"stableIndex\":45,\"ownerId\":1,\"ownerColor\":\"#3366e6\",\"armies\":3,\"pieceType\":\"infantry\",\"anchor\":[4.259328000000001,0.08,2.839552],\"interaction\":\"idle\",\"surfaceTint\":null,\"isCapital\":false},{\"id\":\"easternAustralia\",\"meshName\":\"territory__easternAustralia\",\"pickMeshName\":\"pick__easternAustralia\",\"displayName\":\"E. Australia\",\"stableIndex\":46,\"ownerId\":2,\"ownerColor\":\"#33bf4d\",\"armies\":2,\"pieceType\":\"infantry\",\"anchor\":[5.3698559999999995,0.08,2.610176],\"interaction\":\"idle\",\"surfaceTint\":null,\"isCapital\":false}],\"selectedId\":null,\"targetIds\":[],\"interactiveIds\":[\"alaska\",\"greenland\",\"ontario\",\"argentina\",\"scandinavia\",\"southernEurope\",\"congo\",\"yakutsk\",\"china\",\"middleEast\",\"indonesia\"],\"battle\":{\"id\":\"1:1:china:mongolia:543:41:0\",\"from\":\"china\",\"to\":\"mongolia\",\"fromAnchor\":[3.2501760000000015,0.08,-0.8304640000000001],\"toAnchor\":[4.8,0.08,-1.760256],\"attackerColor\":\"#e63333\",\"defenderColor\":\"#3366e6\",\"conquered\":false}}",
+    "territoryCount": 42
+  },
+  "qualification": {
+    "contractVersion": 1,
+    "environment": "physical",
+    "status": "fail",
+    "metricStatus": "fail",
+    "targetFps": 60,
+    "requiredKinds": [
+      "camera",
+      "battle"
+    ],
+    "missingKinds": [],
+    "profiles": {
+      "camera": {
+        "report": {
+          "contractVersion": 1,
+          "kind": "camera",
+          "targetFps": 60,
+          "sampleCount": 67,
+          "durationMs": 1117.267,
+          "averageFps": 59.968,
+          "p50FrameMs": 16.667,
+          "p95FrameMs": 16.754,
+          "p99FrameMs": 17.022,
+          "maxFrameMs": 17.022,
+          "slowFrameCount": 0,
+          "estimatedDroppedFrames": 0,
+          "withinBudgetRatio": 1
+        },
+        "assessment": {
+          "contractVersion": 1,
+          "kind": "camera",
+          "status": "pass",
+          "thresholds": {
+            "targetFps": 60,
+            "frameBudgetMs": 16.667,
+            "minimumSampleCount": 60,
+            "minimumDurationMs": 900,
+            "minimumAverageFps": 58.5,
+            "maximumP95FrameMs": 18.333,
+            "maximumP99FrameMs": 33.333,
+            "maximumDroppedFrameRatio": 0.01,
+            "minimumWithinBudgetRatio": 0.95
+          },
+          "droppedFrameRatio": 0,
+          "failures": []
+        }
+      },
+      "battle": {
+        "report": {
+          "contractVersion": 1,
+          "kind": "battle",
+          "targetFps": 60,
+          "sampleCount": 121,
+          "durationMs": 2058,
+          "averageFps": 58.795,
+          "p50FrameMs": 17,
+          "p95FrameMs": 17,
+          "p99FrameMs": 22,
+          "maxFrameMs": 57,
+          "slowFrameCount": 2,
+          "estimatedDroppedFrames": 2,
+          "withinBudgetRatio": 0.983
+        },
+        "assessment": {
+          "contractVersion": 1,
+          "kind": "battle",
+          "status": "fail",
+          "thresholds": {
+            "targetFps": 60,
+            "frameBudgetMs": 16.667,
+            "minimumSampleCount": 60,
+            "minimumDurationMs": 900,
+            "minimumAverageFps": 58.5,
+            "maximumP95FrameMs": 18.333,
+            "maximumP99FrameMs": 33.333,
+            "maximumDroppedFrameRatio": 0.01,
+            "minimumWithinBudgetRatio": 0.95
+          },
+          "droppedFrameRatio": 0.017,
+          "failures": [
+            "dropped-frame-ratio"
+          ]
+        }
+      }
+    }
+  }
+}
