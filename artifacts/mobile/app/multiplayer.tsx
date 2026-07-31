@@ -23,6 +23,8 @@ import { MAP_HUD_TEXT_SHADOW } from '@/constants/mapHud';
 import { resolveMultiplayerCommandLayout } from '@/game/multiplayerCommandLayout';
 import {
   multiplayerCommandStatusPills,
+  multiplayerSnapshotBriefing,
+  type MultiplayerSnapshotBriefingChip,
   type MultiplayerCommandStatusTone,
 } from '@/game/multiplayerCommandStatus';
 import {
@@ -521,6 +523,7 @@ export default function MultiplayerScreen() {
     liveMode,
     invitationLiveMode,
   });
+  const snapshotBriefing = snapshot ? multiplayerSnapshotBriefing(snapshot) : null;
   const sectionStyle = { width: layout.sectionWidth };
   const wideSectionStyle = { width: layout.wideSectionWidth };
 
@@ -834,6 +837,37 @@ export default function MultiplayerScreen() {
                 <Text style={styles.snapshotTitle}>Match {snapshot.id}</Text>
                 <Text style={styles.meta}>Version {snapshot.version} - turn {snapshot.state.turn} - {snapshot.state.phase}</Text>
                 <Text style={styles.meta}>Seat {snapshot.you ?? 'observer'} - {aliveNames.join(', ')}</Text>
+                {snapshotBriefing && (
+                  <View
+                    testID="multiplayer-round-briefing"
+                    accessible
+                    accessibilityLabel={`${snapshotBriefing.headline}. ${snapshotBriefing.detail}`}
+                    style={[
+                      styles.roundBriefing,
+                      snapshotBriefing.tone === 'gold' && styles.roundBriefingGold,
+                      snapshotBriefing.tone === 'crimson' && styles.roundBriefingCrimson,
+                      snapshotBriefing.tone === 'pending' && styles.roundBriefingPending,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.roundHeadline,
+                        snapshotBriefing.tone === 'crimson' && styles.roundHeadlineCrimson,
+                      ]}
+                    >
+                      {snapshotBriefing.headline}
+                    </Text>
+                    <Text style={styles.meta}>{snapshotBriefing.detail}</Text>
+                    <View style={styles.roundChipRow}>
+                      {snapshotBriefing.chips.map((chip) => (
+                        <SnapshotChip
+                          key={`${chip.label}:${chip.value}`}
+                          chip={chip}
+                        />
+                      ))}
+                    </View>
+                  </View>
+                )}
                 <View style={styles.seatList}>
                   {snapshot.seats.map((seat) => (
                     <Text key={seat.playerId} style={styles.seat}>
@@ -954,6 +988,35 @@ function CommandButton({
         {label}
       </Text>
     </Pressable>
+  );
+}
+
+function SnapshotChip({ chip }: { chip: MultiplayerSnapshotBriefingChip }) {
+  return (
+    <View
+      style={[
+        styles.snapshotChip,
+        chip.tone === 'gold' && styles.snapshotChipGold,
+        chip.tone === 'crimson' && styles.snapshotChipCrimson,
+        chip.tone === 'pending' && styles.snapshotChipPending,
+      ]}
+    >
+      <Text style={styles.snapshotChipLabel} numberOfLines={1}>
+        {chip.label}
+      </Text>
+      <Text
+        style={[
+          styles.snapshotChipValue,
+          chip.tone === 'gold' && styles.snapshotChipValueGold,
+          chip.tone === 'crimson' && styles.snapshotChipValueCrimson,
+          chip.tone === 'pending' && styles.snapshotChipValuePending,
+        ]}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+      >
+        {chip.value}
+      </Text>
+    </View>
   );
 }
 
@@ -1084,6 +1147,72 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(8,5,2,0.42)',
     padding: 12,
   },
+  roundBriefing: {
+    gap: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(222,190,115,0.28)',
+    backgroundColor: 'rgba(21,13,9,0.48)',
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+  },
+  roundBriefingGold: {
+    borderColor: 'rgba(222,190,115,0.52)',
+    backgroundColor: 'rgba(79,57,24,0.28)',
+  },
+  roundBriefingCrimson: {
+    borderColor: 'rgba(157,37,41,0.58)',
+    backgroundColor: 'rgba(80,15,18,0.28)',
+  },
+  roundBriefingPending: {
+    borderColor: 'rgba(224,160,80,0.58)',
+    backgroundColor: 'rgba(124,72,24,0.26)',
+  },
+  roundHeadline: {
+    ...MAP_HUD_TEXT_SHADOW,
+    color: Colors.gold,
+    fontFamily: 'Alegreya_700Bold',
+    fontSize: 13,
+    lineHeight: 17,
+  },
+  roundHeadlineCrimson: { color: Colors.textCrimson },
+  roundChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  snapshotChip: {
+    minHeight: 36,
+    minWidth: 72,
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(201,183,146,0.3)',
+    backgroundColor: 'rgba(8,5,2,0.34)',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+  },
+  snapshotChipGold: {
+    borderColor: 'rgba(222,190,115,0.56)',
+    backgroundColor: 'rgba(79,57,24,0.28)',
+  },
+  snapshotChipCrimson: {
+    borderColor: 'rgba(157,37,41,0.58)',
+    backgroundColor: 'rgba(80,15,18,0.28)',
+  },
+  snapshotChipPending: {
+    borderColor: 'rgba(224,160,80,0.58)',
+    backgroundColor: 'rgba(124,72,24,0.26)',
+  },
+  snapshotChipLabel: {
+    ...MAP_HUD_TEXT_SHADOW,
+    color: Colors.textMuted,
+    fontFamily: 'Alegreya_500Medium',
+    fontSize: 10,
+  },
+  snapshotChipValue: {
+    ...MAP_HUD_TEXT_SHADOW,
+    color: Colors.text,
+    fontFamily: 'Alegreya_700Bold',
+    fontSize: 12,
+  },
+  snapshotChipValueGold: { color: Colors.gold },
+  snapshotChipValueCrimson: { color: Colors.textCrimson },
+  snapshotChipValuePending: { color: '#e0a050' },
   lobbyRow: {
     gap: 4,
     minHeight: 44,

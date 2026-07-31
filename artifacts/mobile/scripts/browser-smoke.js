@@ -1139,6 +1139,104 @@ async function assertR3FMultiplayerSnapshots(browser, origin, errors) {
       { apiBaseUrl: `${origin}/api` },
     );
 
+    const commandState = JSON.parse(JSON.stringify(state));
+    commandState.setup.turnStyle = "sameTime";
+    commandState.phase = "sameTimeBattle";
+    commandState.sameTime = {
+      reinforcementsRemaining: [0, 0],
+      deployLog: [[], []],
+      readyReinforce: [true, true],
+      orders: [
+        {
+          id: "browser-order-1",
+          player: 0,
+          from: "alaska",
+          to: "northwestTerritory",
+          count: 3,
+          surgeTo: null,
+        },
+        {
+          id: "browser-order-2",
+          player: 1,
+          from: "greenland",
+          to: "quebec",
+          count: 2,
+          surgeTo: null,
+        },
+      ],
+      readyBattle: [true, false],
+      playback: [],
+      moves: [],
+      readyMove: [false, false],
+    };
+    snapshot = {
+      ...snapshot,
+      version: 7,
+      seats: [
+        {
+          playerId: 0,
+          claimed: true,
+          playerName: "Napoleon",
+          isHuman: true,
+          invited: false,
+          invitedUserId: null,
+          invitedByPlayerId: null,
+          sessionBound: true,
+          sessionId: "browser-renderer-session",
+          sessionLabel: "Napoleon",
+          userBound: false,
+          userId: null,
+          lastSeenAt: "2026-07-30T00:00:01.000Z",
+        },
+        {
+          playerId: 1,
+          claimed: false,
+          playerName: "Wellington",
+          isHuman: true,
+          invited: true,
+          invitedUserId: "user-wellington",
+          invitedByPlayerId: 0,
+          sessionBound: false,
+          sessionId: null,
+          sessionLabel: null,
+          userBound: true,
+          userId: "user-wellington",
+          lastSeenAt: null,
+        },
+      ],
+      state: commandState,
+    };
+
+    await assertRenderedRoute(
+      page,
+      `${origin}/multiplayer`,
+      [
+        "MULTIPLAYER COMMAND",
+        "MATCH V7 LINKED",
+        "Sealed attack table",
+        "5 armies committed",
+        "Ready",
+        "Waiting",
+        "Invited",
+        "Open Battle Map",
+      ],
+      "rendered linked multiplayer command briefing",
+    );
+    await page
+      .getByTestId("multiplayer-round-briefing")
+      .waitFor({ state: "visible", timeout: 10000 });
+    await assertNoHorizontalOverflow(
+      page,
+      "rendered linked multiplayer command briefing",
+    );
+
+    snapshot = {
+      ...snapshot,
+      version: 1,
+      seats: [],
+      state,
+    };
+
     await assertRenderedRoute(
       page,
       `${origin}/multiplayer-game?renderer=r3f`,
