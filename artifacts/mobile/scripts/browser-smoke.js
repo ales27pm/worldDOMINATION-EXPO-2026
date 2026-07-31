@@ -531,6 +531,27 @@ async function assertR3FCanvasPixels(page, label) {
   );
 }
 
+async function assertDefaultR3FRenderer(page) {
+  await page.waitForFunction(
+    () => {
+      const scene = globalThis.__WORLD_DOMINATION_R3F__;
+      const shared = globalThis.__WORLD_DOMINATION_MAP_SCENE__;
+      return (
+        scene?.ready === true &&
+        scene.renderer === "r3f" &&
+        scene.territoryCount === 42 &&
+        scene.pickerMeshCount === 42 &&
+        scene.territoryLabelCount === 42 &&
+        shared?.rendererMode === "r3f" &&
+        shared.sceneRevision === scene.sceneRevision
+      );
+    },
+    null,
+    { timeout: 30000 },
+  );
+  await assertR3FCanvasPixels(page, "default R3F tabletop");
+}
+
 async function assertR3FVerticalSlice(page) {
   console.log("checking - R3F scene readiness");
   await page.waitForFunction(
@@ -1150,7 +1171,7 @@ async function assertRenderedPreview() {
       );
       await assertRenderedRoute(
         seeded,
-        `${origin}/game?autostart=1&extra=1`,
+        `${origin}/game?autostart=1&renderer=svg&extra=1`,
         ["Napoleon", "REINFORCE", "Deploy", "Hawaii"],
         "rendered save seed game screen",
       );
@@ -1181,7 +1202,7 @@ async function assertRenderedPreview() {
       );
       await assertRenderedRoute(
         restored,
-        `${origin}/game`,
+        `${origin}/game?renderer=svg`,
         ["Napoleon", "REINFORCE", "Deploy", "Hawaii"],
         "rendered restored saved game screen",
       );
@@ -1355,6 +1376,12 @@ async function assertRenderedPreview() {
     );
     await withFreshPage(
       "/game?autostart=1",
+      ["Napoleon", "REINFORCE", "Deploy", "3D", "BATTLES:"],
+      "rendered production-default R3F game screen",
+      assertDefaultR3FRenderer,
+    );
+    await withFreshPage(
+      "/game?autostart=1&renderer=svg",
       ["PACIFIC", "OCEAN", "Napoleon", "REINFORCE", "Deploy", "Madagascar"],
       "rendered seeded classic standard-map game screen",
       async (page) => {
@@ -1374,7 +1401,7 @@ async function assertRenderedPreview() {
       },
     );
     await withFreshPage(
-      "/game?autostart=1&extra=1",
+      "/game?autostart=1&renderer=svg&extra=1",
       [
         "PACIFIC",
         "OCEAN",
@@ -1482,7 +1509,7 @@ async function assertRenderedPreview() {
       },
     );
     await withFreshPage(
-      "/game?autostart=1&extra=1",
+      "/game?autostart=1&renderer=svg&extra=1",
       [
         "PACIFIC",
         "OCEAN",
@@ -1528,7 +1555,7 @@ async function assertRenderedPreview() {
     );
     await assertR3FMultiplayerSnapshots(browser, origin, errors);
     await withFreshPage(
-      "/game?autostart=1&turnStyle=sameTime&restricted=1&extra=1",
+      "/game?autostart=1&renderer=svg&turnStyle=sameTime&restricted=1&extra=1",
       [
         "Napoleon",
         "REINFORCE (SIM)",
@@ -1540,7 +1567,7 @@ async function assertRenderedPreview() {
       "rendered seeded Same Time game screen",
     );
     await withFreshPage(
-      "/game?autostart=1&turnStyle=sameTime&restricted=1&extra=1",
+      "/game?autostart=1&renderer=svg&turnStyle=sameTime&restricted=1&extra=1",
       [
         "Napoleon",
         "REINFORCE (SIM)",
@@ -1569,7 +1596,7 @@ async function assertRenderedPreview() {
       VIEWPORTS.landscape,
     );
     await withFreshPage(
-      "/game?autostart=1&orders=1&extra=1",
+      "/game?autostart=1&renderer=svg&orders=1&extra=1",
       [
         "Napoleon",
         "ORDERS (SIM)",
@@ -1597,7 +1624,7 @@ async function assertRenderedPreview() {
       VIEWPORTS.landscape,
     );
     await withFreshPage(
-      "/game?autostart=1&playback=1&extra=1",
+      "/game?autostart=1&renderer=svg&playback=1&extra=1",
       [
         "Napoleon",
         "ROUND 1",

@@ -28,6 +28,10 @@ import { allianceBetween } from "@/game/analysis";
 import { electionBudget } from "@/game/engine";
 import { TERRITORY_MAP } from "@/game/mapData";
 import { shouldAutostartMapFixture } from "@/game/mapQualificationLaunch";
+import {
+  DEFAULT_MAP_RENDERER_MODE,
+  mapRendererModeFromParam,
+} from "@/game/mapRendererMode";
 import { friendlyReachableSet } from "@/game/sameTime";
 import { tournamentResult } from "@/game/tournament";
 import {
@@ -116,7 +120,7 @@ export default function GameScreen() {
   return (
     <CampaignScreen
       game={game}
-      initialRendererMode={previewRendererFromParams(params)}
+      initialRendererMode={mapRendererModeFromParam(params.renderer)}
     />
   );
 }
@@ -232,11 +236,6 @@ function previewWantsBattleOrders(params: PreviewParams): boolean {
 
 function previewWantsAttackDemo(params: PreviewParams): boolean {
   return truthyParam(firstParam(params.attackDemo));
-}
-
-function previewRendererFromParams(params: PreviewParams): MapRendererMode {
-  const renderer = firstParam(params.renderer)?.toLowerCase();
-  return renderer === "r3f" || renderer === "3d" ? "r3f" : "svg";
 }
 
 function previewPrepareFromParams(
@@ -412,7 +411,7 @@ export function CampaignScreen({
   onExit,
   onActionError,
   onVictoryExit,
-  initialRendererMode = "svg",
+  initialRendererMode = DEFAULT_MAP_RENDERER_MODE,
 }: CampaignScreenProps) {
   const router = useRouter();
   const { dispatch: rawDispatch, abandonGame } = useGame();

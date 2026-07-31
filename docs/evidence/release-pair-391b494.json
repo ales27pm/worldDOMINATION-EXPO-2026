@@ -1,0 +1,62 @@
+{
+  "contractVersion": 2,
+  "status": "pass",
+  "evaluatedAt": "2026-07-31T12:32:41.078Z",
+  "expectedSourceRevision": "391b4949ec67330cd6e390681a1be34de7bdffeb",
+  "maximumEvidenceAgeMs": 604800000,
+  "maximumPairSkewMs": 86400000,
+  "requiredPlatforms": [
+    "android",
+    "ios"
+  ],
+  "acceptedEnvironments": {
+    "android": [
+      "simulator",
+      "physical"
+    ],
+    "ios": [
+      "physical"
+    ]
+  },
+  "platforms": {
+    "android": {
+      "platform": "android",
+      "capturedAt": "2026-07-31T11:47:34.077Z",
+      "applicationVersion": "1.0.0",
+      "nativeBuildVersion": "1",
+      "sourceRevision": "391b4949ec67330cd6e390681a1be34de7bdffeb",
+      "sessionId": "83ca7eac-72fa-4c94-8214-ad636c28fff5",
+      "modelName": "sdk_gphone64_x86_64",
+      "modelId": null,
+      "osName": "Android",
+      "osVersion": "15",
+      "environment": "simulator",
+      "sceneRevisionFingerprint": "13236:383488f9",
+      "variant": "classic",
+      "viewMode": "board",
+      "territoryCount": 42,
+      "qualificationStatus": "ineligible",
+      "metricStatus": "pass"
+    },
+    "ios": {
+      "platform": "ios",
+      "capturedAt": "2026-07-31T12:26:36.627Z",
+      "applicationVersion": "1.0.0",
+      "nativeBuildVersion": "1",
+      "sourceRevision": "391b4949ec67330cd6e390681a1be34de7bdffeb",
+      "sessionId": "B3D6A67E-85B2-4F23-A999-3139FA620256",
+      "modelName": "iPhone 16 Pro",
+      "modelId": "iPhone17,1",
+      "osName": "iOS",
+      "osVersion": "26.6",
+      "environment": "physical",
+      "sceneRevisionFingerprint": "13236:383488f9",
+      "variant": "classic",
+      "viewMode": "board",
+      "territoryCount": 42,
+      "qualificationStatus": "pass",
+      "metricStatus": "pass"
+    }
+  },
+  "failures": []
+}

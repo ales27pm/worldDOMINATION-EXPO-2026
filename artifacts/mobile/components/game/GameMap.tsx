@@ -15,6 +15,10 @@ import {
 import { WorldBoard } from "@/components/game/WorldBoard";
 import { hitTestTerritory } from "@/game/mapGeometry";
 import type { MapPerformanceEvidence } from "@/game/mapPerformanceEvidence";
+import {
+  DEFAULT_MAP_RENDERER_MODE,
+  type MapRendererMode,
+} from "@/game/mapRendererMode";
 import type { GameState, TerritoryId } from "@/game/types";
 
 const R3FGameMap = React.lazy(
@@ -23,8 +27,7 @@ const R3FGameMap = React.lazy(
 
 export { MAP_VIEW_LABELS, MAP_VIEW_MODES };
 export type { MapViewMode };
-
-export type MapRendererMode = "svg" | "r3f";
+export type { MapRendererMode } from "@/game/mapRendererMode";
 
 const MAP_SCENE_DEBUG_ENABLED =
   process.env.EXPO_PUBLIC_BROWSER_SMOKE === "1";
@@ -74,7 +77,7 @@ export default function GameMap({
   targets,
   interactive,
   viewMode,
-  rendererMode = "svg",
+  rendererMode = DEFAULT_MAP_RENDERER_MODE,
   onTerritoryTap,
   onPerformanceEvidence,
 }: Props) {

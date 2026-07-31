@@ -1,5 +1,34 @@
 # Android Emulator R3F Qualification
 
+## Accepted Same-Source Release Pair
+
+The current accepted Android record was captured on 2026-07-31 from exact
+source `391b4949ec67330cd6e390681a1be34de7bdffeb` on an Android 15
+`sdk_gphone64_x86_64` emulator using host GPU acceleration. It is paired with
+the physical-iOS record from the same source and canonical classic-board
+fixture.
+
+- Camera: 76 samples over 1,266.644 ms, 60.001 average FPS, 16.834 ms p95,
+  zero estimated drops, and 1.000 within budget.
+- Battle: 124 samples over 2,066 ms, 60.019 average FPS, 17 ms p95/p99/max,
+  zero estimated drops, and 1.000 within budget.
+- Scene fingerprint: `13236:383488f9`, identical to physical iOS.
+- Release contract version 2: `pass`, with no failures.
+
+Files for this accepted record:
+
+- `release-pair-391b494.json`: SHA-256
+  `c70075f733187c2ba1d033257bc127feafe621037468b7ecb65943fcaca531a6`
+- `release-pair-391b494-full-board.png`: SHA-256
+  `459eca59aff7e0f0a79906072239aa8c02d9135d9bd5c298078c7f0bec6e018c`
+- `../release-pair-391b494.json`: canonical pair decision, SHA-256
+  `35a923ac8eea9c72458fbe82b806668999b814025709e7d1f6180460d2a413d3`
+
+The renderer-level status inside the Android record remains `ineligible`
+because it is an emulator capture. Its `metricStatus` is `pass`, and release
+contract version 2 deliberately accepts that Android result when paired with
+matching passing physical-iOS evidence.
+
 Captured on 2026-07-31 from exact source
 `efcbb0ad90aa28f8d4a4a0c31887495db7e65f47`.
 
@@ -73,8 +102,7 @@ revision on Android and physical iOS.
 - `r3f-china-parity-864d9cf.png`: SHA-256
   `845d216235a577b40b579712f9672dc39eb9377adc44643ef05bcea8c4839a57`
 
-The canonical pair checker accepts the Android side and fails against the
-retained physical-iOS record only for `source-revision` on iOS and
-`scene-fixture-pair`. A fresh physical-iOS capture from the same source and
-fixture is therefore still required. Physical Android hardware is not
-required by the current renderer policy.
+The historical records above explain how the emulator policy and China-parity
+fix were established. They are superseded for the release decision by the
+accepted same-source `391b494` pair at the top of this file. Physical Android
+hardware is not required by the current renderer policy.
