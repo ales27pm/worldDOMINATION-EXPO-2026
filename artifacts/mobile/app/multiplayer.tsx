@@ -22,6 +22,10 @@ import { Colors } from '@/constants/colors';
 import { MAP_HUD_TEXT_SHADOW } from '@/constants/mapHud';
 import { resolveMultiplayerCommandLayout } from '@/game/multiplayerCommandLayout';
 import {
+  multiplayerCommandStatusPills,
+  type MultiplayerCommandStatusTone,
+} from '@/game/multiplayerCommandStatus';
+import {
   createMultiplayerClientSessionId,
   createMultiplayerClient,
   defaultMultiplayerApiAuthToken,
@@ -508,9 +512,15 @@ export default function MultiplayerScreen() {
   }, []);
 
   const aliveNames = snapshot?.state.players.filter((player) => player.alive).map((player) => player.name) ?? [];
-  const serverReady = client ? 'API ROUTE READY' : 'API ROUTE NEEDED';
-  const authState = apiAuthToken.trim() ? 'AUTH TOKEN SET' : 'NO SHARED TOKEN';
-  const linkedState = session ? `MATCH V${snapshot?.version ?? '-'} LINKED` : 'NO LINKED MATCH';
+  const statusPills = multiplayerCommandStatusPills({
+    apiReady: Boolean(client),
+    hasAuthToken: apiAuthToken.trim().length > 0,
+    linked: Boolean(session),
+    version: snapshot?.version ?? null,
+    busy,
+    liveMode,
+    invitationLiveMode,
+  });
   const sectionStyle = { width: layout.sectionWidth };
   const wideSectionStyle = { width: layout.wideSectionWidth };
 
@@ -556,9 +566,9 @@ export default function MultiplayerScreen() {
             </View>
           </View>
           <View style={styles.statusCluster}>
-            <StatusPill label={serverReady} tone={client ? 'gold' : 'crimson'} />
-            <StatusPill label={authState} />
-            <StatusPill label={linkedState} tone={session ? 'gold' : 'muted'} />
+            {statusPills.map((pill) => (
+              <StatusPill key={pill.label} label={pill.label} tone={pill.tone} />
+            ))}
           </View>
         </View>
         <View style={[styles.divider, { maxWidth: layout.contentMaxWidth }]} />
@@ -742,6 +752,9 @@ export default function MultiplayerScreen() {
           </Section>
 
           <Section title="INVITE SEAT" style={sectionStyle}>
+            {!session && (
+              <Text style={styles.meta}>Create or join a linked match before sending invitations.</Text>
+            )}
             <Text style={styles.label}>Invite Player ID</Text>
             <TextInput
               accessibilityLabel="Invite Player ID"
@@ -864,7 +877,7 @@ function StatusPill({
   tone = 'muted',
 }: {
   label: string;
-  tone?: 'gold' | 'crimson' | 'muted';
+  tone?: MultiplayerCommandStatusTone;
 }) {
   return (
     <View
@@ -872,6 +885,7 @@ function StatusPill({
         styles.statusPill,
         tone === 'gold' && styles.statusPillGold,
         tone === 'crimson' && styles.statusPillCrimson,
+        tone === 'pending' && styles.statusPillPending,
       ]}
     >
       <Text
@@ -879,6 +893,7 @@ function StatusPill({
           styles.statusPillText,
           tone === 'gold' && styles.statusPillTextGold,
           tone === 'crimson' && styles.statusPillTextCrimson,
+          tone === 'pending' && styles.statusPillTextPending,
         ]}
         numberOfLines={1}
         adjustsFontSizeToFit
@@ -927,7 +942,12 @@ function CommandButton({
         />
       )}
       <Text
-        style={[styles.buttonText, primary && styles.buttonTextPrimary, danger && styles.buttonTextDanger]}
+        style={[
+          styles.buttonText,
+          primary && styles.buttonTextPrimary,
+          danger && styles.buttonTextDanger,
+          disabled && styles.buttonTextDisabled,
+        ]}
         numberOfLines={1}
         adjustsFontSizeToFit
       >
@@ -980,9 +1000,11 @@ const styles = StyleSheet.create({
   },
   statusPillGold: { borderColor: 'rgba(222,190,115,0.64)', backgroundColor: 'rgba(79,57,24,0.34)' },
   statusPillCrimson: { borderColor: 'rgba(157,37,41,0.7)', backgroundColor: 'rgba(80,15,18,0.36)' },
+  statusPillPending: { borderColor: 'rgba(224,160,80,0.68)', backgroundColor: 'rgba(124,72,24,0.34)' },
   statusPillText: { ...MAP_HUD_TEXT_SHADOW, color: Colors.textMuted, fontFamily: 'Alegreya_700Bold', fontSize: 10, letterSpacing: 1 },
   statusPillTextGold: { color: Colors.gold },
   statusPillTextCrimson: { color: Colors.textCrimson },
+  statusPillTextPending: { color: '#e0a050' },
   divider: { alignSelf: 'center', width: '100%', height: 1, backgroundColor: 'rgba(222,190,115,0.24)' },
   content: {
     width: '100%',
@@ -1039,6 +1061,7 @@ const styles = StyleSheet.create({
   buttonText: { ...MAP_HUD_TEXT_SHADOW, color: Colors.text, fontFamily: 'Alegreya_700Bold', fontSize: 13, letterSpacing: 1, flexShrink: 1, textAlign: 'center' },
   buttonTextPrimary: { color: Colors.bg },
   buttonTextDanger: { color: Colors.crimson },
+  buttonTextDisabled: { color: Colors.disabledText },
   statusRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
