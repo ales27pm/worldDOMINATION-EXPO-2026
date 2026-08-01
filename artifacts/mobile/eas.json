@@ -39,7 +39,7 @@
         "EXPO_PUBLIC_R3F_BATTLE_INSTANCING": "1",
         "EXPO_PUBLIC_R3F_CONQUEST_PULSE": "1",
         "EXPO_PUBLIC_R3F_ORDER_REVEAL": "1",
-        "EXPO_PUBLIC_R3F_STYLIZED_WATER": "0",
+        "EXPO_PUBLIC_R3F_STYLIZED_WATER": "1",
         "EXPO_PUBLIC_R3F_QUALIFICATION": "1"
       }
     },
@@ -49,17 +49,25 @@
       "environment": "production",
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_R3F_BATTLE_INSTANCING": "0",
-        "EXPO_PUBLIC_R3F_CONQUEST_PULSE": "0",
-        "EXPO_PUBLIC_R3F_ORDER_REVEAL": "0",
-        "EXPO_PUBLIC_R3F_STYLIZED_WATER": "0",
-        "EXPO_PUBLIC_R3F_QUALIFICATION": "0"
+        "EXPO_PUBLIC_R3F_BATTLE_INSTANCING": "1",
+        "EXPO_PUBLIC_R3F_CONQUEST_PULSE": "1",
+        "EXPO_PUBLIC_R3F_ORDER_REVEAL": "1",
+        "EXPO_PUBLIC_R3F_STYLIZED_WATER": "1",
+        "EXPO_PUBLIC_R3F_QUALIFICATION": "1"
       },
       "android": {
         "buildType": "app-bundle"
       },
       "ios": {
         "simulator": false
+      }
+    },
+    "production-apk": {
+      "extends": "production",
+      "distribution": "internal",
+      "autoIncrement": true,
+      "android": {
+        "buildType": "apk"
       }
     }
   },

@@ -92,7 +92,7 @@ function passingR3FEvidence(): NonNullable<MapPerformanceEvidence["r3f"]> {
       battleInstancing: true,
       conquestPulse: true,
       orderReveal: true,
-      stylizedWater: false,
+      stylizedWater: true,
       qualification: true,
     },
     shaderCompilation: {

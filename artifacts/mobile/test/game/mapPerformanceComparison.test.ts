@@ -46,7 +46,7 @@ const VARIANT_FLAGS: R3FFeatureFlags = {
   battleInstancing: true,
   conquestPulse: true,
   orderReveal: true,
-  stylizedWater: false,
+  stylizedWater: true,
   qualification: true,
 };
 
@@ -247,7 +247,7 @@ test("comparison fails closed on mismatched provenance, flags, and battle count"
     modelId: "iPhone17,2",
     sceneRevision: "different-fixture",
     battleCount: 49,
-    featureFlags: { ...VARIANT_FLAGS, stylizedWater: true },
+    featureFlags: { ...VARIANT_FLAGS, stylizedWater: false },
   });
 
   const report = compareMapPerformanceEvidence(baseline, variant, {

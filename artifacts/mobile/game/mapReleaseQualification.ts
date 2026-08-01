@@ -355,12 +355,12 @@ export function qualifyMapReleasePair(
         !flags.battleInstancing ||
         !flags.conquestPulse ||
         !flags.orderReveal ||
-        flags.stylizedWater
+        !flags.stylizedWater
       ) {
         failures.push({
           code: "r3f-feature-flags",
           platform,
-          detail: `${platform} did not qualify the required R3F effects with stylized water disabled.`,
+          detail: `${platform} did not qualify the complete enabled R3F effect set.`,
         });
       }
       if (

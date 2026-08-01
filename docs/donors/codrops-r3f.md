@@ -21,7 +21,7 @@
 | Image Reveal       | [Codrops article](https://tympanus.net/codrops/2024/12/02/how-to-code-a-shader-based-reveal-effect-with-react-three-fiber-glsl/)              | [`colindmg/r3f-image-reveal-effect@45c3f28`](https://github.com/colindmg/r3f-image-reveal-effect/commit/45c3f28941b481cc0756be3e4cbc2e2f5f7269d9)                           | MIT; `LICENSE`                                                    | `LICENSE`, `README.md`, `src/components/RevealImage.jsx`, `src/shaders/imageReveal/vertex.glsl`, `src/shaders/imageReveal/fragment.glsl`               | Progress-uniform mask concept reimplemented; accepted behind a flag.              |
 | Singularity        | [Codrops article](https://tympanus.net/codrops/2025/02/11/building-efficient-three-js-scenes-optimize-performance-while-maintaining-quality/) | [`niccolofanton/codrops-singularity-demo@ccfa02a`](https://github.com/niccolofanton/codrops-singularity-demo/commit/ccfa02a997ce6f564bf27e02a82bae45aa5fa86a)               | MIT; `LICENSE`                                                    | `LICENSE`, `README.md`, `package.json`, `src/components/CustomScene.tsx`                                                                               | Measurement method only; dependency stack and models rejected.                    |
 | Infinite Canvas    | [Codrops article](https://tympanus.net/codrops/2026/01/07/infinite-canvas-building-a-seamless-pan-anywhere-image-space/)                      | [`edoardolunardi/infinite-canvas@528d811`](https://github.com/edoardolunardi/infinite-canvas/commit/528d811a39eafe574917ed45f697f51c62942758)                               | MIT; `LICENSE`                                                    | `LICENSE`, `README.md`, `src/infinite-canvas/index.tsx`, `src/infinite-canvas/scene.tsx`, `src/infinite-canvas/texture-manager.ts`                     | No port. Existing bounded attention camera remains authoritative.                 |
-| Stylized Water     | [Codrops article](https://tympanus.net/codrops/2025/03/04/creating-stylized-water-effects-with-react-three-fiber/)                            | [`thaslle/stylized-water@76a335f`](https://github.com/thaslle/stylized-water/commit/76a335f75dcccac0785ce9d84c914328bd3a1ea0)                                               | MIT; `LICENSE.txt` (README's `LICENSE` link is stale)             | `LICENSE.txt`, `README.md`, `src/components/Water/index.jsx`, `src/components/Water/shaders/vertex.glsl`, `src/components/Water/shaders/fragment.glsl` | Rejected pending a licensed sea mask and physical thermal proof.                  |
+| Stylized Water     | [Codrops article](https://tympanus.net/codrops/2025/03/04/creating-stylized-water-effects-with-react-three-fiber/)                            | [`thaslle/stylized-water@76a335f`](https://github.com/thaslle/stylized-water/commit/76a335f75dcccac0785ce9d84c914328bd3a1ea0)                                               | MIT; `LICENSE.txt` (README's `LICENSE` link is stale)             | `LICENSE.txt`, `README.md`, `src/components/Water/index.jsx`, `src/components/Water/shaders/vertex.glsl`, `src/components/Water/shaders/fragment.glsl` | Original technique enabled; donor models, sounds, font, and masks remain rejected. |
 | Generative Artwork | [Codrops article](https://tympanus.net/codrops/2025/01/15/creating-generative-artwork-with-three-js/)                                         | [`eduardfossas/codrops-generative-artwork-three@c4148f0`](https://github.com/eduardfossas/codrops-generative-artwork-three/commit/c4148f0de3fa5b629f8b2e7ea7971afd19a5eebc) | Unspecified; README states MIT but no license file                | `README.md`, `src/components/LygiaGrid.jsx`, `src/components/DeStijlGrid.jsx`, `src/components/RichterGrid.jsx`, `src/components/ShapesGrid.jsx`       | Rejected for gameplay; no menu decoration added.                                  |
 
 No donor repository is a dependency or Git submodule. No donor code, model, texture, image, font, sound, HDRI, or scene file was copied.
@@ -34,7 +34,7 @@ No donor repository is a dependency or Git submodule. No donor code, model, text
 - Targets: `R3FBattleImpactInstances.tsx`, `r3fBattleImpactGeometry.ts`, `R3FGameMap.tsx`.
 - Behavior: one mesh, one shared geometry/material, and eight precomputed radial matrices replace the eight impact meshes.
 - Preserved: battle duration, battle-scene suspension, conquered/defended color, point light, native invalidation, and one completion callback.
-- Flag: `EXPO_PUBLIC_R3F_BATTLE_INSTANCING`; default off until the physical baseline/variant gate passes. The explicit variant qualification profile enables it; `0` retains the legacy fallback.
+- Flag: `EXPO_PUBLIC_R3F_BATTLE_INSTANCING`; enabled in production by explicit release decision on 2026-08-01. The baseline qualification profile and ordinary preview retain the legacy fallback.
 
 ### Conquest Pulse
 
@@ -43,7 +43,7 @@ No donor repository is a dependency or Git submodule. No donor code, model, text
 - Behavior: deterministic selection, impact, and conquest descriptors drive a transparent sibling mesh that reuses territory geometry.
 - Isolation: no base material, GLB, UV, pick mesh, raycast handler, or gameplay state is mutated.
 - Lifecycle: uniforms are mutated in place; suspension pauses elapsed time; reduced motion completes once; the owned shader material is disposed.
-- Flag: `EXPO_PUBLIC_R3F_CONQUEST_PULSE`; production default off, qualification default on.
+- Flag: `EXPO_PUBLIC_R3F_CONQUEST_PULSE`; production and variant qualification default on.
 
 ### Sealed Order Reveal
 
@@ -52,7 +52,7 @@ No donor repository is a dependency or Git submodule. No donor code, model, text
 - Behavior: viewer-scoped Same Time orders appear only after that viewer seals them; playback, the viewer mission, and victory also produce deterministic presentation descriptors.
 - Security boundary: another commander's sealed target is never derived for the viewer; no gameplay store or multiplayer snapshot is changed.
 - Lifecycle and geometry isolation match the conquest pulse.
-- Flag: `EXPO_PUBLIC_R3F_ORDER_REVEAL`; production default off, qualification default on.
+- Flag: `EXPO_PUBLIC_R3F_ORDER_REVEAL`; production and variant qualification default on.
 
 ### Renderer Qualification
 
@@ -62,7 +62,7 @@ No donor repository is a dependency or Git submodule. No donor code, model, text
 - `qualificationRun=1` replaces random setup ownership and armies with a deterministic presentation fixture before profiling. Baseline and variant builds therefore produce the same scene revision without sharing app storage.
 - `qualificationBattles` is a qualification-only deep-link parameter. It repeats the presentation effect in one GL context without dispatching a gameplay action. Values are bounded to 500.
 - Native release builds republish an active effect revision only until every shader overlay reaches `onBeforeRender`. This avoids both a pre-draw false negative and a permanent bridge polling loop.
-- Release evidence now requires both shaders rendered, cold/warm/pulse profiles with renderer counters, required flags, stylized water off, and at least 50 stable battle samples.
+- Release evidence now requires both overlay shaders rendered, cold/warm/pulse profiles with renderer counters, all four effect flags enabled, qualification instrumentation enabled, and at least 50 stable battle samples.
 - `map:release:check` requires feature-off baseline and adapted variant evidence for Android and iOS. It first validates the adapted Android/iOS release pair, then compares each platform on the same source, app version, device, OS, scene, and 24-hour window.
 - The comparison reports cold and warm FPS, p95, p99, draw calls, triangles, programs, and available memory. It fails closed if either warm p95 or warm p99 regresses by more than 5%, if either absolute profile fails, or if either side lacks 50 stable battle samples.
 
@@ -70,10 +70,12 @@ No donor repository is a dependency or Git submodule. No donor code, model, text
 
 | Flag                                | Production default | Qualification default | Decision                                               |
 | ----------------------------------- | -----------------: | --------------------: | ------------------------------------------------------ |
-| `EXPO_PUBLIC_R3F_BATTLE_INSTANCING` |                Off |     Off/On by profile | Candidate; enable in production only after comparison. |
-| `EXPO_PUBLIC_R3F_CONQUEST_PULSE`    |                Off |                    On | Experimental until fresh physical evidence passes.     |
-| `EXPO_PUBLIC_R3F_ORDER_REVEAL`      |                Off |                    On | Experimental until fresh physical evidence passes.     |
-| `EXPO_PUBLIC_R3F_STYLIZED_WATER`    |                Off |                   Off | Rejected for this integration.                         |
+| `EXPO_PUBLIC_R3F_BATTLE_INSTANCING` |                 On |     Off/On by profile | Enabled by explicit production release decision.       |
+| `EXPO_PUBLIC_R3F_CONQUEST_PULSE`    |                 On |                    On | Enabled by explicit production release decision.       |
+| `EXPO_PUBLIC_R3F_ORDER_REVEAL`      |                 On |                    On | Enabled by explicit production release decision.       |
+| `EXPO_PUBLIC_R3F_STYLIZED_WATER`    |                 On |     Off/On by profile | Enabled by explicit production release decision.       |
+
+Production activation does not mark the native comparison gate complete. Fresh matched Android and physical-iPhone evidence remains required, and each effect retains its environment-flag rollback path. Qualification instrumentation is enabled in production so the released artifacts can capture the full enabled stack. Android and iOS production builds inherit all five enabled flags from the EAS production profile, while web production exports load the same values from `.env.production`. The `production-apk` profile inherits the production flags and signing identity, emits an installable APK, and reserves the next Android build number automatically.
 
 ## Assets And Notices
 
@@ -95,10 +97,10 @@ No `THIRD_PARTY_NOTICES.md` change is required because no substantial donor code
 | Automated test suite      | 226 Node + 2 Vitest passed                | Covers matrices, timeline, flags, deterministic native fixtures, post-draw shader evidence, baseline export, cross-platform comparison, scene descriptors, evidence parsing, cold/warm profiles, and 50-sample growth rejection. |
 | Browser smoke             | Passed across 97 bundled game images      | Compiled both shaders, rendered one eight-instance impact mesh, preserved all territory pick meshes, returned to idle, and exercised a two-battle cold/warm sequence. |
 | Browser performance       | Captured, environment marked `ineligible` | Useful diagnostics only; cannot satisfy native release policy.                                                                                                        |
-| Android and physical iOS  | Pending for the final integration commit  | Required before enabling the two shader flags in production.                                                                                                          |
+| Android and physical iOS  | Pending for the final integration commit  | Still required to qualify the explicitly enabled production effect set.                                                                                              |
 | Thermal and native memory | Pending                                   | Requires a 10-15 minute physical session plus Instruments/Android Profiler.                                                                                           |
 
-Absolute 60 Hz thresholds remain unchanged. The automated browser lane does not claim a physical baseline/variant comparison, native memory result, thermal result, or 50-battle device result. Production, ordinary preview, and stylized water remain explicitly off in `eas.json` until those measurements pass.
+Absolute 60 Hz thresholds remain unchanged. The automated browser lane does not claim a physical baseline/variant comparison, native memory result, thermal result, or 50-battle device result. Production now enables the complete effect set and qualification instrumentation by explicit release decision; ordinary preview remains off, and the pending native measurements remain release evidence rather than a prerequisite asserted as already passed.
 
 Build the two native candidates from the same committed revision with `qualification-baseline` and `qualification-variant`. Export four evidence files, then run:
 

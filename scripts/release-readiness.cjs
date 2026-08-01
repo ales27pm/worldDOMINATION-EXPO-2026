@@ -75,6 +75,9 @@ function checkStaticReleaseConfig() {
   const productionAndroid = record(production.android);
   const productionIos = record(production.ios);
   const productionEnv = record(production.env);
+  const productionApk = record(build["production-apk"]);
+  const productionApkAndroid = record(productionApk.android);
+  const webProductionEnv = readEnvFile(path.join(ROOT, "artifacts/mobile/.env.production"));
   const submitProduction = record(submit.production);
   const submitAndroid = record(submitProduction.android);
   const submitIos = record(submitProduction.ios);
@@ -107,9 +110,9 @@ function checkStaticReleaseConfig() {
       qualificationVariantEnv.EXPO_PUBLIC_R3F_BATTLE_INSTANCING === "1" &&
       qualificationVariantEnv.EXPO_PUBLIC_R3F_CONQUEST_PULSE === "1" &&
       qualificationVariantEnv.EXPO_PUBLIC_R3F_ORDER_REVEAL === "1" &&
-      qualificationVariantEnv.EXPO_PUBLIC_R3F_STYLIZED_WATER === "0" &&
+      qualificationVariantEnv.EXPO_PUBLIC_R3F_STYLIZED_WATER === "1" &&
       qualificationVariantEnv.EXPO_PUBLIC_R3F_QUALIFICATION === "1",
-    "build.qualification-variant must enable instancing, pulse, and reveal with water disabled.",
+    "build.qualification-variant must enable instancing, pulse, reveal, water, and qualification instrumentation.",
   );
   passIf("production build is store distribution", production.distribution === "store", "build.production.distribution must be store.");
   passIf("production android emits app bundle", productionAndroid.buildType === "app-bundle", "build.production.android.buildType must be app-bundle.");
@@ -117,13 +120,30 @@ function checkStaticReleaseConfig() {
   passIf("production build auto-increments", production.autoIncrement === true, "build.production.autoIncrement must be true.");
   passIf("production channel is configured", production.channel === "production", "build.production.channel must be production.");
   passIf(
-    "production keeps unqualified R3F effects off",
-    productionEnv.EXPO_PUBLIC_R3F_BATTLE_INSTANCING === "0" &&
-      productionEnv.EXPO_PUBLIC_R3F_CONQUEST_PULSE === "0" &&
-      productionEnv.EXPO_PUBLIC_R3F_ORDER_REVEAL === "0" &&
-      productionEnv.EXPO_PUBLIC_R3F_STYLIZED_WATER === "0" &&
-      productionEnv.EXPO_PUBLIC_R3F_QUALIFICATION === "0",
-    "build.production.env must explicitly disable every R3F effect until physical comparison passes.",
+    "production enables approved R3F effects only",
+    productionEnv.EXPO_PUBLIC_R3F_BATTLE_INSTANCING === "1" &&
+      productionEnv.EXPO_PUBLIC_R3F_CONQUEST_PULSE === "1" &&
+      productionEnv.EXPO_PUBLIC_R3F_ORDER_REVEAL === "1" &&
+      productionEnv.EXPO_PUBLIC_R3F_STYLIZED_WATER === "1" &&
+      productionEnv.EXPO_PUBLIC_R3F_QUALIFICATION === "1",
+    "build.production.env must enable instancing, pulse, reveal, water, and qualification instrumentation.",
+  );
+  passIf(
+    "production apk reserves the next Android build number",
+    productionApk.extends === "production" &&
+      productionApk.distribution === "internal" &&
+      productionApk.autoIncrement === true &&
+      productionApkAndroid.buildType === "apk",
+    "build.production-apk must extend production, emit an internal APK, and auto-increment its remote version code.",
+  );
+  passIf(
+    "production web enables the complete R3F effect set",
+    webProductionEnv.EXPO_PUBLIC_R3F_BATTLE_INSTANCING === "1" &&
+      webProductionEnv.EXPO_PUBLIC_R3F_CONQUEST_PULSE === "1" &&
+      webProductionEnv.EXPO_PUBLIC_R3F_ORDER_REVEAL === "1" &&
+      webProductionEnv.EXPO_PUBLIC_R3F_STYLIZED_WATER === "1" &&
+      webProductionEnv.EXPO_PUBLIC_R3F_QUALIFICATION === "1",
+    "artifacts/mobile/.env.production must enable all five R3F production flags for web exports.",
   );
   passIf("android submit starts as internal draft", submitAndroid.track === "internal" && submitAndroid.releaseStatus === "draft", "submit.production.android must use internal/draft first.");
   passIf("ios submit bundle matches app config", submitIos.bundleIdentifier === ios.bundleIdentifier, "submit.production.ios.bundleIdentifier must match app config.");

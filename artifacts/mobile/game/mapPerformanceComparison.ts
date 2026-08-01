@@ -129,7 +129,7 @@ const VARIANT_FLAGS: R3FFeatureFlags = {
   battleInstancing: true,
   conquestPulse: true,
   orderReveal: true,
-  stylizedWater: false,
+  stylizedWater: true,
   qualification: true,
 };
 

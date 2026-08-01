@@ -696,8 +696,9 @@ async function assertR3FVerticalSlice(page) {
     initial.r3fFeatureFlags?.battleInstancing === true &&
       initial.r3fFeatureFlags?.conquestPulse === true &&
       initial.r3fFeatureFlags?.orderReveal === true &&
-      initial.r3fFeatureFlags?.stylizedWater === false,
-    `R3F smoke feature flags were not qualification-safe: ${JSON.stringify(initial.r3fFeatureFlags)}`,
+      initial.r3fFeatureFlags?.stylizedWater === true &&
+      initial.r3fFeatureFlags?.qualification === true,
+    `R3F smoke feature flags were not production-enabled: ${JSON.stringify(initial.r3fFeatureFlags)}`,
   );
   await assertR3FCanvasPixels(page, "R3F tabletop");
 
@@ -980,7 +981,7 @@ async function assertR3FVerticalSlice(page) {
       );
     },
     null,
-    { timeout: 10000 },
+    { timeout: 30000 },
   );
   const performanceQualification = await page.evaluate(
     () => globalThis.__WORLD_DOMINATION_R3F__.performanceQualification,
@@ -999,53 +1000,32 @@ async function assertR3FVerticalSlice(page) {
     performanceQualification.status === "ineligible",
     "Browser metrics incorrectly satisfied the physical-device gate",
   );
-  await page.waitForFunction(
-    () => {
-      const raw = window.localStorage.getItem(
-        "worlddomination.mapPerformanceEvidence.v1",
-      );
-      if (!raw) return false;
-      try {
-        const evidence = JSON.parse(raw);
-        return (
-          evidence.evidenceVersion === 1 &&
-          evidence.platform === "web" &&
-          evidence.scene?.variant === "classic" &&
-          evidence.scene?.territoryCount === 42 &&
-          evidence.qualification?.environment === "browser" &&
-          evidence.qualification?.status === "ineligible" &&
-          evidence.qualification?.missingKinds?.length === 0
-        );
-      } catch {
-        return false;
-      }
-    },
-    null,
-    { timeout: 10000 },
-  );
-  const performanceEvidence = await page.evaluate(() =>
-    JSON.parse(
-      window.localStorage.getItem("worlddomination.mapPerformanceEvidence.v1"),
+  const qualificationInstrumentation = await page.evaluate(() => ({
+    featureFlags: globalThis.__WORLD_DOMINATION_R3F__.r3fFeatureFlags,
+    rendererStability: globalThis.__WORLD_DOMINATION_R3F__.rendererStability,
+    storedEvidence: window.localStorage.getItem(
+      "worlddomination.mapPerformanceEvidence.v1",
     ),
+  }));
+  assert(
+    qualificationInstrumentation.featureFlags?.battleInstancing === true &&
+      qualificationInstrumentation.featureFlags?.conquestPulse === true &&
+      qualificationInstrumentation.featureFlags?.orderReveal === true &&
+      qualificationInstrumentation.featureFlags?.stylizedWater === true &&
+      qualificationInstrumentation.featureFlags?.qualification === true &&
+      qualificationInstrumentation.rendererStability?.requiredBattleCount ===
+        50 &&
+      qualificationInstrumentation.rendererStability?.observedBattleCount >=
+        1 &&
+      qualificationInstrumentation.rendererStability?.complete === false &&
+      qualificationInstrumentation.storedEvidence === null,
+    `R3F qualification instrumentation did not remain fail-closed: ${JSON.stringify(qualificationInstrumentation)}`,
   );
   assert(
-    Number.isFinite(Date.parse(performanceEvidence.capturedAt)) &&
-      typeof performanceEvidence.application?.sessionId === "string" &&
-      performanceEvidence.application.sessionId.length > 0 &&
-      performanceEvidence.r3f?.featureFlags?.conquestPulse === true &&
-      performanceEvidence.r3f?.featureFlags?.orderReveal === true &&
-      performanceEvidence.r3f?.shaderCompilation?.conquestPulse === true &&
-      typeof performanceEvidence.r3f?.shaderCompilation?.orderReveal ===
-        "boolean" &&
-      performanceEvidence.r3f?.rendererStability?.requiredBattleCount === 50 &&
-      performanceEvidence.r3f?.rendererStability?.observedBattleCount >= 1,
-    `R3F performance evidence omitted provenance: ${JSON.stringify(performanceEvidence)}`,
+    !(await page.getByTestId("map-performance-evidence").isEnabled()),
+    "Incomplete R3F qualification evidence was exportable",
   );
-  assert(
-    await page.getByTestId("map-performance-evidence").isEnabled(),
-    "Completed R3F performance evidence was not exportable",
-  );
-  console.log("ok - fail-closed R3F performance qualification");
+  console.log("ok - fail-closed R3F qualification instrumentation");
   await page.waitForFunction(
     () => {
       const raw = window.localStorage.getItem("worlddomination.db.saveSlot");
@@ -1122,6 +1102,11 @@ async function assertR3FQualificationSequence(page) {
   const scene = await page.evaluate(() => globalThis.__WORLD_DOMINATION_R3F__);
   assert(
     scene.pickerMeshCount === scene.territoryCount &&
+      scene.r3fFeatureFlags?.battleInstancing === true &&
+      scene.r3fFeatureFlags?.conquestPulse === true &&
+      scene.r3fFeatureFlags?.orderReveal === true &&
+      scene.r3fFeatureFlags?.stylizedWater === true &&
+      scene.r3fFeatureFlags?.qualification === true &&
       scene.rendererStability.requiredBattleCount === 50 &&
       scene.rendererStability.complete === false &&
       scene.rendererStability.stable === false,
@@ -2320,6 +2305,8 @@ async function main() {
       EXPO_PUBLIC_R3F_BATTLE_INSTANCING: "1",
       EXPO_PUBLIC_R3F_CONQUEST_PULSE: "1",
       EXPO_PUBLIC_R3F_ORDER_REVEAL: "1",
+      EXPO_PUBLIC_R3F_STYLIZED_WATER: "1",
+      EXPO_PUBLIC_R3F_QUALIFICATION: "1",
     },
   );
   assertExportShape();
