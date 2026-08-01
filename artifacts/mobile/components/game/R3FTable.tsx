@@ -3,8 +3,8 @@ import React, { useEffect, useMemo } from "react";
 import { Platform } from "react-native";
 import {
   ExtrudeGeometry,
+  MirroredRepeatWrapping,
   Path,
-  RepeatWrapping,
   Shape,
   ShapeGeometry,
   SRGBColorSpace,
@@ -20,8 +20,9 @@ import {
 } from "@/game/mapSceneGeometry";
 
 const DYNAMIC_SHADOWS = Platform.OS === "web";
+// Keep this a flat mobile tile, independent of the decorative 2D tabletop art.
 const TABLE_WALNUT_TEXTURE =
-  require("../../assets/ui/command-table-walnut-seamless.png") as number;
+  require("../../assets/ui/command-table-walnut-mobile-v3.png") as number;
 const TABLETOP_THICKNESS = 0.34;
 const APRON_HEIGHT = 0.44;
 const FOOT_DEPTH = 0.58;
@@ -87,9 +88,9 @@ export default function R3FTable() {
 
   useEffect(() => {
     walnutTexture.colorSpace = SRGBColorSpace;
-    walnutTexture.wrapS = RepeatWrapping;
-    walnutTexture.wrapT = RepeatWrapping;
-    walnutTexture.repeat.set(5, 5);
+    walnutTexture.wrapS = MirroredRepeatWrapping;
+    walnutTexture.wrapT = MirroredRepeatWrapping;
+    walnutTexture.repeat.set(3, 3);
     walnutTexture.anisotropy = 8;
     walnutTexture.needsUpdate = true;
   }, [walnutTexture]);
