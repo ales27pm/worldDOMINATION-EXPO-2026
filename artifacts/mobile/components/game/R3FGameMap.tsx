@@ -1600,7 +1600,7 @@ export default function R3FGameMap({
       roomTextureSet:
         bridge.texturedRoomMeshCount >= 3 ? "imagegen-command-room-v1" : null,
       tableTextureSet:
-        bridge.texturedTableMeshCount >= 4 ? "imagegen-command-table-v1" : null,
+        bridge.texturedTableMeshCount >= 4 ? "imagegen-command-table-v2" : null,
       texturedRoomMeshCount: bridge.texturedRoomMeshCount,
       texturedTableMeshCount: bridge.texturedTableMeshCount,
       territoryLabelCount: bridge.territoryLabelCount,

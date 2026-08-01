@@ -206,13 +206,13 @@ function assertExportShape() {
   for (const file of pieceAssets) assertFile(file, "bundled piece asset");
 
   const commandUiAssets = files.filter((file) =>
-    /assets\/ui\/(command-table-walnut|parchment-panel|imperial-command-seal)\.[^.]+\.(webp|png)$/.test(
+    /assets\/ui\/(command-table-walnut(?:-seamless)?|parchment-panel|imperial-command-seal)\.[^.]+\.(webp|png)$/.test(
       file,
     ),
   );
   assert(
-    commandUiAssets.length === 3,
-    `expected three bundled generated command UI assets, found ${commandUiAssets.length}`,
+    commandUiAssets.length === 4,
+    `expected four bundled generated command UI assets, found ${commandUiAssets.length}`,
   );
   for (const file of commandUiAssets)
     assertFile(file, "bundled command UI asset");
@@ -622,7 +622,7 @@ async function assertDefaultR3FRenderer(page) {
         scene.territoryLabelCount === 42 &&
         scene.room === "imperial-command-room" &&
         scene.roomTextureSet === "imagegen-command-room-v1" &&
-        scene.tableTextureSet === "imagegen-command-table-v1" &&
+        scene.tableTextureSet === "imagegen-command-table-v2" &&
         shared?.rendererMode === "r3f" &&
         shared.sceneRevision === scene.sceneRevision
       );
@@ -664,7 +664,7 @@ async function assertR3FVerticalSlice(page) {
     `R3F preview did not expose room textures: ${JSON.stringify(initial.roomTextureSet)}`,
   );
   assert(
-    initial.tableTextureSet === "imagegen-command-table-v1",
+    initial.tableTextureSet === "imagegen-command-table-v2",
     `R3F preview did not expose table textures: ${JSON.stringify(initial.tableTextureSet)}`,
   );
   assert(
