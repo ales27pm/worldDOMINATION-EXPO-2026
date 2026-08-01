@@ -129,3 +129,22 @@ test("only complete passing physical profiles pass at renderer level", () => {
   equal(failing.status, "fail");
   equal(failing.profiles.battle?.assessment.status, "fail");
 });
+
+test("cold, warm, and conquest profiles are assessed without weakening the gate", () => {
+  const qualification = qualifyMapRendererPerformance(
+    {
+      camera: passingReport("camera"),
+      battle: passingReport("battle"),
+      "battle-cold": passingReport("battle-cold"),
+      "battle-warm": passingReport("battle-warm"),
+      "conquest-pulse": passingReport("conquest-pulse"),
+    },
+    "physical",
+  );
+
+  equal(qualification.status, "pass");
+  equal(qualification.profiles["battle-cold"]?.assessment.status, "pass");
+  equal(qualification.profiles["battle-warm"]?.assessment.status, "pass");
+  equal(qualification.profiles["conquest-pulse"]?.assessment.status, "pass");
+  deepEqual(qualification.requiredKinds, ["camera", "battle"]);
+});

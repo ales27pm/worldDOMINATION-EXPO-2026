@@ -1,7 +1,10 @@
 import { equal } from "node:assert/strict";
 import { test } from "node:test";
 
-import { shouldAutostartMapFixture } from "../../game/mapQualificationLaunch";
+import {
+  resolveMapQualificationBattleCount,
+  shouldAutostartMapFixture,
+} from "../../game/mapQualificationLaunch";
 
 const production = {
   autostart: "1",
@@ -38,6 +41,14 @@ test("qualification builds require an explicit qualification run", () => {
     }),
     true,
   );
+});
+
+test("qualification battle repeats are explicit, bounded, and qualification-only", () => {
+  equal(resolveMapQualificationBattleCount("50", true), 50);
+  equal(resolveMapQualificationBattleCount("400", true), 400);
+  equal(resolveMapQualificationBattleCount("600", true), 500);
+  equal(resolveMapQualificationBattleCount("2.5", true), 0);
+  equal(resolveMapQualificationBattleCount("50", false), 0);
 });
 
 test("development and browser smoke retain preview autostart", () => {

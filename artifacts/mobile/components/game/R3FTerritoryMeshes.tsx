@@ -19,23 +19,29 @@ import {
   MAP_SCENE_BOARD_PIXELS,
   MAP_SCENE_UNITS_PER_PIXEL,
 } from "@/game/mapSceneGeometry";
-import type { MapSceneModel } from "@/game/mapSceneModel";
+import type {
+  MapSceneModel,
+  MapScenePulseEffect,
+  MapSceneRevealEffect,
+} from "@/game/mapSceneModel";
 import { MAP_SCENE_GLBS, WORLD_BOARD } from "@/lib/gameArt";
 
 interface Props {
   model: MapSceneModel;
   onLoaded: () => void;
-  onAttentionTargetsReady: (
-    registry: MapAttentionTargetRegistry,
-  ) => void;
+  onAttentionTargetsReady: (registry: MapAttentionTargetRegistry) => void;
+  pulses: MapScenePulseEffect[];
+  reveals: MapSceneRevealEffect[];
+  reducedMotion: boolean;
+  suspended: boolean;
+  onPulseComplete: (effectId: string) => void;
+  onRevealComplete: (effectId: string) => void;
 }
 
 const BOARD_WIDTH = MAP_SCENE_BOARD_PIXELS[0] * MAP_SCENE_UNITS_PER_PIXEL;
 const BOARD_DEPTH = MAP_SCENE_BOARD_PIXELS[1] * MAP_SCENE_UNITS_PER_PIXEL;
 
-function collectTerritoryGeometries(
-  scene: Group,
-): Map<string, BufferGeometry> {
+function collectTerritoryGeometries(scene: Group): Map<string, BufferGeometry> {
   const result = new Map<string, BufferGeometry>();
   scene.traverse((object) => {
     const mesh = object as Mesh;
@@ -50,6 +56,12 @@ export default function R3FTerritoryMeshes({
   model,
   onLoaded,
   onAttentionTargetsReady,
+  pulses,
+  reveals,
+  reducedMotion,
+  suspended,
+  onPulseComplete,
+  onRevealComplete,
 }: Props) {
   const gltf = useLoader(
     GLTFLoader,
@@ -109,6 +121,12 @@ export default function R3FTerritoryMeshes({
         geometries={geometries}
         boardTexture={boardTexture}
         shadows
+        pulses={pulses}
+        reveals={reveals}
+        reducedMotion={reducedMotion}
+        suspended={suspended}
+        onPulseComplete={onPulseComplete}
+        onRevealComplete={onRevealComplete}
       />
     </>
   );

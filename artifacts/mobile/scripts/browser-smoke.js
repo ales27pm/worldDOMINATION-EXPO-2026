@@ -214,7 +214,8 @@ function assertExportShape() {
     commandUiAssets.length === 3,
     `expected three bundled generated command UI assets, found ${commandUiAssets.length}`,
   );
-  for (const file of commandUiAssets) assertFile(file, "bundled command UI asset");
+  for (const file of commandUiAssets)
+    assertFile(file, "bundled command UI asset");
 
   const battleViews = files.filter((file) =>
     /assets\/game\/battle-views\/[^/]+\.[^.]+\.webp$/.test(file),
@@ -691,6 +692,13 @@ async function assertR3FVerticalSlice(page) {
     initial.fps > 10,
     `R3F preview frame loop was not healthy: ${initial.fps} fps`,
   );
+  assert(
+    initial.r3fFeatureFlags?.battleInstancing === true &&
+      initial.r3fFeatureFlags?.conquestPulse === true &&
+      initial.r3fFeatureFlags?.orderReveal === true &&
+      initial.r3fFeatureFlags?.stylizedWater === false,
+    `R3F smoke feature flags were not qualification-safe: ${JSON.stringify(initial.r3fFeatureFlags)}`,
+  );
   await assertR3FCanvasPixels(page, "R3F tabletop");
 
   const sharedR3FModel = await page.evaluate(
@@ -793,8 +801,7 @@ async function assertR3FVerticalSlice(page) {
   await page.waitForFunction(
     (viewWidth) =>
       globalThis.__WORLD_DOMINATION_R3F__?.camera?.vw > viewWidth &&
-      globalThis.__WORLD_DOMINATION_R3F__?.frameProfile?.status ===
-        "complete",
+      globalThis.__WORLD_DOMINATION_R3F__?.frameProfile?.status === "complete",
     initialViewWidth,
     { timeout: 10000 },
   );
@@ -809,7 +816,9 @@ async function assertR3FVerticalSlice(page) {
   await page.mouse.click(brazil.x, brazil.y);
   console.log("checking - R3F Brazil raycast");
   await page.waitForFunction(
-    () => globalThis.__WORLD_DOMINATION_R3F__?.selectedId === "brazil",
+    () =>
+      globalThis.__WORLD_DOMINATION_R3F__?.selectedId === "brazil" &&
+      globalThis.__WORLD_DOMINATION_R3F__?.conquestPulse?.compiledEver === true,
     null,
     { timeout: 10000 },
   );
@@ -821,6 +830,21 @@ async function assertR3FVerticalSlice(page) {
     selected.targetIds.includes("northAfrica"),
     "R3F Brazil selection did not target North Africa",
   );
+  assert(
+    selected.conquestPulse.compiledEver === true &&
+      selected.pickerMeshCount === selected.territoryCount &&
+      selected.pulseIds.some((id) => id.startsWith("selection:brazil:")),
+    `R3F selection pulse did not compile independently of picking: ${JSON.stringify({ conquestPulse: selected.conquestPulse, pickerMeshCount: selected.pickerMeshCount, pulseIds: selected.pulseIds })}`,
+  );
+  assert(
+    Number.isInteger(selected.rendererInfo?.calls) &&
+      Number.isInteger(selected.rendererInfo?.triangles) &&
+      Number.isInteger(selected.rendererInfo?.programs) &&
+      Number.isInteger(selected.rendererInfo?.geometries) &&
+      Number.isInteger(selected.rendererInfo?.textures),
+    `R3F renderer counters were unavailable: ${JSON.stringify(selected.rendererInfo)}`,
+  );
+  console.log("ok - R3F conquest/attention shader and picking isolation");
   const diceThree = await assertLabeledControl(
     page,
     "Attack with 3 dice",
@@ -828,7 +852,12 @@ async function assertR3FVerticalSlice(page) {
   );
   await assertMinTouchTarget(diceThree, 44, "R3F attack dice control");
 
-  const northAfrica = selected.projected.northAfrica;
+  // The user-focus camera is still settling after Brazil. Read the live
+  // projection immediately before the target click so this remains a picking
+  // assertion, not a stale screen-coordinate race.
+  const northAfrica = await page.evaluate(
+    () => globalThis.__WORLD_DOMINATION_R3F__.projected.northAfrica,
+  );
   assert(
     northAfrica &&
       Number.isFinite(northAfrica.x) &&
@@ -899,9 +928,7 @@ async function assertR3FVerticalSlice(page) {
   const retreat = page.getByLabel("Retreat from battle").last();
   const dismissBattle = page.getByLabel("Dismiss battle scene").last();
   const battleDecision = await Promise.race([
-    retreat
-      .waitFor({ state: "visible", timeout: 10000 })
-      .then(() => "retreat"),
+    retreat.waitFor({ state: "visible", timeout: 10000 }).then(() => "retreat"),
     dismissBattle
       .waitFor({ state: "visible", timeout: 10000 })
       .then(() => "dismiss"),
@@ -929,6 +956,19 @@ async function assertR3FVerticalSlice(page) {
   );
   await page.waitForFunction(
     () => {
+      const scene = globalThis.__WORLD_DOMINATION_R3F__;
+      return (
+        scene?.visualEffectsActive === false &&
+        scene?.renderActivity?.cameraMotion === "idle" &&
+        typeof scene?.lastCompletedPulseId === "string"
+      );
+    },
+    null,
+    { timeout: 10000 },
+  );
+  console.log("ok - R3F effects returned to idle");
+  await page.waitForFunction(
+    () => {
       const qualification =
         globalThis.__WORLD_DOMINATION_R3F__?.performanceQualification;
       return (
@@ -948,6 +988,10 @@ async function assertR3FVerticalSlice(page) {
   assert(
     performanceQualification.contractVersion === 1 &&
       performanceQualification.targetFps === 60 &&
+      performanceQualification.profiles["battle-cold"]?.report.renderer
+        ?.sampleCount > 0 &&
+      performanceQualification.profiles["conquest-pulse"]?.report.renderer
+        ?.sampleCount > 0 &&
       ["pass", "fail"].includes(performanceQualification.metricStatus),
     `R3F performance qualification was incomplete: ${JSON.stringify(performanceQualification)}`,
   );
@@ -981,15 +1025,20 @@ async function assertR3FVerticalSlice(page) {
   );
   const performanceEvidence = await page.evaluate(() =>
     JSON.parse(
-      window.localStorage.getItem(
-        "worlddomination.mapPerformanceEvidence.v1",
-      ),
+      window.localStorage.getItem("worlddomination.mapPerformanceEvidence.v1"),
     ),
   );
   assert(
     Number.isFinite(Date.parse(performanceEvidence.capturedAt)) &&
       typeof performanceEvidence.application?.sessionId === "string" &&
-      performanceEvidence.application.sessionId.length > 0,
+      performanceEvidence.application.sessionId.length > 0 &&
+      performanceEvidence.r3f?.featureFlags?.conquestPulse === true &&
+      performanceEvidence.r3f?.featureFlags?.orderReveal === true &&
+      performanceEvidence.r3f?.shaderCompilation?.conquestPulse === true &&
+      typeof performanceEvidence.r3f?.shaderCompilation?.orderReveal ===
+        "boolean" &&
+      performanceEvidence.r3f?.rendererStability?.requiredBattleCount === 50 &&
+      performanceEvidence.r3f?.rendererStability?.observedBattleCount >= 1,
     `R3F performance evidence omitted provenance: ${JSON.stringify(performanceEvidence)}`,
   );
   assert(
@@ -1017,7 +1066,8 @@ async function assertR3FVerticalSlice(page) {
   );
 
   console.log("checking - R3F save restore presentation");
-  await page.reload({ waitUntil: "domcontentloaded" });
+  const restoreUrl = new URL("/game?renderer=r3f", page.url()).toString();
+  await page.goto(restoreUrl, { waitUntil: "domcontentloaded" });
   await page.waitForFunction(
     (expectedBattleId) =>
       globalThis.__WORLD_DOMINATION_R3F__?.ready === true &&
@@ -1044,6 +1094,41 @@ async function assertR3FVerticalSlice(page) {
   );
   await assertR3FCanvasPixels(page, "restored R3F tabletop");
   console.log("ok - R3F save restore presentation");
+}
+
+async function assertR3FQualificationSequence(page) {
+  console.log("checking - repeated R3F qualification sequence");
+  await page.waitForFunction(
+    () => {
+      const scene = globalThis.__WORLD_DOMINATION_R3F__;
+      const profiles = scene?.performanceQualification?.profiles;
+      return (
+        scene?.ready === true &&
+        scene.qualificationBattleSequence?.requested === 2 &&
+        scene.qualificationBattleSequence?.completed === 2 &&
+        scene.qualificationBattleSequence?.active === false &&
+        scene.visualEffectsActive === false &&
+        scene.conquestPulse?.compiledEver === true &&
+        scene.sealedOrderReveal?.compiledEver === true &&
+        profiles?.["battle-cold"]?.report?.renderer?.sampleCount > 0 &&
+        profiles?.["battle-warm"]?.report?.renderer?.sampleCount > 0 &&
+        profiles?.["conquest-pulse"]?.report?.renderer?.sampleCount > 0 &&
+        scene.rendererStability?.observedBattleCount === 2
+      );
+    },
+    null,
+    { timeout: 30000 },
+  );
+  const scene = await page.evaluate(() => globalThis.__WORLD_DOMINATION_R3F__);
+  assert(
+    scene.pickerMeshCount === scene.territoryCount &&
+      scene.rendererStability.requiredBattleCount === 50 &&
+      scene.rendererStability.complete === false &&
+      scene.rendererStability.stable === false,
+    `R3F repeated qualification sequence was invalid: ${JSON.stringify({ sequence: scene.qualificationBattleSequence, stability: scene.rendererStability, pickerMeshCount: scene.pickerMeshCount })}`,
+  );
+  await assertR3FCanvasPixels(page, "repeated R3F qualification sequence");
+  console.log("ok - repeated R3F qualification sequence");
 }
 
 async function assertR3FExpandedLabelLayer(page) {
@@ -1466,7 +1551,9 @@ async function assertRenderedPreview() {
       ],
       "rendered home screen",
       async (page) => {
-        const bodyText = await page.locator("body").innerText({ timeout: 10000 });
+        const bodyText = await page
+          .locator("body")
+          .innerText({ timeout: 10000 });
         assertIncludes(bodyText, "COMMAND DISPATCH", "rendered home screen");
         const newCampaign = await assertLabeledControl(
           page,
@@ -1637,10 +1724,19 @@ async function assertRenderedPreview() {
         for (const [label, controlLabel] of [
           ["Quick Match", "rendered multiplayer quick-match control"],
           ["Create Host Seat", "rendered multiplayer host-seat control"],
-          ["Show joinable lobby matches", "rendered multiplayer joinable filter"],
-          ["Show public lobby scope", "rendered multiplayer public scope filter"],
+          [
+            "Show joinable lobby matches",
+            "rendered multiplayer joinable filter",
+          ],
+          [
+            "Show public lobby scope",
+            "rendered multiplayer public scope filter",
+          ],
           ["Refresh Lobby", "rendered multiplayer refresh-lobby control"],
-          ["Watch Invitations", "rendered multiplayer watch-invitations control"],
+          [
+            "Watch Invitations",
+            "rendered multiplayer watch-invitations control",
+          ],
           ["Invite Seat", "rendered multiplayer invite-seat control"],
           ["Join Seat", "rendered multiplayer join-seat control"],
         ]) {
@@ -1911,6 +2007,13 @@ async function assertRenderedPreview() {
       VIEWPORTS.desktop,
     );
     await withFreshPage(
+      "/game?autostart=1&renderer=r3f&qualificationBattles=2&players=2",
+      ["Napoleon", "REINFORCE", "3D", "BATTLES:"],
+      "rendered repeated R3F qualification sequence",
+      assertR3FQualificationSequence,
+      VIEWPORTS.desktop,
+    );
+    await withFreshPage(
       "/game?autostart=1&renderer=r3f&extra=1&players=2",
       ["Napoleon", "REINFORCE", "3D", "BATTLES:"],
       "rendered expanded R3F label layer",
@@ -2019,6 +2122,46 @@ async function assertRenderedPreview() {
       VIEWPORTS.landscape,
     );
     await withFreshPage(
+      "/game?autostart=1&renderer=r3f&playback=1&extra=1",
+      ["Napoleon", "BATTLE REPORT", "CONQUERED"],
+      "rendered R3F Same Time reveal shader",
+      async (page) => {
+        await page.waitForFunction(
+          () => {
+            const scene = globalThis.__WORLD_DOMINATION_R3F__;
+            return (
+              scene?.ready === true &&
+              scene?.sealedOrderReveal?.compiledEver === true
+            );
+          },
+          null,
+          { timeout: 30000 },
+        );
+        const reveal = await page.evaluate(
+          () => globalThis.__WORLD_DOMINATION_R3F__,
+        );
+        assert(
+          reveal.sealedOrderReveal.compiledEver === true &&
+            reveal.pickerMeshCount === reveal.territoryCount &&
+            (reveal.revealIds.some((id) => id.startsWith("playback:")) ||
+              reveal.lastCompletedRevealId?.startsWith("playback:")),
+          `R3F playback reveal did not compile independently of picking: ${JSON.stringify({ reveal: reveal.sealedOrderReveal, revealIds: reveal.revealIds, completed: reveal.lastCompletedRevealId, pickerMeshCount: reveal.pickerMeshCount })}`,
+        );
+        await page.waitForFunction(
+          () =>
+            globalThis.__WORLD_DOMINATION_R3F__?.visualEffectsActive ===
+              false &&
+            globalThis.__WORLD_DOMINATION_R3F__?.lastCompletedRevealId?.startsWith(
+              "playback:",
+            ),
+          null,
+          { timeout: 10000 },
+        );
+        console.log("ok - R3F sealed-order playback reveal and idle return");
+      },
+      VIEWPORTS.landscape,
+    );
+    await withFreshPage(
       "/game?autostart=1&renderer=svg&playback=1&extra=1",
       [
         "Napoleon",
@@ -2069,12 +2212,7 @@ async function assertRenderedPreview() {
     );
     await withFreshPage(
       "/game?autostart=1&renderer=svg&victory=1",
-      [
-        "Napoleon",
-        "VICTORY",
-        "Capital cities seized",
-        "CAMPAIGN STATISTICS",
-      ],
+      ["Napoleon", "VICTORY", "Capital cities seized", "CAMPAIGN STATISTICS"],
       "rendered landscape victory statistics screen",
       async (page) => {
         await assertNoHorizontalOverflow(
@@ -2131,8 +2269,12 @@ async function assertRenderedPreview() {
           chartBox && chartBox.width >= 260 && chartBox.height >= 150,
           "statistics chart did not render with a stable landscape size",
         );
-        await page.getByText("ARMIES", { exact: true }).click({ timeout: 10000 });
-        await page.getByText("CONTINUE", { exact: true }).click({ timeout: 10000 });
+        await page
+          .getByText("ARMIES", { exact: true })
+          .click({ timeout: 10000 });
+        await page
+          .getByText("CONTINUE", { exact: true })
+          .click({ timeout: 10000 });
         await statsSheet.waitFor({ state: "hidden", timeout: 10000 });
         await page
           .getByTestId("map-victory-sheet")
@@ -2175,6 +2317,8 @@ async function main() {
     ],
     {
       EXPO_PUBLIC_BROWSER_SMOKE: "1",
+      EXPO_PUBLIC_R3F_CONQUEST_PULSE: "1",
+      EXPO_PUBLIC_R3F_ORDER_REVEAL: "1",
     },
   );
   assertExportShape();

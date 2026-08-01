@@ -15,6 +15,7 @@ import {
 } from "../../game/mapSceneModel";
 import type { BattleReport, TerritoryId } from "../../game/types";
 import {
+  attackOrder,
   createClassicState,
   createSameTimeState,
   setTerritories,
@@ -156,6 +157,7 @@ test("scene model emits deterministic classic and same-time battle effects", () 
   );
 
   const sameTime = createSameTimeState();
+  sameTime.phase = "sameTimeBattle";
   sameTime.lastBattle = battle("brazil", "northAfrica");
   ok(sameTime.sameTime);
   sameTime.sameTime.playback = [battle("china", "india")];
@@ -168,6 +170,133 @@ test("scene model emits deterministic classic and same-time battle effects", () 
   );
   equal(sameTimeModel.battle?.from, "china");
   equal(sameTimeModel.battle?.to, "india");
+  equal(sameTimeModel.pulses[0]?.kind, "conquest");
+  equal(sameTimeModel.pulses[0]?.territoryId, "india");
+  equal(sameTimeModel.reveals[0]?.kind, "playback");
+  equal(sameTimeModel.reveals[0]?.territoryId, "india");
+});
+
+test("scene model scopes sealed orders to the viewer without mutating gameplay", () => {
+  const game = createSameTimeState();
+  game.phase = "sameTimeBattle";
+  game.currentPlayer = 0;
+  ok(game.sameTime);
+  game.sameTime.orders = [
+    attackOrder("order-0", 0, "brazil", "northAfrica", 3),
+    attackOrder("order-1", 1, "china", "india", 2),
+  ];
+  const unsealed = buildMapSceneModel(
+    game,
+    null,
+    new Set(),
+    new Set(),
+    "board",
+    0,
+  );
+  equal(unsealed.reveals.length, 0);
+  game.sameTime.readyBattle = [true, true];
+  const before = structuredClone(game);
+
+  const viewerZero = buildMapSceneModel(
+    game,
+    null,
+    new Set(),
+    new Set(),
+    "board",
+    0,
+  );
+  deepEqual(
+    viewerZero.reveals.map((effect) => effect.id),
+    ["sealed-order:order-0"],
+  );
+  const viewerOne = buildMapSceneModel(
+    game,
+    null,
+    new Set(),
+    new Set(),
+    "board",
+    1,
+  );
+  deepEqual(
+    viewerOne.reveals.map((effect) => effect.id),
+    ["sealed-order:order-1"],
+  );
+  deepEqual(game, before);
+});
+
+test("scene model derives mission and victory reveal descriptors", () => {
+  const mission = createClassicState(2, "random", "mission");
+  mission.players[0].mission = { kind: "occupyTerritoryCount", count: 18 };
+  const missionModel = buildMapSceneModel(
+    mission,
+    null,
+    new Set(),
+    new Set(),
+    "board",
+    0,
+  );
+  equal(
+    missionModel.reveals.some((effect) => effect.kind === "mission"),
+    true,
+  );
+
+  const victory = createClassicState();
+  victory.phase = "gameOver";
+  victory.winner = 0;
+  const victoryModel = buildMapSceneModel(
+    victory,
+    null,
+    new Set(),
+    new Set(),
+    "board",
+    0,
+  );
+  equal(
+    victoryModel.reveals.some((effect) => effect.kind === "victory"),
+    true,
+  );
+});
+
+test("presentation emits selection and reveal effects once per transition", () => {
+  const game = createSameTimeState();
+  game.phase = "sameTimeBattle";
+  ok(game.sameTime);
+  game.sameTime.orders = [
+    attackOrder("order-0", 0, "brazil", "northAfrica", 3),
+  ];
+  game.sameTime.readyBattle[0] = true;
+  const idleModel = buildMapSceneModel(
+    game,
+    null,
+    new Set(),
+    new Set(),
+    "board",
+    0,
+  );
+  let state = createMapScenePresentationState(idleModel);
+  let update = advanceMapScenePresentation(state, idleModel);
+  equal(update.reveals.length, 1);
+  state = update.state;
+  update = advanceMapScenePresentation(state, idleModel);
+  equal(update.reveals.length, 0);
+
+  const selectedModel = buildMapSceneModel(
+    game,
+    "brazil",
+    new Set(),
+    new Set(["brazil"]),
+    "board",
+    0,
+  );
+  update = advanceMapScenePresentation(state, selectedModel);
+  equal(update.pulses.length, 1);
+  equal(update.pulses[0]?.kind, "selection");
+  state = update.state;
+
+  update = advanceMapScenePresentation(state, idleModel);
+  state = update.state;
+  update = advanceMapScenePresentation(state, selectedModel);
+  equal(update.pulses[0]?.id, "selection:brazil:2");
 });
 
 test("scene revisions cover every renderer-facing field and survive JSON restoration", () => {

@@ -50,3 +50,25 @@ test("R3F feature flags ignore unrecognized env values", () => {
     false,
   );
 });
+
+test("qualification mode enables proposed shaders unless explicitly disabled", () => {
+  deepEqual(
+    resolveR3FFeatureFlags({
+      [R3F_FEATURE_FLAG_ENV.qualification]: "1",
+    }),
+    {
+      battleInstancing: true,
+      conquestPulse: true,
+      orderReveal: true,
+      stylizedWater: false,
+      qualification: true,
+    },
+  );
+  const overridden = resolveR3FFeatureFlags({
+    [R3F_FEATURE_FLAG_ENV.qualification]: "1",
+    [R3F_FEATURE_FLAG_ENV.conquestPulse]: "0",
+    [R3F_FEATURE_FLAG_ENV.orderReveal]: "off",
+  });
+  equal(overridden.conquestPulse, false);
+  equal(overridden.orderReveal, false);
+});

@@ -28,7 +28,10 @@ import { aiNextAction } from "@/game/ai";
 import { allianceBetween } from "@/game/analysis";
 import { electionBudget } from "@/game/engine";
 import { TERRITORY_MAP } from "@/game/mapData";
-import { shouldAutostartMapFixture } from "@/game/mapQualificationLaunch";
+import {
+  resolveMapQualificationBattleCount,
+  shouldAutostartMapFixture,
+} from "@/game/mapQualificationLaunch";
 import {
   DEFAULT_MAP_RENDERER_MODE,
   mapRendererModeFromParam,
@@ -95,11 +98,23 @@ const MAP_PERFORMANCE_QUALIFICATION_ENABLED =
   process.env.EXPO_PUBLIC_BROWSER_SMOKE === "1" ||
   process.env.EXPO_PUBLIC_R3F_QUALIFICATION === "1";
 
+function completesRequestedQualificationSequence(
+  evidence: MapPerformanceEvidence,
+  requestedBattleCount: number,
+): boolean {
+  return (
+    requestedBattleCount <= 0 ||
+    (evidence.r3f?.rendererStability.observedBattleCount ?? 0) >=
+      requestedBattleCount
+  );
+}
+
 export default function GameScreen() {
   const router = useRouter();
   const { game, startGame, loadingSave } = useGame();
   const params = useLocalSearchParams<PreviewParams>();
   const autostart = firstParam(params.autostart);
+  const qualificationFixtureStarted = useRef(false);
   const qualificationLaunch = shouldAutostartMapFixture({
     autostart,
     qualificationRun: firstParam(params.qualificationRun),
@@ -110,13 +125,14 @@ export default function GameScreen() {
 
   // Preview and qualification builds can open deterministic deep-link fixtures.
   useEffect(() => {
-    if (game) return;
     if (loadingSave) return;
-    if (qualificationLaunch) {
+    if (qualificationLaunch && !qualificationFixtureStarted.current) {
+      qualificationFixtureStarted.current = true;
       const setup = previewSetupFromParams(params);
       startGame(setup, previewPrepareFromParams(params));
       return;
     }
+    if (game) return;
     router.replace("/");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [game, loadingSave, autostart, qualificationLaunch]);
@@ -126,6 +142,10 @@ export default function GameScreen() {
     <CampaignScreen
       game={game}
       initialRendererMode={mapRendererModeFromParam(params.renderer)}
+      qualificationBattleCount={resolveMapQualificationBattleCount(
+        firstParam(params.qualificationBattles),
+        MAP_PERFORMANCE_QUALIFICATION_ENABLED,
+      )}
     />
   );
 }
@@ -150,6 +170,7 @@ type PreviewParams = {
   attackDemo?: string | string[];
   victory?: string | string[];
   qualificationRun?: string | string[];
+  qualificationBattles?: string | string[];
 };
 
 const PREVIEW_OBJECTIVES: Objective[] = [
@@ -367,8 +388,7 @@ function previewVictoryState(state: GameState): GameState {
   const territories = { ...state.territories };
   const lastPlayerId = Math.max(0, state.players.length - 1);
   state.activeIds.forEach((id, index) => {
-    const preferredOwner =
-      index < 24 ? 0 : index < 32 ? 1 : index < 38 ? 2 : 3;
+    const preferredOwner = index < 24 ? 0 : index < 32 ? 1 : index < 38 ? 2 : 3;
     const owner = Math.min(preferredOwner, lastPlayerId);
     territories[id] = {
       owner,
@@ -551,6 +571,7 @@ interface CampaignScreenProps {
   onActionError?: (error: unknown) => void;
   onVictoryExit?: () => void | Promise<void>;
   initialRendererMode?: MapRendererMode;
+  qualificationBattleCount?: number;
 }
 
 export function CampaignScreen({
@@ -564,6 +585,7 @@ export function CampaignScreen({
   onActionError,
   onVictoryExit,
   initialRendererMode = DEFAULT_MAP_RENDERER_MODE,
+  qualificationBattleCount = 0,
 }: CampaignScreenProps) {
   const router = useRouter();
   const { dispatch: rawDispatch, abandonGame } = useGame();
@@ -627,23 +649,47 @@ export function CampaignScreen({
 
   const handlePerformanceEvidence = useCallback(
     (evidence: MapPerformanceEvidence) => {
-      setCurrentPerformanceEvidence(evidence);
-      if (!isCompleteMapPerformanceEvidence(evidence)) return;
-      setSavedPerformanceEvidence(evidence);
-      void saveMapPerformanceEvidence(AsyncStorage, evidence).catch(
-        (error) => {
-          console.warn("Unable to save map performance evidence.", error);
-        },
+      const requestedSequenceComplete = completesRequestedQualificationSequence(
+        evidence,
+        qualificationBattleCount,
       );
+      if (qualificationBattleCount > 0 && !requestedSequenceComplete) return;
+      setCurrentPerformanceEvidence(evidence);
+      if (
+        !isCompleteMapPerformanceEvidence(evidence) ||
+        !requestedSequenceComplete
+      ) {
+        return;
+      }
+      setSavedPerformanceEvidence(evidence);
+      void saveMapPerformanceEvidence(AsyncStorage, evidence).catch((error) => {
+        console.warn("Unable to save map performance evidence.", error);
+      });
     },
-    [],
+    [qualificationBattleCount],
   );
 
-  const shareablePerformanceEvidence =
+  const currentEvidenceComplete = Boolean(
     currentPerformanceEvidence &&
-    isCompleteMapPerformanceEvidence(currentPerformanceEvidence)
-      ? currentPerformanceEvidence
-      : savedPerformanceEvidence;
+    isCompleteMapPerformanceEvidence(currentPerformanceEvidence) &&
+    completesRequestedQualificationSequence(
+      currentPerformanceEvidence,
+      qualificationBattleCount,
+    ),
+  );
+  const savedEvidenceComplete = Boolean(
+    savedPerformanceEvidence &&
+    isCompleteMapPerformanceEvidence(savedPerformanceEvidence) &&
+    completesRequestedQualificationSequence(
+      savedPerformanceEvidence,
+      qualificationBattleCount,
+    ),
+  );
+  const shareablePerformanceEvidence = currentEvidenceComplete
+    ? currentPerformanceEvidence
+    : savedEvidenceComplete
+      ? savedPerformanceEvidence
+      : null;
   const performanceStatus =
     currentPerformanceEvidence?.qualification.status ??
     savedPerformanceEvidence?.qualification.status ??
@@ -669,9 +715,7 @@ export function CampaignScreen({
     void Share.share(
       {
         title: "worldDOMINATION map performance evidence",
-        message: serializeMapPerformanceEvidence(
-          shareablePerformanceEvidence,
-        ),
+        message: serializeMapPerformanceEvidence(shareablePerformanceEvidence),
       },
       {
         dialogTitle: "Share map performance evidence",
@@ -1177,6 +1221,8 @@ export function CampaignScreen({
           interactive={interactive}
           viewMode={viewMode}
           rendererMode={rendererMode}
+          viewerPlayerId={localPlayerId ?? undefined}
+          qualificationBattleCount={qualificationBattleCount}
           cameraControlsRightInset={
             campaignHudLayout.cameraControlsRightInset ?? undefined
           }
@@ -1272,8 +1318,7 @@ export function CampaignScreen({
               {MAP_VIEW_LABELS[viewMode].toUpperCase()}
             </Text>
           </Pressable>
-          {MAP_PERFORMANCE_QUALIFICATION_ENABLED &&
-          rendererMode === "r3f" ? (
+          {MAP_PERFORMANCE_QUALIFICATION_ENABLED && rendererMode === "r3f" ? (
             <Pressable
               testID="map-performance-evidence"
               accessibilityRole="button"
@@ -1421,7 +1466,10 @@ export function CampaignScreen({
                 onPress={() => setRosterOpen(false)}
                 accessibilityRole="button"
                 accessibilityLabel="Close commander roster"
-                style={({ pressed }) => [styles.rosterCloseBtn, pressed && styles.rosterCloseBtnPressed]}
+                style={({ pressed }) => [
+                  styles.rosterCloseBtn,
+                  pressed && styles.rosterCloseBtnPressed,
+                ]}
               >
                 <Ionicons name="close" size={20} color={Colors.textMuted} />
               </Pressable>

@@ -3,7 +3,10 @@ import {
   type MapPerformanceEnvironment,
   type MapRendererPerformanceQualification,
 } from "./mapFrameQualification";
-import type { MapPerformanceEvidence } from "./mapPerformanceEvidence";
+import {
+  REQUIRED_R3F_QUALIFICATION_PROFILE_KINDS,
+  type MapPerformanceEvidence,
+} from "./mapPerformanceEvidence";
 
 export const REQUIRED_MAP_RELEASE_PLATFORMS = ["android", "ios"] as const;
 
@@ -27,6 +30,11 @@ export type MapReleaseQualificationFailureCode =
   | "metric-status"
   | "missing-profile"
   | "profile-status"
+  | "renderer-counters"
+  | "r3f-evidence"
+  | "r3f-feature-flags"
+  | "shader-compilation"
+  | "renderer-stability"
   | "application-provenance"
   | "device-provenance"
   | "source-revision"
@@ -302,7 +310,10 @@ export function qualifyMapReleasePair(
       });
     }
 
-    for (const kind of REQUIRED_MAP_FRAME_PROFILE_KINDS) {
+    for (const kind of [
+      ...REQUIRED_MAP_FRAME_PROFILE_KINDS,
+      ...REQUIRED_R3F_QUALIFICATION_PROFILE_KINDS,
+    ]) {
       const profile = evidence.qualification.profiles[kind];
       if (!profile) {
         failures.push({
@@ -315,6 +326,65 @@ export function qualifyMapReleasePair(
           code: "profile-status",
           platform,
           detail: `${platform} ${kind} frame profile did not pass.`,
+        });
+      } else if (
+        REQUIRED_R3F_QUALIFICATION_PROFILE_KINDS.includes(
+          kind as (typeof REQUIRED_R3F_QUALIFICATION_PROFILE_KINDS)[number],
+        ) &&
+        !profile.report.renderer
+      ) {
+        failures.push({
+          code: "renderer-counters",
+          platform,
+          detail: `${platform} ${kind} frame profile is missing renderer counters.`,
+        });
+      }
+    }
+
+    const r3f = evidence.r3f;
+    if (!r3f) {
+      failures.push({
+        code: "r3f-evidence",
+        platform,
+        detail: `${platform} evidence is missing the R3F adaptation qualification block.`,
+      });
+    } else {
+      const flags = r3f.featureFlags;
+      if (
+        !flags.qualification ||
+        !flags.battleInstancing ||
+        !flags.conquestPulse ||
+        !flags.orderReveal ||
+        flags.stylizedWater
+      ) {
+        failures.push({
+          code: "r3f-feature-flags",
+          platform,
+          detail: `${platform} did not qualify the required R3F effects with stylized water disabled.`,
+        });
+      }
+      if (
+        !r3f.shaderCompilation.conquestPulse ||
+        !r3f.shaderCompilation.orderReveal
+      ) {
+        failures.push({
+          code: "shader-compilation",
+          platform,
+          detail: `${platform} did not render both R3F overlay shaders.`,
+        });
+      }
+      const stability = r3f.rendererStability;
+      if (
+        stability.requiredBattleCount < 50 ||
+        stability.observedBattleCount < stability.requiredBattleCount ||
+        !stability.complete ||
+        !stability.stable ||
+        stability.sustainedGrowthFields.length > 0
+      ) {
+        failures.push({
+          code: "renderer-stability",
+          platform,
+          detail: `${platform} renderer stability requires at least 50 completed battles without sustained program, geometry, or texture growth.`,
         });
       }
     }

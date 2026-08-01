@@ -7,10 +7,13 @@ import {
   type MapRendererPerformanceQualification,
   type QualifiedMapFrameProfile,
 } from "./mapFrameQualification";
-import type {
+import {
+  MAP_FRAME_PROFILE_KINDS,
+  type MapRendererBattleStabilityReport,
   MapFrameProfileKind,
   MapFrameProfileReport,
 } from "./mapFrameProfile";
+import type { R3FFeatureFlags } from "./r3fFeatureFlags";
 
 export type MapPerformancePlatform = "android" | "ios" | "web";
 
@@ -45,14 +48,28 @@ export interface MapPerformanceEvidence {
   device: MapPerformanceDeviceEvidence;
   scene: MapPerformanceSceneEvidence;
   qualification: MapRendererPerformanceQualification;
+  r3f?: {
+    featureFlags: R3FFeatureFlags;
+    shaderCompilation: {
+      conquestPulse: boolean;
+      orderReveal: boolean;
+    };
+    rendererStability: MapRendererBattleStabilityReport;
+  };
 }
+
+export const REQUIRED_R3F_QUALIFICATION_PROFILE_KINDS = [
+  "battle-cold",
+  "battle-warm",
+  "conquest-pulse",
+] as const satisfies readonly MapFrameProfileKind[];
 
 export function createMapPerformanceEvidence(
   evidence: Omit<MapPerformanceEvidence, "evidenceVersion" | "capturedAt"> & {
     capturedAt?: string;
   },
 ): MapPerformanceEvidence {
-  return {
+  const result: MapPerformanceEvidence = {
     evidenceVersion: 1,
     capturedAt: evidence.capturedAt ?? new Date().toISOString(),
     platform: evidence.platform,
@@ -61,15 +78,51 @@ export function createMapPerformanceEvidence(
     scene: evidence.scene,
     qualification: evidence.qualification,
   };
+  if (evidence.r3f) result.r3f = evidence.r3f;
+  return result;
 }
 
 export function isCompleteMapPerformanceEvidence(
   evidence: MapPerformanceEvidence,
 ): boolean {
-  return (
+  const mapProfilesComplete =
     evidence.qualification.status !== "pending" &&
     evidence.qualification.metricStatus !== "pending" &&
-    evidence.qualification.missingKinds.length === 0
+    evidence.qualification.missingKinds.length === 0;
+  if (!mapProfilesComplete) return false;
+  if (evidence.r3f?.featureFlags.qualification !== true) return true;
+  return isCompleteR3FQualificationEvidence(evidence);
+}
+
+export function isCompleteR3FQualificationEvidence(
+  evidence: MapPerformanceEvidence,
+): boolean {
+  const r3f = evidence.r3f;
+  if (!r3f) return false;
+  const flags = r3f.featureFlags;
+  const stability = r3f.rendererStability;
+  return (
+    flags.qualification &&
+    flags.battleInstancing &&
+    flags.conquestPulse &&
+    flags.orderReveal &&
+    !flags.stylizedWater &&
+    r3f.shaderCompilation.conquestPulse &&
+    r3f.shaderCompilation.orderReveal &&
+    stability.requiredBattleCount >= 50 &&
+    stability.observedBattleCount >= stability.requiredBattleCount &&
+    stability.complete &&
+    stability.stable &&
+    stability.sustainedGrowthFields.length === 0 &&
+    REQUIRED_R3F_QUALIFICATION_PROFILE_KINDS.every((kind) => {
+      const profile = evidence.qualification.profiles[kind];
+      return Boolean(
+        profile &&
+        profile.assessment.status === "pass" &&
+        profile.report.renderer &&
+        profile.report.renderer.sampleCount > 0,
+      );
+    })
   );
 }
 
@@ -93,9 +146,95 @@ function isPlatform(value: unknown): value is MapPerformancePlatform {
 
 function isFiniteNumber(value: unknown, minimum = 0): value is number {
   return (
-    typeof value === "number" &&
-    Number.isFinite(value) &&
-    value >= minimum
+    typeof value === "number" && Number.isFinite(value) && value >= minimum
+  );
+}
+
+function isRendererInfoSample(value: unknown): boolean {
+  if (!isRecord(value)) return false;
+  return (
+    [
+      "calls",
+      "triangles",
+      "points",
+      "lines",
+      "programs",
+      "geometries",
+      "textures",
+    ].every(
+      (field) => isFiniteNumber(value[field]) && Number.isInteger(value[field]),
+    ) &&
+    (value.memoryBytes === null || isFiniteNumber(value.memoryBytes))
+  );
+}
+
+function isRendererInfoSummary(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    value.contractVersion === 1 &&
+    isFiniteNumber(value.sampleCount, 1) &&
+    Number.isInteger(value.sampleCount) &&
+    isRendererInfoSample(value.first) &&
+    isRendererInfoSample(value.last) &&
+    isRendererInfoSample(value.peak)
+  );
+}
+
+function isRendererStabilityReport(value: unknown): boolean {
+  if (!isRecord(value)) return false;
+  const fields = value.sustainedGrowthFields;
+  const structurallyValid =
+    value.contractVersion === 1 &&
+    isFiniteNumber(value.requiredBattleCount, 1) &&
+    Number.isInteger(value.requiredBattleCount) &&
+    isFiniteNumber(value.observedBattleCount) &&
+    Number.isInteger(value.observedBattleCount) &&
+    typeof value.complete === "boolean" &&
+    typeof value.stable === "boolean" &&
+    Array.isArray(fields) &&
+    fields.every(
+      (field) =>
+        field === "programs" || field === "geometries" || field === "textures",
+    ) &&
+    (value.first === null || isRendererInfoSample(value.first)) &&
+    (value.last === null || isRendererInfoSample(value.last)) &&
+    (value.peak === null || isRendererInfoSample(value.peak));
+  if (!structurallyValid) return false;
+  const observedBattleCount = value.observedBattleCount as number;
+  const requiredBattleCount = value.requiredBattleCount as number;
+  const complete = observedBattleCount >= requiredBattleCount;
+  const hasSamples = observedBattleCount > 0;
+  return (
+    value.complete === complete &&
+    value.stable === (complete && fields.length === 0) &&
+    (hasSamples
+      ? value.first !== null && value.last !== null && value.peak !== null
+      : value.first === null && value.last === null && value.peak === null)
+  );
+}
+
+function isR3FFeatureFlags(value: unknown): boolean {
+  if (!isRecord(value)) return false;
+  return [
+    "battleInstancing",
+    "conquestPulse",
+    "orderReveal",
+    "stylizedWater",
+    "qualification",
+  ].every((field) => typeof value[field] === "boolean");
+}
+
+function isR3FEvidence(value: unknown): boolean {
+  const shaderCompilation = isRecord(value)
+    ? value.shaderCompilation
+    : undefined;
+  return (
+    isRecord(value) &&
+    isR3FFeatureFlags(value.featureFlags) &&
+    isRecord(shaderCompilation) &&
+    typeof shaderCompilation.conquestPulse === "boolean" &&
+    typeof shaderCompilation.orderReveal === "boolean" &&
+    isRendererStabilityReport(value.rendererStability)
   );
 }
 
@@ -112,6 +251,8 @@ function isFrameProfileReport(
     value.p50FrameMs <= value.p95FrameMs &&
     value.p95FrameMs <= value.p99FrameMs &&
     value.p99FrameMs <= value.maxFrameMs;
+  const rendererValid =
+    value.renderer === undefined || isRendererInfoSummary(value.renderer);
   return (
     value.contractVersion === 1 &&
     value.kind === kind &&
@@ -127,14 +268,12 @@ function isFrameProfileReport(
     isFiniteNumber(value.estimatedDroppedFrames) &&
     Number.isInteger(value.estimatedDroppedFrames) &&
     isFiniteNumber(value.withinBudgetRatio) &&
-    value.withinBudgetRatio <= 1
+    value.withinBudgetRatio <= 1 &&
+    rendererValid
   );
 }
 
-function arraysEqual<T>(
-  left: readonly T[],
-  right: readonly T[],
-): boolean {
+function arraysEqual<T>(left: readonly T[], right: readonly T[]): boolean {
   return (
     left.length === right.length &&
     left.every((value, index) => value === right[index])
@@ -176,6 +315,8 @@ export function parseMapPerformanceEvidence(
     return null;
   }
   if (!isRecord(value)) return null;
+
+  if (value.r3f !== undefined && !isR3FEvidence(value.r3f)) return null;
 
   const application = value.application;
   const device = value.device;
@@ -255,27 +396,29 @@ export function parseMapPerformanceEvidence(
     !Array.isArray(requiredKinds) ||
     !Array.isArray(missingKinds) ||
     !arraysEqual(requiredKinds, REQUIRED_MAP_FRAME_PROFILE_KINDS) ||
-    !missingKinds.every((kind) => kind === "camera" || kind === "battle") ||
+    !missingKinds.every((kind) =>
+      REQUIRED_MAP_FRAME_PROFILE_KINDS.includes(
+        kind as (typeof REQUIRED_MAP_FRAME_PROFILE_KINDS)[number],
+      ),
+    ) ||
     !isRecord(qualification.profiles) ||
-    !Object.keys(qualification.profiles).every(
-      (kind) => kind === "camera" || kind === "battle",
+    !Object.keys(qualification.profiles).every((kind) =>
+      MAP_FRAME_PROFILE_KINDS.includes(kind as MapFrameProfileKind),
     )
   ) {
     return null;
   }
 
   if (
-    (value.platform === "web" &&
-      qualification.environment !== "browser") ||
-    (value.platform !== "web" &&
-      qualification.environment === "browser")
+    (value.platform === "web" && qualification.environment !== "browser") ||
+    (value.platform !== "web" && qualification.environment === "browser")
   ) {
     return null;
   }
 
   const reports: Partial<Record<MapFrameProfileKind, MapFrameProfileReport>> =
     {};
-  for (const kind of REQUIRED_MAP_FRAME_PROFILE_KINDS) {
+  for (const kind of MAP_FRAME_PROFILE_KINDS) {
     const profile = qualification.profiles[kind];
     if (profile === undefined) continue;
     if (!isQualifiedFrameProfile(profile, kind, targetFps)) return null;

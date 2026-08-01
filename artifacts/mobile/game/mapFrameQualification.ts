@@ -2,16 +2,14 @@ import type {
   MapFrameProfileKind,
   MapFrameProfileReport,
 } from "./mapFrameProfile";
+import { MAP_FRAME_PROFILE_KINDS } from "./mapFrameProfile";
 
 export const REQUIRED_MAP_FRAME_PROFILE_KINDS = [
   "camera",
   "battle",
 ] as const satisfies readonly MapFrameProfileKind[];
 
-export type MapPerformanceEnvironment =
-  | "browser"
-  | "simulator"
-  | "physical";
+export type MapPerformanceEnvironment = "browser" | "simulator" | "physical";
 
 export interface MapFrameQualificationThresholds {
   targetFps: number;
@@ -109,9 +107,7 @@ export function assessMapFrameProfile(
     report.estimatedDroppedFrames,
     report.withinBudgetRatio,
   ];
-  if (
-    numericMetrics.some((metric) => !Number.isFinite(metric) || metric < 0)
-  ) {
+  if (numericMetrics.some((metric) => !Number.isFinite(metric) || metric < 0)) {
     failures.push("invalid-metric");
   }
   if (report.targetFps !== thresholds.targetFps) {
@@ -165,14 +161,13 @@ export function qualifyMapRendererPerformance(
   targetFps = DEFAULT_TARGET_FPS,
 ): MapRendererPerformanceQualification {
   const profiles: MapRendererPerformanceQualification["profiles"] = {};
-  const missingKinds: MapFrameProfileKind[] = [];
+  const missingKinds = REQUIRED_MAP_FRAME_PROFILE_KINDS.filter(
+    (kind) => !reports[kind],
+  );
 
-  for (const kind of REQUIRED_MAP_FRAME_PROFILE_KINDS) {
+  for (const kind of MAP_FRAME_PROFILE_KINDS) {
     const report = reports[kind];
-    if (!report) {
-      missingKinds.push(kind);
-      continue;
-    }
+    if (!report) continue;
     profiles[kind] = {
       report,
       assessment: assessMapFrameProfile(report, targetFps),

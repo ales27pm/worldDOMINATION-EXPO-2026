@@ -13,22 +13,24 @@ import {
   MAP_SCENE_BOARD_PIXELS,
   MAP_SCENE_UNITS_PER_PIXEL,
 } from "@/game/mapSceneGeometry";
-import {
-  parseMapSceneGlb,
-  type ParsedMapSceneGlb,
-} from "@/game/mapSceneGlb";
-import type { MapSceneModel } from "@/game/mapSceneModel";
-import {
-  MAP_SCENE_GLBS,
-  WORLD_BOARD_NATIVE,
-} from "@/lib/gameArt";
+import { parseMapSceneGlb, type ParsedMapSceneGlb } from "@/game/mapSceneGlb";
+import type {
+  MapSceneModel,
+  MapScenePulseEffect,
+  MapSceneRevealEffect,
+} from "@/game/mapSceneModel";
+import { MAP_SCENE_GLBS, WORLD_BOARD_NATIVE } from "@/lib/gameArt";
 
 interface Props {
   model: MapSceneModel;
   onLoaded: () => void;
-  onAttentionTargetsReady: (
-    registry: MapAttentionTargetRegistry,
-  ) => void;
+  onAttentionTargetsReady: (registry: MapAttentionTargetRegistry) => void;
+  pulses: MapScenePulseEffect[];
+  reveals: MapSceneRevealEffect[];
+  reducedMotion: boolean;
+  suspended: boolean;
+  onPulseComplete: (effectId: string) => void;
+  onRevealComplete: (effectId: string) => void;
 }
 
 const BOARD_WIDTH = MAP_SCENE_BOARD_PIXELS[0] * MAP_SCENE_UNITS_PER_PIXEL;
@@ -85,6 +87,12 @@ export default function R3FTerritoryMeshes({
   model,
   onLoaded,
   onAttentionTargetsReady,
+  pulses,
+  reveals,
+  reducedMotion,
+  suspended,
+  onPulseComplete,
+  onRevealComplete,
 }: Props) {
   const scene = useNativeMapScene(MAP_SCENE_GLBS[model.variant]);
   const boardTexture = useLoader(
@@ -101,10 +109,7 @@ export default function R3FTerritoryMeshes({
   const attentionTargets = useMemo(
     () =>
       scene
-        ? createMapAttentionTargetRegistry(
-            model.territories,
-            scene.geometries,
-          )
+        ? createMapAttentionTargetRegistry(model.territories, scene.geometries)
         : null,
     // Territory mesh membership changes only when the map variant changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -149,6 +154,12 @@ export default function R3FTerritoryMeshes({
           geometries={scene.geometries}
           boardTexture={boardTexture}
           shadows={false}
+          pulses={pulses}
+          reveals={reveals}
+          reducedMotion={reducedMotion}
+          suspended={suspended}
+          onPulseComplete={onPulseComplete}
+          onRevealComplete={onRevealComplete}
         />
       ) : null}
     </>

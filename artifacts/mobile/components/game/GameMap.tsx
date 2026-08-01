@@ -21,16 +21,13 @@ import {
 } from "@/game/mapRendererMode";
 import type { GameState, TerritoryId } from "@/game/types";
 
-const R3FGameMap = React.lazy(
-  () => import("@/components/game/R3FGameMap"),
-);
+const R3FGameMap = React.lazy(() => import("@/components/game/R3FGameMap"));
 
 export { MAP_VIEW_LABELS, MAP_VIEW_MODES };
 export type { MapViewMode };
 export type { MapRendererMode } from "@/game/mapRendererMode";
 
-const MAP_SCENE_DEBUG_ENABLED =
-  process.env.EXPO_PUBLIC_BROWSER_SMOKE === "1";
+const MAP_SCENE_DEBUG_ENABLED = process.env.EXPO_PUBLIC_BROWSER_SMOKE === "1";
 
 interface Props {
   game: GameState;
@@ -39,6 +36,8 @@ interface Props {
   interactive: Set<TerritoryId>;
   viewMode: MapViewMode;
   rendererMode?: MapRendererMode;
+  viewerPlayerId?: number;
+  qualificationBattleCount?: number;
   cameraControlsRightInset?: number;
   onTerritoryTap: (id: TerritoryId) => void;
   onPerformanceEvidence?: (evidence: MapPerformanceEvidence) => void;
@@ -79,6 +78,8 @@ export default function GameMap({
   interactive,
   viewMode,
   rendererMode = DEFAULT_MAP_RENDERER_MODE,
+  viewerPlayerId,
+  qualificationBattleCount,
   cameraControlsRightInset,
   onTerritoryTap,
   onPerformanceEvidence,
@@ -93,8 +94,16 @@ export default function GameMap({
     if (id) onTapRef.current(id);
   }, []);
   const model = useMemo(
-    () => buildMapSceneModel(game, selected, targets, interactive, viewMode),
-    [game, interactive, selected, targets, viewMode],
+    () =>
+      buildMapSceneModel(
+        game,
+        selected,
+        targets,
+        interactive,
+        viewMode,
+        viewerPlayerId,
+      ),
+    [game, interactive, selected, targets, viewerPlayerId, viewMode],
   );
 
   useEffect(() => {
@@ -130,6 +139,7 @@ export default function GameMap({
           <R3FGameMap
             game={game}
             model={model}
+            qualificationBattleCount={qualificationBattleCount}
             cameraControlsRightInset={cameraControlsRightInset}
             onTerritoryTap={onTerritoryTap}
             onPerformanceEvidence={onPerformanceEvidence}

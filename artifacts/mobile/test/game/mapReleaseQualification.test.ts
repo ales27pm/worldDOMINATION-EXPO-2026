@@ -14,10 +14,28 @@ import { qualifyMapRendererPerformance } from "../../game/mapFrameQualification"
 import type {
   MapFrameProfileKind,
   MapFrameProfileReport,
+  MapRendererInfoSample,
 } from "../../game/mapFrameProfile";
+import {
+  createMapRendererBattleStability,
+  recordMapRendererBattleSample,
+  summarizeMapRendererBattleStability,
+} from "../../game/mapFrameProfile";
+import type { MapPerformanceEnvironment } from "../../game/mapFrameQualification";
 
 const SOURCE_REVISION = "a".repeat(40);
 const NOW = Date.parse("2026-07-30T18:00:00.000Z");
+
+const RENDERER_SAMPLE: MapRendererInfoSample = {
+  calls: 24,
+  triangles: 1200,
+  points: 0,
+  lines: 48,
+  programs: 6,
+  geometries: 54,
+  textures: 8,
+  memoryBytes: null,
+};
 
 function passingReport(
   kind: MapFrameProfileKind,
@@ -37,7 +55,51 @@ function passingReport(
     slowFrameCount: 2,
     estimatedDroppedFrames: 0,
     withinBudgetRatio: 0.983,
+    renderer: {
+      contractVersion: 1,
+      sampleCount: 120,
+      first: RENDERER_SAMPLE,
+      last: RENDERER_SAMPLE,
+      peak: RENDERER_SAMPLE,
+    },
     ...overrides,
+  };
+}
+
+function passingQualification(
+  environment: MapPerformanceEnvironment,
+  battleOverrides: Partial<MapFrameProfileReport> = {},
+) {
+  return qualifyMapRendererPerformance(
+    {
+      camera: passingReport("camera"),
+      battle: passingReport("battle", battleOverrides),
+      "battle-cold": passingReport("battle-cold"),
+      "battle-warm": passingReport("battle-warm"),
+      "conquest-pulse": passingReport("conquest-pulse"),
+    },
+    environment,
+  );
+}
+
+function passingR3FEvidence(): NonNullable<MapPerformanceEvidence["r3f"]> {
+  const stability = createMapRendererBattleStability();
+  for (let index = 0; index < 50; index += 1) {
+    recordMapRendererBattleSample(stability, RENDERER_SAMPLE);
+  }
+  return {
+    featureFlags: {
+      battleInstancing: true,
+      conquestPulse: true,
+      orderReveal: true,
+      stylizedWater: false,
+      qualification: true,
+    },
+    shaderCompilation: {
+      conquestPulse: true,
+      orderReveal: true,
+    },
+    rendererStability: summarizeMapRendererBattleStability(stability),
   };
 }
 
@@ -71,13 +133,8 @@ function physicalEvidence(
       revision: "canonical-attack-fixture",
       territoryCount: 42,
     },
-    qualification: qualifyMapRendererPerformance(
-      {
-        camera: passingReport("camera"),
-        battle: passingReport("battle"),
-      },
-      "physical",
-    ),
+    qualification: passingQualification("physical"),
+    r3f: passingR3FEvidence(),
   });
   return {
     ...evidence,
@@ -124,13 +181,7 @@ test("release qualification fails closed when one platform is absent", () => {
 
 test("Android simulator metrics can pair with physical iOS", () => {
   const android = physicalEvidence("android");
-  android.qualification = qualifyMapRendererPerformance(
-    {
-      camera: passingReport("camera"),
-      battle: passingReport("battle"),
-    },
-    "simulator",
-  );
+  android.qualification = passingQualification("simulator");
   android.device.modelName = "Android SDK built for x86_64";
   android.device.modelId = null;
 
@@ -152,13 +203,9 @@ test("Android simulator metrics can pair with physical iOS", () => {
 
 test("Android simulator evidence still requires passing performance profiles", () => {
   const android = physicalEvidence("android");
-  android.qualification = qualifyMapRendererPerformance(
-    {
-      camera: passingReport("camera"),
-      battle: passingReport("battle", { p95FrameMs: 25 }),
-    },
-    "simulator",
-  );
+  android.qualification = passingQualification("simulator", {
+    p95FrameMs: 25,
+  });
   android.device.modelName = "sdk_gphone64_x86_64";
   android.device.modelId = null;
 
@@ -177,13 +224,7 @@ test("Android simulator evidence still requires passing performance profiles", (
 
 test("iOS simulator metrics remain ineligible for the release pair", () => {
   const ios = physicalEvidence("ios");
-  ios.qualification = qualifyMapRendererPerformance(
-    {
-      camera: passingReport("camera"),
-      battle: passingReport("battle"),
-    },
-    "simulator",
-  );
+  ios.qualification = passingQualification("simulator");
   ios.device.modelName = "Simulator iOS";
   ios.device.modelId = "x86_64";
 
@@ -279,4 +320,32 @@ test("virtual-device identities are rejected for physical evidence", () => {
   );
 
   equal(failureCodes(report).includes("device-provenance"), true);
+});
+
+test("release qualification requires qualified shaders and 50 stable battles", () => {
+  const android = physicalEvidence("android");
+  android.r3f = undefined;
+  const ios = physicalEvidence("ios");
+  ios.r3f!.shaderCompilation.orderReveal = false;
+  ios.r3f!.rendererStability = {
+    ...ios.r3f!.rendererStability,
+    observedBattleCount: 49,
+    complete: false,
+    stable: false,
+  };
+  delete ios.qualification.profiles["battle-warm"];
+
+  const report = qualifyMapReleasePair(
+    { android, ios },
+    {
+      expectedSourceRevision: SOURCE_REVISION,
+      nowMs: NOW,
+    },
+  );
+
+  const codes = failureCodes(report);
+  equal(codes.includes("r3f-evidence"), true);
+  equal(codes.includes("shader-compilation"), true);
+  equal(codes.includes("renderer-stability"), true);
+  equal(codes.includes("missing-profile"), true);
 });

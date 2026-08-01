@@ -1,7 +1,13 @@
 import React from "react";
 import type { BufferGeometry, Texture } from "three";
 
-import type { MapSceneModel } from "@/game/mapSceneModel";
+import { R3FConquestPulse } from "@/components/game/R3FConquestPulse";
+import { R3FSealedOrderReveal } from "@/components/game/R3FSealedOrderReveal";
+import type {
+  MapSceneModel,
+  MapScenePulseEffect,
+  MapSceneRevealEffect,
+} from "@/game/mapSceneModel";
 import {
   CORRECTED_CHINA_OUTLINE,
   resolveTerritorySurfaceAppearance,
@@ -19,11 +25,23 @@ export function R3FTerritorySurface({
   geometries,
   boardTexture,
   shadows,
+  pulses,
+  reveals,
+  reducedMotion,
+  suspended,
+  onPulseComplete,
+  onRevealComplete,
 }: {
   model: MapSceneModel;
   geometries: Map<string, BufferGeometry>;
   boardTexture: Texture;
   shadows: boolean;
+  pulses: MapScenePulseEffect[];
+  reveals: MapSceneRevealEffect[];
+  reducedMotion: boolean;
+  suspended: boolean;
+  onPulseComplete: (effectId: string) => void;
+  onRevealComplete: (effectId: string) => void;
 }) {
   return model.territories.map((territory) => {
     const geometry = geometries.get(territory.meshName);
@@ -51,6 +69,30 @@ export function R3FTerritorySurface({
             metalness={0.02}
           />
         </mesh>
+        {pulses
+          .filter((effect) => effect.territoryId === territory.id)
+          .map((effect) => (
+            <R3FConquestPulse
+              key={effect.id}
+              effect={effect}
+              geometry={geometry}
+              reducedMotion={reducedMotion}
+              suspended={suspended}
+              onComplete={onPulseComplete}
+            />
+          ))}
+        {reveals
+          .filter((effect) => effect.territoryId === territory.id)
+          .map((effect) => (
+            <R3FSealedOrderReveal
+              key={effect.id}
+              effect={effect}
+              geometry={geometry}
+              reducedMotion={reducedMotion}
+              suspended={suspended}
+              onComplete={onRevealComplete}
+            />
+          ))}
         {surface.drawAuthoritativeOutline ? (
           <lineSegments
             name="outline__china"

@@ -18,6 +18,12 @@ import type {
   MapFrameProfileKind,
   MapFrameProfileReport,
 } from "../../game/mapFrameProfile";
+import {
+  createMapRendererBattleStability,
+  recordMapRendererBattleSample,
+  summarizeMapRendererBattleStability,
+  type MapRendererInfoSample,
+} from "../../game/mapFrameProfile";
 
 class MemoryStorage implements MapPerformanceEvidenceStorage {
   readonly data = new Map<string, string>();
@@ -30,6 +36,17 @@ class MemoryStorage implements MapPerformanceEvidenceStorage {
     this.data.set(key, value);
   }
 }
+
+const RENDERER_SAMPLE: MapRendererInfoSample = {
+  calls: 24,
+  triangles: 1200,
+  points: 0,
+  lines: 48,
+  programs: 6,
+  geometries: 54,
+  textures: 8,
+  memoryBytes: null,
+};
 
 function passingReport(kind: MapFrameProfileKind): MapFrameProfileReport {
   return {
@@ -46,10 +63,21 @@ function passingReport(kind: MapFrameProfileKind): MapFrameProfileReport {
     slowFrameCount: 2,
     estimatedDroppedFrames: 0,
     withinBudgetRatio: 0.983,
+    renderer: {
+      contractVersion: 1,
+      sampleCount: 120,
+      first: RENDERER_SAMPLE,
+      last: RENDERER_SAMPLE,
+      peak: RENDERER_SAMPLE,
+    },
   };
 }
 
 function completeEvidence(): MapPerformanceEvidence {
+  const stability = createMapRendererBattleStability();
+  for (let index = 0; index < 50; index += 1) {
+    recordMapRendererBattleSample(stability, RENDERER_SAMPLE);
+  }
   return createMapPerformanceEvidence({
     capturedAt: "2026-07-30T12:00:00.000Z",
     platform: "ios",
@@ -77,9 +105,26 @@ function completeEvidence(): MapPerformanceEvidence {
       {
         camera: passingReport("camera"),
         battle: passingReport("battle"),
+        "battle-cold": passingReport("battle-cold"),
+        "battle-warm": passingReport("battle-warm"),
+        "conquest-pulse": passingReport("conquest-pulse"),
       },
       "physical",
     ),
+    r3f: {
+      featureFlags: {
+        battleInstancing: true,
+        conquestPulse: true,
+        orderReveal: true,
+        stylizedWater: false,
+        qualification: true,
+      },
+      shaderCompilation: {
+        conquestPulse: true,
+        orderReveal: true,
+      },
+      rendererStability: summarizeMapRendererBattleStability(stability),
+    },
   });
 }
 
@@ -117,17 +162,13 @@ test("map performance evidence rejects malformed and platform-mismatched data", 
   );
   const alteredMetrics = structuredClone(completeEvidence());
   alteredMetrics.qualification.profiles.camera!.report.sampleCount = 1;
-  equal(
-    parseMapPerformanceEvidence(JSON.stringify(alteredMetrics)),
-    null,
-  );
+  equal(parseMapPerformanceEvidence(JSON.stringify(alteredMetrics)), null);
   const alteredAssessment = structuredClone(completeEvidence());
-  alteredAssessment.qualification.profiles.battle!.assessment.status =
-    "fail";
-  equal(
-    parseMapPerformanceEvidence(JSON.stringify(alteredAssessment)),
-    null,
-  );
+  alteredAssessment.qualification.profiles.battle!.assessment.status = "fail";
+  equal(parseMapPerformanceEvidence(JSON.stringify(alteredAssessment)), null);
+  const alteredStability = structuredClone(completeEvidence());
+  alteredStability.r3f!.rendererStability.observedBattleCount = -1;
+  equal(parseMapPerformanceEvidence(JSON.stringify(alteredStability)), null);
 });
 
 test("completed map performance evidence persists under the versioned key", async () => {
