@@ -6,9 +6,9 @@ import {
   resolveR3FFeatureFlags,
 } from "../../game/r3fFeatureFlags";
 
-test("R3F feature flags default to qualified battle instancing only", () => {
+test("R3F feature flags default off before qualification", () => {
   deepEqual(resolveR3FFeatureFlags({}), {
-    battleInstancing: true,
+    battleInstancing: false,
     conquestPulse: false,
     orderReveal: false,
     stylizedWater: false,
@@ -40,7 +40,7 @@ test("R3F feature flags ignore unrecognized env values", () => {
       [R3F_FEATURE_FLAG_ENV.battleInstancing]: "maybe",
       [R3F_FEATURE_FLAG_ENV.conquestPulse]: "soon",
     }).battleInstancing,
-    true,
+    false,
   );
   equal(
     resolveR3FFeatureFlags({

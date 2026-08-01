@@ -64,6 +64,11 @@ export const REQUIRED_R3F_QUALIFICATION_PROFILE_KINDS = [
   "conquest-pulse",
 ] as const satisfies readonly MapFrameProfileKind[];
 
+const REQUIRED_R3F_BASELINE_PROFILE_KINDS = [
+  "battle-cold",
+  "battle-warm",
+] as const satisfies readonly MapFrameProfileKind[];
+
 export function createMapPerformanceEvidence(
   evidence: Omit<MapPerformanceEvidence, "evidenceVersion" | "capturedAt"> & {
     capturedAt?: string;
@@ -100,6 +105,9 @@ export function isCompleteR3FQualificationEvidence(
   const r3f = evidence.r3f;
   if (!r3f) return false;
   const stability = r3f.rendererStability;
+  const requiredProfileKinds = r3f.featureFlags.conquestPulse
+    ? REQUIRED_R3F_QUALIFICATION_PROFILE_KINDS
+    : REQUIRED_R3F_BASELINE_PROFILE_KINDS;
 
   // Completeness describes whether the run can be diagnosed. Release policy
   // separately rejects failed profiles, shaders, feature flags, or stability.
@@ -108,7 +116,7 @@ export function isCompleteR3FQualificationEvidence(
     stability.requiredBattleCount >= 50 &&
     stability.observedBattleCount >= stability.requiredBattleCount &&
     stability.complete &&
-    REQUIRED_R3F_QUALIFICATION_PROFILE_KINDS.every((kind) => {
+    requiredProfileKinds.every((kind) => {
       const profile = evidence.qualification.profiles[kind];
       return Boolean(
         profile &&

@@ -182,6 +182,36 @@ test("completed map performance evidence persists under the versioned key", asyn
   deepEqual(await loadMapPerformanceEvidence(storage), evidence);
 });
 
+test("feature-off baseline evidence persists without a conquest pulse profile", async () => {
+  const storage = new MemoryStorage();
+  const evidence = completeEvidence();
+  evidence.qualification = qualifyMapRendererPerformance(
+    {
+      camera: passingReport("camera"),
+      battle: passingReport("battle"),
+      "battle-cold": passingReport("battle-cold"),
+      "battle-warm": passingReport("battle-warm"),
+    },
+    "physical",
+  );
+  evidence.r3f!.featureFlags = {
+    battleInstancing: false,
+    conquestPulse: false,
+    orderReveal: false,
+    stylizedWater: false,
+    qualification: true,
+  };
+  evidence.r3f!.shaderCompilation = {
+    conquestPulse: false,
+    orderReveal: false,
+  };
+
+  equal(isCompleteMapPerformanceEvidence(evidence), true);
+  await saveMapPerformanceEvidence(storage, evidence);
+
+  deepEqual(await loadMapPerformanceEvidence(storage), evidence);
+});
+
 test("completed failing R3F evidence persists for release diagnostics", async () => {
   const storage = new MemoryStorage();
   const evidence = completeEvidence();

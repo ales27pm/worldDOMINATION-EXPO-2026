@@ -66,9 +66,15 @@ function checkStaticReleaseConfig() {
   const preview = record(build.preview);
   const previewAndroid = record(preview.android);
   const previewIos = record(preview.ios);
+  const previewEnv = record(preview.env);
+  const qualificationBaseline = record(build["qualification-baseline"]);
+  const qualificationBaselineEnv = record(qualificationBaseline.env);
+  const qualificationVariant = record(build["qualification-variant"]);
+  const qualificationVariantEnv = record(qualificationVariant.env);
   const production = record(build.production);
   const productionAndroid = record(production.android);
   const productionIos = record(production.ios);
+  const productionEnv = record(production.env);
   const submitProduction = record(submit.production);
   const submitAndroid = record(submitProduction.android);
   const submitIos = record(submitProduction.ios);
@@ -76,11 +82,49 @@ function checkStaticReleaseConfig() {
   passIf("preview build is internal distribution", preview.distribution === "internal", "build.preview.distribution must be internal.");
   passIf("preview android emits installable apk", previewAndroid.buildType === "apk", "build.preview.android.buildType must be apk.");
   passIf("preview ios targets physical devices", previewIos.simulator === false, "build.preview.ios.simulator must be false.");
+  passIf(
+    "ordinary preview keeps unqualified R3F effects off",
+    previewEnv.EXPO_PUBLIC_R3F_BATTLE_INSTANCING === "0" &&
+      previewEnv.EXPO_PUBLIC_R3F_CONQUEST_PULSE === "0" &&
+      previewEnv.EXPO_PUBLIC_R3F_ORDER_REVEAL === "0" &&
+      previewEnv.EXPO_PUBLIC_R3F_STYLIZED_WATER === "0" &&
+      previewEnv.EXPO_PUBLIC_R3F_QUALIFICATION === "0",
+    "build.preview.env must explicitly disable every unqualified R3F effect.",
+  );
+  passIf(
+    "R3F baseline qualification profile is fail-closed",
+    qualificationBaseline.extends === "preview" &&
+      qualificationBaselineEnv.EXPO_PUBLIC_R3F_BATTLE_INSTANCING === "0" &&
+      qualificationBaselineEnv.EXPO_PUBLIC_R3F_CONQUEST_PULSE === "0" &&
+      qualificationBaselineEnv.EXPO_PUBLIC_R3F_ORDER_REVEAL === "0" &&
+      qualificationBaselineEnv.EXPO_PUBLIC_R3F_STYLIZED_WATER === "0" &&
+      qualificationBaselineEnv.EXPO_PUBLIC_R3F_QUALIFICATION === "1",
+    "build.qualification-baseline must extend preview, enable qualification, and disable all candidate effects.",
+  );
+  passIf(
+    "R3F variant qualification profile enables only proposed effects",
+    qualificationVariant.extends === "preview" &&
+      qualificationVariantEnv.EXPO_PUBLIC_R3F_BATTLE_INSTANCING === "1" &&
+      qualificationVariantEnv.EXPO_PUBLIC_R3F_CONQUEST_PULSE === "1" &&
+      qualificationVariantEnv.EXPO_PUBLIC_R3F_ORDER_REVEAL === "1" &&
+      qualificationVariantEnv.EXPO_PUBLIC_R3F_STYLIZED_WATER === "0" &&
+      qualificationVariantEnv.EXPO_PUBLIC_R3F_QUALIFICATION === "1",
+    "build.qualification-variant must enable instancing, pulse, and reveal with water disabled.",
+  );
   passIf("production build is store distribution", production.distribution === "store", "build.production.distribution must be store.");
   passIf("production android emits app bundle", productionAndroid.buildType === "app-bundle", "build.production.android.buildType must be app-bundle.");
   passIf("production ios targets physical devices", productionIos.simulator === false, "build.production.ios.simulator must be false.");
   passIf("production build auto-increments", production.autoIncrement === true, "build.production.autoIncrement must be true.");
   passIf("production channel is configured", production.channel === "production", "build.production.channel must be production.");
+  passIf(
+    "production keeps unqualified R3F effects off",
+    productionEnv.EXPO_PUBLIC_R3F_BATTLE_INSTANCING === "0" &&
+      productionEnv.EXPO_PUBLIC_R3F_CONQUEST_PULSE === "0" &&
+      productionEnv.EXPO_PUBLIC_R3F_ORDER_REVEAL === "0" &&
+      productionEnv.EXPO_PUBLIC_R3F_STYLIZED_WATER === "0" &&
+      productionEnv.EXPO_PUBLIC_R3F_QUALIFICATION === "0",
+    "build.production.env must explicitly disable every R3F effect until physical comparison passes.",
+  );
   passIf("android submit starts as internal draft", submitAndroid.track === "internal" && submitAndroid.releaseStatus === "draft", "submit.production.android must use internal/draft first.");
   passIf("ios submit bundle matches app config", submitIos.bundleIdentifier === ios.bundleIdentifier, "submit.production.ios.bundleIdentifier must match app config.");
 

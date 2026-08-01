@@ -37,7 +37,11 @@ export function resolveR3FFeatureFlags(
 ): R3FFeatureFlags {
   const qualification = envFlag(env, R3F_FEATURE_FLAG_ENV.qualification, false);
   return {
-    battleInstancing: envFlag(env, R3F_FEATURE_FLAG_ENV.battleInstancing, true),
+    battleInstancing: envFlag(
+      env,
+      R3F_FEATURE_FLAG_ENV.battleInstancing,
+      qualification,
+    ),
     conquestPulse: envFlag(
       env,
       R3F_FEATURE_FLAG_ENV.conquestPulse,

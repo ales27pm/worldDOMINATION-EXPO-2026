@@ -2317,6 +2317,7 @@ async function main() {
     ],
     {
       EXPO_PUBLIC_BROWSER_SMOKE: "1",
+      EXPO_PUBLIC_R3F_BATTLE_INSTANCING: "1",
       EXPO_PUBLIC_R3F_CONQUEST_PULSE: "1",
       EXPO_PUBLIC_R3F_ORDER_REVEAL: "1",
     },
