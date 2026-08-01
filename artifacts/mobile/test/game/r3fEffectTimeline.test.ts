@@ -3,10 +3,18 @@ import { test } from "node:test";
 
 import {
   advanceR3FEffectTimeline,
+  boundedR3FFrameDeltaSeconds,
   createR3FEffectTimelineState,
   easeOutR3FEffectProgress,
   isR3FEffectVisible,
 } from "../../game/r3fEffectTimeline";
+
+test("R3F frame deltas retain slow frames without replaying effects", () => {
+  equal(boundedR3FFrameDeltaSeconds(1000, 1016, 250), 0.016);
+  equal(boundedR3FFrameDeltaSeconds(1000, 1500, 250), 0.25);
+  equal(boundedR3FFrameDeltaSeconds(1000, 999, 250), null);
+  equal(boundedR3FFrameDeltaSeconds(1000, 1016, 0), null);
+});
 
 test("R3F effect timeline advances, eases, and completes exactly once", () => {
   let state = createR3FEffectTimelineState();

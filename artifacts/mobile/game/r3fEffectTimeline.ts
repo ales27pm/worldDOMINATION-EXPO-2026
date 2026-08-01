@@ -17,6 +17,24 @@ export interface R3FEffectTimelineOptions {
   reducedMotion?: boolean;
 }
 
+export function boundedR3FFrameDeltaSeconds(
+  previousFrameAtMs: number,
+  frameAtMs: number,
+  maximumGapMs: number,
+): number | null {
+  if (
+    !Number.isFinite(previousFrameAtMs) ||
+    !Number.isFinite(frameAtMs) ||
+    !Number.isFinite(maximumGapMs) ||
+    maximumGapMs <= 0
+  ) {
+    return null;
+  }
+  const deltaMs = frameAtMs - previousFrameAtMs;
+  if (deltaMs < 0) return null;
+  return Math.min(deltaMs, maximumGapMs) / 1000;
+}
+
 export function clampR3FEffectProgress(value: number): number {
   if (!Number.isFinite(value)) return 0;
   return Math.min(1, Math.max(0, value));

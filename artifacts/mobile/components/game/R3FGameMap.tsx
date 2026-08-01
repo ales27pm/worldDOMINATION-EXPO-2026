@@ -110,6 +110,7 @@ import {
   BATTLE_IMPACT_INSTANCE_COUNT,
   battleImpactColor,
 } from "@/game/r3fBattleImpactGeometry";
+import { boundedR3FFrameDeltaSeconds } from "@/game/r3fEffectTimeline";
 import { R3F_FEATURE_FLAGS } from "@/game/r3fFeatureFlags";
 import {
   advanceMapCameraIdleSettle,
@@ -269,15 +270,6 @@ function activeFrameTimeMs(): number {
   // a UIKit modal. Wall time is current on that first callback; visibility
   // revisions and the frame-gap guard keep covered time out of the sample.
   return Date.now();
-}
-
-function activeFrameDeltaSeconds(
-  previousFrameAtMs: number,
-  frameAtMs: number,
-): number | null {
-  const deltaMs = frameAtMs - previousFrameAtMs;
-  if (deltaMs < 0 || deltaMs > MAX_ACTIVE_FRAME_GAP_MS) return null;
-  return deltaMs / 1000;
 }
 
 function availableHeapBytes(): number | null {
@@ -461,7 +453,11 @@ function BattleEffect({
     const deltaSeconds =
       Platform.OS === "web"
         ? Math.min(frameDeltaSeconds, MAX_ACTIVE_FRAME_GAP_MS / 1000)
-        : activeFrameDeltaSeconds(previousFrameAtMs, frameAtMs);
+        : boundedR3FFrameDeltaSeconds(
+            previousFrameAtMs,
+            frameAtMs,
+            MAX_ACTIVE_FRAME_GAP_MS,
+          );
     if (deltaSeconds === null) {
       elapsed.current = 0;
       completed.current = false;
@@ -909,7 +905,11 @@ function PerformanceProbe({
           ? 0
           : Platform.OS === "web"
             ? Math.min(deltaSeconds, MAX_ACTIVE_FRAME_GAP_MS / 1000)
-            : activeFrameDeltaSeconds(previousFrameAtMs, frameAtMs);
+            : boundedR3FFrameDeltaSeconds(
+                previousFrameAtMs,
+                frameAtMs,
+                MAX_ACTIVE_FRAME_GAP_MS,
+              );
       if (battleDeltaSeconds === null) {
         activeProfiles.current = {};
         return;
@@ -2115,6 +2115,17 @@ export default function R3FGameMap({
           importantForAccessibility="yes"
           pointerEvents="none"
           style={styles.accessibilitySummary}
+        />
+      ) : null}
+
+      {requestedQualificationBattleCount > 0 ? (
+        <View
+          accessible
+          accessibilityLabel={`R3F qualification battles ${qualificationSequenceRef.current.completed} of ${requestedQualificationBattleCount}${presentedBattle?.id.startsWith("qualification:") ? ", active" : ", idle"}`}
+          importantForAccessibility="yes"
+          pointerEvents="none"
+          style={styles.accessibilitySummary}
+          testID="map-r3f-qualification-progress"
         />
       ) : null}
 
