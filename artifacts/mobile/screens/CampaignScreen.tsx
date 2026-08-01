@@ -32,6 +32,7 @@ import {
   resolveMapQualificationBattleCount,
   shouldAutostartMapFixture,
 } from "@/game/mapQualificationLaunch";
+import { prepareMapQualificationFixture } from "@/game/mapQualificationFixture";
 import {
   DEFAULT_MAP_RENDERER_MODE,
   mapRendererModeFromParam,
@@ -289,6 +290,9 @@ function previewPrepareFromParams(
     return previewSameTimeBattlePlaybackState;
   if (previewWantsBattleOrders(params)) return previewSameTimeBattleOrdersState;
   if (previewWantsCardHand(params)) return previewCardHandState;
+  if (truthyParam(firstParam(params.qualificationRun))) {
+    return prepareMapQualificationFixture;
+  }
   return undefined;
 }
 

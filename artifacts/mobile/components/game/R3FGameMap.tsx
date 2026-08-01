@@ -111,6 +111,7 @@ import {
   battleImpactColor,
 } from "@/game/r3fBattleImpactGeometry";
 import { boundedR3FFrameDeltaSeconds } from "@/game/r3fEffectTimeline";
+import { hasCompleteR3FEffectRenderEvidence } from "@/game/r3fEffectRenderEvidence";
 import { R3F_FEATURE_FLAGS } from "@/game/r3fFeatureFlags";
 import {
   advanceMapCameraIdleSettle,
@@ -647,6 +648,7 @@ function SceneBridge({
   const invalidate = useThree((state) => state.invalidate);
   const renderer = useThree((state) => state.gl);
   const publishedMeshCount = useRef(-1);
+  const publishedEffectRevision = useRef("");
   const projectionKey = model.territories
     .map((territory) => territory.id)
     .join("|");
@@ -719,6 +721,17 @@ function SceneBridge({
       labelLayer?.userData.territoryCount ?? 0,
     );
     publishedMeshCount.current = meshes.length;
+    if (
+      effectRevision &&
+      hasCompleteR3FEffectRenderEvidence({
+        conquestPulseMeshCount,
+        conquestPulseRenderedMeshCount,
+        orderRevealMeshCount,
+        orderRevealRenderedMeshCount,
+      })
+    ) {
+      publishedEffectRevision.current = effectRevision;
+    }
     onBridge({
       camera,
       invalidate,
@@ -737,7 +750,15 @@ function SceneBridge({
       orderRevealRenderedMeshCount,
       rendererInfo: mapRendererInfoSample(renderer),
     });
-  }, [camera, invalidate, onBridge, projected, renderer, scene]);
+  }, [
+    camera,
+    effectRevision,
+    invalidate,
+    onBridge,
+    projected,
+    renderer,
+    scene,
+  ]);
 
   useEffect(() => {
     publishedMeshCount.current = -1;
@@ -747,7 +768,11 @@ function SceneBridge({
   useFrame(() => {
     if (publishedMeshCount.current !== model.territories.length) {
       publishBridge();
-    } else if (R3F_DEBUG_ENABLED && effectRevision) {
+    } else if (
+      effectRevision &&
+      (R3F_DEBUG_ENABLED ||
+        publishedEffectRevision.current !== effectRevision)
+    ) {
       publishBridge();
     }
   });

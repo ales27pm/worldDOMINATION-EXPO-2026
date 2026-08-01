@@ -59,7 +59,9 @@ No donor repository is a dependency or Git submodule. No donor code, model, text
 - `mapFrameProfile.ts` records camera, aggregate battle, cold battle, warm battle, and conquest-pulse frame windows.
 - Samples include FPS, p50/p95/p99, calls, triangles, points, lines, programs, geometries, textures, and heap bytes only when the runtime exposes them. Native memory remains `null`; it is not synthesized.
 - The public Three.js renderer API has no material count. Program, geometry, and texture counts are the automated growth signals; Instruments and Android Profiler remain the material/native-memory authority.
+- `qualificationRun=1` replaces random setup ownership and armies with a deterministic presentation fixture before profiling. Baseline and variant builds therefore produce the same scene revision without sharing app storage.
 - `qualificationBattles` is a qualification-only deep-link parameter. It repeats the presentation effect in one GL context without dispatching a gameplay action. Values are bounded to 500.
+- Native release builds republish an active effect revision only until every shader overlay reaches `onBeforeRender`. This avoids both a pre-draw false negative and a permanent bridge polling loop.
 - Release evidence now requires both shaders rendered, cold/warm/pulse profiles with renderer counters, required flags, stylized water off, and at least 50 stable battle samples.
 - `map:release:check` requires feature-off baseline and adapted variant evidence for Android and iOS. It first validates the adapted Android/iOS release pair, then compares each platform on the same source, app version, device, OS, scene, and 24-hour window.
 - The comparison reports cold and warm FPS, p95, p99, draw calls, triangles, programs, and available memory. It fails closed if either warm p95 or warm p99 regresses by more than 5%, if either absolute profile fails, or if either side lacks 50 stable battle samples.
@@ -87,10 +89,10 @@ No `THIRD_PARTY_NOTICES.md` change is required because no substantial donor code
 
 ## Validation And Measurements
 
-| Lane                      | Result on 2026-07-31                      | Qualification meaning                                                                                                                                                 |
+| Lane                      | Result on 2026-08-01                      | Qualification meaning                                                                                                                                                 |
 | ------------------------- | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | TypeScript                | Passed                                    | Static integration is coherent.                                                                                                                                       |
-| Automated test suite      | 224 Node + 2 Vitest passed                | Covers matrices, timeline, flags, baseline export, cross-platform comparison, scene descriptors, evidence parsing, cold/warm profiles, and 50-sample growth rejection. |
+| Automated test suite      | 226 Node + 2 Vitest passed                | Covers matrices, timeline, flags, deterministic native fixtures, post-draw shader evidence, baseline export, cross-platform comparison, scene descriptors, evidence parsing, cold/warm profiles, and 50-sample growth rejection. |
 | Browser smoke             | Passed across 97 bundled game images      | Compiled both shaders, rendered one eight-instance impact mesh, preserved all territory pick meshes, returned to idle, and exercised a two-battle cold/warm sequence. |
 | Browser performance       | Captured, environment marked `ineligible` | Useful diagnostics only; cannot satisfy native release policy.                                                                                                        |
 | Android and physical iOS  | Pending for the final integration commit  | Required before enabling the two shader flags in production.                                                                                                          |
