@@ -3,8 +3,8 @@ import React, { useEffect, useMemo } from "react";
 import { Platform } from "react-native";
 import {
   ExtrudeGeometry,
-  MirroredRepeatWrapping,
   Path,
+  RepeatWrapping,
   Shape,
   ShapeGeometry,
   SRGBColorSpace,
@@ -74,17 +74,10 @@ function createFootGeometry(): ExtrudeGeometry {
 }
 
 export default function R3FTable() {
-  const walnutSourceTexture = useLoader(
+  // Expo GL must use the loader-owned texture; clones can upload as black on native.
+  const walnutTexture = useLoader(
     TextureLoader,
     Asset.fromModule(TABLE_WALNUT_TEXTURE).uri,
-  );
-  const tabletopTexture = useMemo(
-    () => walnutSourceTexture.clone(),
-    [walnutSourceTexture],
-  );
-  const trimTexture = useMemo(
-    () => walnutSourceTexture.clone(),
-    [walnutSourceTexture],
   );
   const tabletopSurfaceGeometry = useMemo(createTabletopSurfaceGeometry, []);
   const footGeometry = useMemo(createFootGeometry, []);
@@ -93,21 +86,13 @@ export default function R3FTable() {
     MAP_SCENE_TABLETOP_Y - TABLETOP_THICKNESS - APRON_HEIGHT / 2 + 0.04;
 
   useEffect(() => {
-    for (const texture of [tabletopTexture, trimTexture]) {
-      texture.colorSpace = SRGBColorSpace;
-      texture.wrapS = MirroredRepeatWrapping;
-      texture.wrapT = MirroredRepeatWrapping;
-      texture.anisotropy = 8;
-      texture.needsUpdate = true;
-    }
-    tabletopTexture.repeat.set(5, 5);
-    trimTexture.repeat.set(8, 1);
-
-    return () => {
-      tabletopTexture.dispose();
-      trimTexture.dispose();
-    };
-  }, [tabletopTexture, trimTexture]);
+    walnutTexture.colorSpace = SRGBColorSpace;
+    walnutTexture.wrapS = RepeatWrapping;
+    walnutTexture.wrapT = RepeatWrapping;
+    walnutTexture.repeat.set(5, 5);
+    walnutTexture.anisotropy = 8;
+    walnutTexture.needsUpdate = true;
+  }, [walnutTexture]);
 
   return (
     <group name="table">
@@ -127,7 +112,7 @@ export default function R3FTable() {
           ]}
         />
         <meshStandardMaterial
-          map={trimTexture}
+          map={walnutTexture}
           color="#5f3320"
           roughness={0.5}
           metalness={0.02}
@@ -141,7 +126,7 @@ export default function R3FTable() {
         receiveShadow={DYNAMIC_SHADOWS}
       >
         <meshStandardMaterial
-          map={tabletopTexture}
+          map={walnutTexture}
           color="#ffffff"
           roughness={0.44}
           metalness={0.015}
@@ -164,7 +149,7 @@ export default function R3FTable() {
           ]}
         />
         <meshStandardMaterial
-          map={trimTexture}
+          map={walnutTexture}
           color="#4a2a1e"
           roughness={0.58}
           metalness={0.015}
@@ -178,7 +163,7 @@ export default function R3FTable() {
       >
         <torusGeometry args={[MAP_SCENE_TABLETOP_RADIUS - 0.13, 0.14, 8, 48]} />
         <meshStandardMaterial
-          map={trimTexture}
+          map={walnutTexture}
           color="#6a3c27"
           roughness={0.46}
           metalness={0.02}
@@ -192,7 +177,7 @@ export default function R3FTable() {
       >
         <torusGeometry args={[MAP_SCENE_TABLETOP_RADIUS - 0.42, 0.1, 6, 48]} />
         <meshStandardMaterial
-          map={trimTexture}
+          map={walnutTexture}
           color="#3c241b"
           roughness={0.62}
           metalness={0.01}
