@@ -3,6 +3,7 @@ import { test } from "node:test";
 
 import {
   createMapPerformanceEvidence,
+  isCompleteMapPerformanceEvidence,
   parseMapPerformanceEvidence,
   serializeMapPerformanceEvidence,
   type MapPerformanceEvidence,
@@ -178,6 +179,42 @@ test("completed map performance evidence persists under the versioned key", asyn
   await saveMapPerformanceEvidence(storage, evidence);
 
   equal(storage.data.has(MAP_PERFORMANCE_EVIDENCE_KEY), true);
+  deepEqual(await loadMapPerformanceEvidence(storage), evidence);
+});
+
+test("completed failing R3F evidence persists for release diagnostics", async () => {
+  const storage = new MemoryStorage();
+  const evidence = completeEvidence();
+  const failedPulse = {
+    ...passingReport("conquest-pulse"),
+    p95FrameMs: 25,
+    p99FrameMs: 30,
+    maxFrameMs: 35,
+  };
+  const failedBattle = {
+    ...passingReport("battle"),
+    p95FrameMs: 25,
+    p99FrameMs: 30,
+    maxFrameMs: 35,
+  };
+  evidence.qualification = qualifyMapRendererPerformance(
+    {
+      camera: passingReport("camera"),
+      battle: failedBattle,
+      "battle-cold": passingReport("battle-cold"),
+      "battle-warm": passingReport("battle-warm"),
+      "conquest-pulse": failedPulse,
+    },
+    "physical",
+  );
+  evidence.r3f!.featureFlags.orderReveal = false;
+  evidence.r3f!.shaderCompilation.orderReveal = false;
+
+  equal(evidence.qualification.status, "fail");
+  equal(isCompleteMapPerformanceEvidence(evidence), true);
+
+  await saveMapPerformanceEvidence(storage, evidence);
+
   deepEqual(await loadMapPerformanceEvidence(storage), evidence);
 });
 

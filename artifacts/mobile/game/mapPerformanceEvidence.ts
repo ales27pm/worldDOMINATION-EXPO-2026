@@ -99,26 +99,19 @@ export function isCompleteR3FQualificationEvidence(
 ): boolean {
   const r3f = evidence.r3f;
   if (!r3f) return false;
-  const flags = r3f.featureFlags;
   const stability = r3f.rendererStability;
+
+  // Completeness describes whether the run can be diagnosed. Release policy
+  // separately rejects failed profiles, shaders, feature flags, or stability.
   return (
-    flags.qualification &&
-    flags.battleInstancing &&
-    flags.conquestPulse &&
-    flags.orderReveal &&
-    !flags.stylizedWater &&
-    r3f.shaderCompilation.conquestPulse &&
-    r3f.shaderCompilation.orderReveal &&
+    r3f.featureFlags.qualification &&
     stability.requiredBattleCount >= 50 &&
     stability.observedBattleCount >= stability.requiredBattleCount &&
     stability.complete &&
-    stability.stable &&
-    stability.sustainedGrowthFields.length === 0 &&
     REQUIRED_R3F_QUALIFICATION_PROFILE_KINDS.every((kind) => {
       const profile = evidence.qualification.profiles[kind];
       return Boolean(
         profile &&
-        profile.assessment.status === "pass" &&
         profile.report.renderer &&
         profile.report.renderer.sampleCount > 0,
       );
